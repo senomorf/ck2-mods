@@ -1,0 +1,14 @@
+# LF for game text files, as EMF does
+*.txt  text eol=lf
+*.csv  text eol=lf
+*.lua  text eol=lf
+*.gui  text eol=lf
+*.gfx  text eol=lf
+*.mod  text eol=lf
+*.py   text eol=lf
+*.sh   text eol=lf
+*.ps1  text eol=crlf
+*.dds  binary
+*.tga  binary
+*.bmp  binary
+*.png  binary

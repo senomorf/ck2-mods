@@ -1,0 +1,24 @@
+name: Test report
+description: Results of testing a mod in game
+title: "Test: <mod> <PR or commit>"
+body:
+  - type: input
+    id: mod
+    attributes: { label: Mod folder }
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes: { label: Commit or PR, and CK2 version }
+    validations: { required: true }
+  - type: textarea
+    id: results
+    attributes:
+      label: What happened
+      description: Paste the PR's test checklist and tick or comment each line.
+    validations: { required: true }
+  - type: textarea
+    id: log
+    attributes:
+      label: error.log lines
+      description: Output of `python3 tools/errorlog.py error.log <mod>`, or attach error.log.
+      render: text

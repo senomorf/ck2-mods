@@ -1,0 +1,7 @@
+# Paradox game files: reference only, never commit
+vanilla/
+dist/
+__pycache__/
+*.pyc
+.claude/settings.local.json
+reference/
