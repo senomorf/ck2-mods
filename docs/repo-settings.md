@@ -28,8 +28,12 @@ Name `main`, enforcement Active, target: Include default branch. Bypass list: Re
 
 ## Advanced Security
 
-- [ ] Dependabot alerts: on (security updates for `.github/workflows` actions; version updates come from `.github/dependabot.yml`)
+- [ ] Dependabot alerts: on (alerts only; version updates come from Renovate, configured in `renovate.json`)
 - [ ] Secret scanning and push protection: on (free for public repos)
+
+## Renovate
+
+The Renovate app is installed. `renovate.json` updates GitHub Actions, the `.cwtools` submodule, and the DepotDownloader and CWTools CLI versions pinned in `tools/cloud_setup.sh`. Close Renovate's onboarding PR (#2) once `renovate.json` is on `main`, if it hasn't closed itself.
 
 ## Labels
 

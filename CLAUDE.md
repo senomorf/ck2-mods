@@ -42,6 +42,7 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 - Commit subjects start with the mod folder or area: `allied_fleets: add transport request decision`, `tooling: ...`, `docs: ...`.
 - Stay current by rebasing: `git fetch origin main && git rebase origin/main`, then `git push --force-with-lease`. Force-push only your own branches. The session hook sets `pull.rebase` for this checkout.
 - Labels: `needs-in-game-test` on any PR that changes game behaviour; `save-breaking` and `mp-checksum` when they apply; `blocked-on-user` while waiting on the user.
+- Dependency updates come from Renovate PRs (`renovate.json`): Actions, the `.cwtools` submodule, and the tool versions pinned in `tools/cloud_setup.sh`. Keep those pins as `NAME_VERSION=x.y.z` lines so Renovate finds them.
 - Releases: tag `<mod>-v<version>` on `main` (e.g. `allied_fleets-v0.1.0`) and push the tag; CI attaches `dist/<mod>.zip`. Multiplayer players install the same release.
 
 ## Working loop
