@@ -17,6 +17,11 @@ fi
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 say() { echo "session-start: $*"; }
 
+# Rebase workflow (see CLAUDE.md): repo-local git settings for this checkout.
+git config pull.rebase true
+git config rebase.autoStash true
+git config push.autoSetupRemote true
+
 if [ ! -f .cwtools/effects.cwt ]; then
   if git submodule update --init --depth 1 .cwtools >/dev/null 2>&1; then
     say "fetched CWTools rules into .cwtools/"
