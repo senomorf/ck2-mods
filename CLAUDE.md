@@ -10,7 +10,7 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 
 ## Syntax sources, most authoritative first
 
-1. `vanilla/` - the game's own files, when the user has provided them (see README).
+1. `vanilla/` - the game's own files, from the cache the session hook unpacks (`game-files` skill).
 2. `.cwtools/*.cwt` - CWTools rules for CK2 (git submodule, last updated 2019): every effect, trigger, scope and modifier with its parameters. E.g. `grep -n -A30 "alias\[effect:spawn_fleet\]" .cwtools/effects.cwt`.
 3. `reference/emf/` - EMF mod source (gitignored, cloned by the session hook): working examples. Its `EMF+Vanilla/` folder holds vanilla-derived overrides.
 4. `docs/references.md` - CK2 wiki pages, fetched rather than recalled.
@@ -31,6 +31,8 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 - Package: `python3 tools/package.py <folder>` -> `dist/<folder>.zip`
 - Filter a user's error log: `python3 tools/errorlog.py <error.log> [folder]`
 - Session hook (`.claude/hooks/session-start.sh`) fetches `.cwtools/`, clones `reference/emf/`, and unpacks `/mnt/project-files/ck2-vanilla/ck2-game-files.zip` into `vanilla/` when it exists. Manually: `tools/fetch_vanilla.sh <zip>`.
+- Download game files from Steam (user scans a QR code): `python3 tools/steam_fetch_vanilla.py --qr`. Follow the `game-files` skill.
+- Container setup: `tools/cloud_setup.sh` (DepotDownloader, .NET 9, CWTools CLI), called by the `ck2-mod-dev` environment's setup script. Edit it here, not in the environment.
 - CWTools CLI (`cwtools`) is installed by `tools/cloud_setup.sh` in the `ck2-mod-dev` environment. Its CK2 support is partial and it is not yet wired into lint: run `cwtools --help` and try it on a mod before relying on it.
 
 ## Working loop

@@ -48,7 +48,7 @@ if [ -f "$zip" ]; then
     fi
   fi
 elif [ ! -d vanilla ]; then
-  say "no game files at $zip; use .cwtools/ and reference/emf/ for syntax"
+  say "no game files at $zip; use .cwtools/ and reference/emf/ for syntax, or the game-files skill to download them"
 fi
 
 if command -v cwtools >/dev/null 2>&1; then
