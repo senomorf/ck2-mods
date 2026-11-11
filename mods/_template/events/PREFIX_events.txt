@@ -1,0 +1,13 @@
+namespace = {{PREFIX}}
+
+# Example: fire from the console with `event {{PREFIX}}.1`
+character_event = {
+	id = {{PREFIX}}.1
+	desc = EVTDESC_{{PREFIX}}_1
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_{{PREFIX}}_1
+	}
+}

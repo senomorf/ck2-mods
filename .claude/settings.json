@@ -1,0 +1,33 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(python3 tools/lint.py:*)",
+      "Bash(python3 tools/new_mod.py:*)",
+      "Bash(python3 tools/package.py:*)",
+      "Bash(python3 -m unittest:*)",
+      "Bash(tools/lint.py:*)",
+      "Bash(tools/new_mod.py:*)",
+      "Bash(tools/package.py:*)",
+      "Bash(tools/fetch_vanilla.sh:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
+    "deny": [
+      "Bash(git add vanilla:*)",
+      "Bash(git add -f vanilla:*)"
+    ]
+  }
+}

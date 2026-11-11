@@ -1,0 +1,20 @@
+name: lint
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tool tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Lint mods
+        run: python3 tools/lint.py
+      - name: No game files committed
+        run: |
+          if git ls-files | grep -q '^vanilla/'; then echo "vanilla/ must not be committed"; exit 1; fi
