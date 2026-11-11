@@ -5,8 +5,15 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 ## Hard limits
 
 - The game cannot run in a cloud session. Every behaviour claim about a change is unverified until the user tests it in game. Say so in PRs and replies.
-- `vanilla/` holds the game's own files (Paradox content). Read and grep it freely; never commit it, quote large parts of it into the repo, or copy vanilla files into a mod. Copy patterns, not files.
-- Never invent script syntax. Before using an effect, trigger, scope or block you have not already seen in this repo, find a real example in `vanilla/` (or EMF, see `docs/references.md`) and cite the file in the PR. Use the `ck2-syntax` skill.
+- `vanilla/` holds the game's own files (Paradox content), and `reference/` other people's mods. Read and grep it freely; never commit it, quote large parts of it into the repo, or copy vanilla files into a mod. Copy patterns, not files.
+- Never invent script syntax. Before using an effect, trigger, scope or block you have not already seen in this repo, check it against the sources below and cite the file in the PR. Use the `ck2-syntax` skill.
+
+## Syntax sources, most authoritative first
+
+1. `vanilla/` - the game's own files, when the user has provided them (see README).
+2. `.cwtools/*.cwt` - CWTools rules for CK2 (git submodule, last updated 2019): every effect, trigger, scope and modifier with its parameters. E.g. `grep -n -A30 "alias\[effect:spawn_fleet\]" .cwtools/effects.cwt`.
+3. `reference/emf/` - EMF mod source (gitignored, cloned by the session hook): working examples. Its `EMF+Vanilla/` folder holds vanilla-derived overrides.
+4. `docs/references.md` - CK2 wiki pages, fetched rather than recalled.
 
 ## Conventions
 
@@ -23,7 +30,8 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 - Tests for the tools: `python3 -m unittest discover -s tests`
 - Package: `python3 tools/package.py <folder>` -> `dist/<folder>.zip`
 - Filter a user's error log: `python3 tools/errorlog.py <error.log> [folder]`
-- Game files: the session-start hook unpacks `/mnt/project-files/ck2-vanilla/ck2-game-files.zip` into `vanilla/` when it exists. Manually: `tools/fetch_vanilla.sh <zip>`.
+- Session hook (`.claude/hooks/session-start.sh`) fetches `.cwtools/`, clones `reference/emf/`, and unpacks `/mnt/project-files/ck2-vanilla/ck2-game-files.zip` into `vanilla/` when it exists. Manually: `tools/fetch_vanilla.sh <zip>`.
+- CWTools CLI (`cwtools`) is installed by `tools/cloud_setup.sh` in the `ck2-mod-dev` environment. Its CK2 support is partial and it is not yet wired into lint: run `cwtools --help` and try it on a mod before relying on it.
 
 ## Working loop
 

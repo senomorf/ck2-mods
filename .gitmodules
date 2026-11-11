@@ -1,0 +1,3 @@
+[submodule ".cwtools"]
+	path = .cwtools
+	url = https://github.com/cwtools/cwtools-ck2-config

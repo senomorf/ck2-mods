@@ -32,6 +32,18 @@ python3 tools/lint.py my_mod
 
 Default user folders are assumptions to check on first install: `Documents/Paradox Interactive/Crusader Kings II` (Windows, macOS) and `~/.paradoxinteractive/Crusader Kings II` (Linux).
 
+## Claude cloud sessions
+
+Use the `ck2-mod-dev` environment. Paste `tools/cloud_setup.sh` into its Setup script field; it installs .NET 9 and the CWTools CLI. Everything else comes from the session-start hook in `.claude/hooks/`, which runs in any environment:
+
+| Path | Source | In git? |
+| --- | --- | --- |
+| `.cwtools/` | [cwtools-ck2-config](https://github.com/cwtools/cwtools-ck2-config) rule files (also used by the VS Code extension) | Submodule |
+| `reference/emf/` | [EMF](https://github.com/EMFTeam/EMF) source, for working examples | No |
+| `vanilla/` | Your game files, if provided (below) | No |
+
+On your PC, run `git submodule update --init` after cloning so CWTools in VS Code picks up `.cwtools/`.
+
 ## Game files for cloud sessions
 
 Agents need the game's script files to copy real syntax. Zip these folders from the install (Steam > Crusader Kings II > Manage > Browse local files): `common`, `decisions`, `events`, `history`, `localisation`, `interface`. The zip is stored outside git, at `/mnt/project-files/ck2-vanilla/ck2-game-files.zip` in the Claude project, and the session-start hook unpacks it into `vanilla/`.
