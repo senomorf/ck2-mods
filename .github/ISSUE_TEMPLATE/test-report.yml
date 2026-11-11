@@ -1,6 +1,7 @@
 name: Test report
 description: Results of testing a mod in game
 title: "Test: <mod> <PR or commit>"
+labels: [test-report]
 body:
   - type: input
     id: mod

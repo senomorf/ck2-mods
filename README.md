@@ -65,4 +65,8 @@ Fallback without Steam: zip those folders from your install (Steam > Crusader Ki
 
 ## Multiplayer
 
-Every player needs the same commit of the mod. Mods change the game checksum, so compare it in the launcher before hosting.
+Every player needs the same version of the mod, since mods change the game checksum. Install from the same GitHub release (tags `<mod>-v<version>`, built by CI) and compare the checksum in the launcher before hosting.
+
+## Contributing
+
+Rebase workflow with protected `main`; see the Git workflow section of `CLAUDE.md` and `docs/repo-settings.md`.

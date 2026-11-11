@@ -35,6 +35,15 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 - Container setup: `tools/cloud_setup.sh` (DepotDownloader, .NET 9, CWTools CLI), called by the `ck2-mod-dev` environment's setup script. Edit it here, not in the environment.
 - CWTools CLI (`cwtools`) is installed by `tools/cloud_setup.sh` in the `ck2-mod-dev` environment. Its CK2 support is partial and it is not yet wired into lint: run `cwtools --help` and try it on a mod before relying on it.
 
+## Git workflow
+
+- `main` is protected: linear history, PRs only, `lint` must pass, rebase merge only (settings in `docs/repo-settings.md`).
+- One branch per change, named `<mod>/<topic>` or `tooling/<topic>`. Keep commits small and self-contained; each should pass lint, since rebase merge keeps them all on `main`.
+- Commit subjects start with the mod folder or area: `allied_fleets: add transport request decision`, `tooling: ...`, `docs: ...`.
+- Stay current by rebasing: `git fetch origin main && git rebase origin/main`, then `git push --force-with-lease`. Force-push only your own branches. The session hook sets `pull.rebase` for this checkout.
+- Labels: `needs-in-game-test` on any PR that changes game behaviour; `save-breaking` and `mp-checksum` when they apply; `blocked-on-user` while waiting on the user.
+- Releases: tag `<mod>-v<version>` on `main` (e.g. `allied_fleets-v0.1.0`) and push the tag; CI attaches `dist/<mod>.zip`. Multiplayer players install the same release.
+
 ## Working loop
 
 1. Plan the mod's design in `mods/<folder>/README.md` (what it adds, save and multiplayer impact).

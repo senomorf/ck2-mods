@@ -15,4 +15,4 @@ if [[ ${#entries[@]} -eq 1 && -d "${entries[0]}" && ! -d "$tmp/common" ]]; then 
 rm -rf "$repo/vanilla"
 mv "$src" "$repo/vanilla"
 [[ "$src" == "$tmp" ]] && trap - EXIT
-echo "vanilla/ now holds: $(ls "$repo/vanilla" | tr '\n' ' ')"
+echo "vanilla/ now holds: $(find "$repo/vanilla" -mindepth 1 -maxdepth 1 -printf '%f ')"
