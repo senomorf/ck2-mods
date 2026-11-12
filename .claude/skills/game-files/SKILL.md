@@ -1,6 +1,6 @@
 ---
 name: game-files
-description: Get CK2's own game files into vanilla/ for a cloud session, downloading them from the user's Steam account with a QR login when no cached copy exists.
+description: Get CK2's own game files into vanilla/ for a cloud session, from the cached zip in project files, a zip the user uploads, or (fallback) a Steam QR login.
 ---
 
 # Game files (vanilla/)
@@ -12,7 +12,13 @@ The session hook unpacks the cached copy automatically. Do this only when `vanil
 - `ls -la /mnt/project-files/ck2-vanilla/` and read `ck2-game-files.json` (date, file count, depot manifests).
 - If the zip exists: `tools/fetch_vanilla.sh /mnt/project-files/ck2-vanilla/ck2-game-files.zip`. Done.
 
-## 2. Download from Steam (needs the user, once)
+## 2. Ask the user for a zip (preferred)
+
+The user prefers uploading over Steam logins (2026-11-12). Ask them to zip these folders from the CK2 install folder (Steam > Crusader Kings II > Manage > Browse local files): `common`, `decisions`, `events`, `history`, `interface`, `localisation`, plus `map/*.txt|csv|map` if handy. The 3.3.3 zip was 17 MB. Copy the upload to `/mnt/project-files/ck2-vanilla/ck2-game-files.zip`, write `ck2-game-files.json` beside it (files, sha256, game version), and unpack with `tools/fetch_vanilla.sh`.
+
+## 3. Download from Steam (fallback, needs the user)
+
+Only if the user asks for it. The first attempt (2026-11-12) lost its Steam connection about 2 minutes into the QR login.
 
 Requires the `ck2-mod-dev` environment (unrestricted network) with `DepotDownloader` installed by `tools/cloud_setup.sh`. Check with `command -v DepotDownloader`.
 
