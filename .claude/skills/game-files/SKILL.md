@@ -18,7 +18,7 @@ The user prefers uploading over Steam logins (2026-11-12). Ask them to zip these
 
 ## 3. Download from Steam (fallback, needs the user)
 
-Only if the user asks for it. The first attempt (2026-11-12) lost its Steam connection about 2 minutes into the QR login.
+Does not work from a Claude cloud session (checked 2026-11-12): the agent proxy does not carry WebSocket or raw TCP connections, which Steam login needs (`/root/.ccr/README.md`, "Not supported through the proxy"). The steps below only apply on a machine with direct internet access.
 
 Requires the `ck2-mod-dev` environment (unrestricted network) with `DepotDownloader` installed by `tools/cloud_setup.sh`. Check with `command -v DepotDownloader`.
 

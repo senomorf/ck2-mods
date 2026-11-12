@@ -17,6 +17,16 @@ jobs:
         run: python3 tools/lint.py
       - name: Shell scripts
         run: shellcheck tools/*.sh .claude/hooks/*.sh
+      - name: PowerShell scripts parse
+        shell: pwsh
+        run: |
+          $bad = 0
+          foreach ($f in Get-ChildItem tools -Filter *.ps1) {
+            $e = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$e) | Out-Null
+            foreach ($x in $e) { Write-Host "$($f.Name): $x"; $bad++ }
+          }
+          if ($bad) { exit 1 }
       - name: No game files committed
         run: |
           if git ls-files | grep -q '^vanilla/\|^reference/'; then echo "vanilla/ and reference/ must not be committed"; exit 1; fi
