@@ -1,0 +1,77 @@
+# Boot the real game with each changed mod on self-hosted runners. See docs/test-pipeline.md.
+# Off until a runner exists: set repository variable CK2_SMOKE_WINDOWS (or CK2_SMOKE_LINUX) to true.
+name: smoke
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows:
+    name: windows smoke
+    # Fork pull requests never reach the self-hosted runner: this repository is public.
+    if: >-
+      vars.CK2_SMOKE_WINDOWS == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, windows, ck2]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Smoke changed mods
+        shell: powershell
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $all = Get-ChildItem mods -Directory | Where-Object { $_.Name -notlike '_*' } | ForEach-Object Name
+          $mods = $all
+          if ($env:EVENT -ne 'workflow_dispatch' -and $env:BASE_SHA -and $env:BASE_SHA -notmatch '^0+$') {
+            $changed = git diff --name-only "$env:BASE_SHA" HEAD -- mods
+            $mods = $all | Where-Object { $m = $_; $changed | Where-Object { $_ -like "mods/$m/*" -or $_ -eq "mods/$m.mod" } }
+          }
+          if (-not $mods) { Write-Host 'no mod changed'; exit 0 }
+          $common = @{}
+          if ($env:CK2_GAME_DIR) { $common.GameDir = $env:CK2_GAME_DIR }
+          if ($env:CK2_USER_DIR) { $common.UserDir = $env:CK2_USER_DIR }
+          if (-not (Test-Path "$env:LOCALAPPDATA\ck2-mods\smoke\_baseline\error.log")) {
+            & .\tools\smoke.ps1 -Baseline @common
+          }
+          $failed = @()
+          foreach ($m in $mods) {
+            & .\tools\smoke.ps1 $m @common
+            if ($LASTEXITCODE -ne 0) { $failed += $m }
+          }
+          New-Item -ItemType Directory -Force smoke-reports | Out-Null
+          foreach ($m in $mods) { Copy-Item -Recurse -Force "$env:LOCALAPPDATA\ck2-mods\smoke\$m" "smoke-reports\$m" }
+          if ($failed) { Write-Host "failed: $($failed -join ', ')"; exit 1 }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-windows
+          path: smoke-reports
+          if-no-files-found: ignore
+
+  linux:
+    name: linux smoke
+    if: >-
+      vars.CK2_SMOKE_LINUX == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, linux, ck2]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke changed mods
+        run: |
+          if [ ! -x tools/smoke.sh ]; then
+            echo "tools/smoke.sh not written yet; see docs/test-pipeline.md (Linux runner contract)"
+            exit 1
+          fi
+          tools/smoke.sh
