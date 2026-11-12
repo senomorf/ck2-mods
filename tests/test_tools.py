@@ -96,6 +96,39 @@ class ToolsTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("2x", r.stdout)
         self.assertNotIn("unrelated", r.stdout)
+    def test_xref_fired_event_missing(self) -> None:
+        (self.mod / "events" / "zzt_x.txt").write_text(
+            "namespace = zzt\ncharacter_event = {\n\tid = zzt.2\n\tdesc = EVTDESC_zzt_1\n"
+            "\toption = { name = EVTOPTA_zzt_1 character_event = { id = zzt.99 } }\n}\n")
+        code, out = self.lint()
+        self.assertEqual(code, 1, out)
+        self.assertIn("fires event zzt.99", out)
+
+    def test_xref_warnings(self) -> None:
+        (self.mod / "events" / "zzt_x.txt").write_text(
+            "namespace = zzt\ncharacter_event = {\n\tid = zzt.2\n\tdesc = EVTDESC_zzt_1\n"
+            "\tis_triggered_only = yes\n"
+            "\toption = { name = EVTOPTA_zzt_1 set_character_flag = zzt_set_only\n"
+            "\t\tevent_target:zzt_nowhere = { has_character_flag = zzt_never_set }\n"
+            "\t\tcharacter_event = { id = zzt.1 } }\n}\n")
+        (self.mod / "decisions" / "zzt_decisions.txt").write_text(
+            "decisions = {\n\tzzt_do_thing = {\n\t\teffect = { has_earmarked_regiments = zzt_nomark }\n\t}\n}\n")
+        code, out = self.lint()
+        self.assertEqual(code, 0, out)
+        for needle in ("zzt.2 is_triggered_only but nothing", "zzt_set_only is set but never",
+                       "zzt_never_set is checked or cleared but never set", "event_target:zzt_nowhere",
+                       "no localisation key zzt_do_thing", "earmark zzt_nomark"):
+            self.assertIn(needle, out)
+        self.assertNotIn("zzt.1 is_triggered_only", out)
+
+    def test_xref_parse(self) -> None:
+        import xref
+        nodes = xref.parse('a = { b = "x y" # c = 1\n d >= 2 { 1 2 } }')
+        self.assertEqual(nodes[0].key, "a")
+        inner = nodes[0].value
+        self.assertEqual([(n.key, n.value) for n in inner[:2]], [("b", "x y"), ("d", "2")])
+        self.assertEqual([n.key for n in inner[2].value], ["1", "2"])
+
 
 class CwtoolsCheckTest(unittest.TestCase):
     def test_skips_without_cwtools(self) -> None:
