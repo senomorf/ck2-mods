@@ -29,6 +29,7 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 - Lint: `python3 tools/lint.py [--cwtools] [folder ...]` (must pass before pushing). It includes `tools/xref.py` cross-reference checks: fired events exist, flags set and used, event targets saved, decision localisation. `--cwtools` adds CWTools checks (needs `cwtools` and `vanilla/`, ~30-40 s); its findings are warnings, since its 2019 rules misreport some valid script. Verify each against `vanilla/`, and add confirmed false positives to `tools/cwtools_ignore.txt` with the vanilla file that disproves them.
 - Tests for the tools: `python3 -m unittest discover -s tests`
 - Package: `python3 tools/package.py <folder>` -> `dist/<folder>.zip`
+- Smoke test on the user's Windows PC: `tools\smoke.ps1 -Baseline` once, then `tools\smoke.ps1 <folder>`. It boots CK2 with the mod, closes it at the main menu, and reports new `error.log` lines vs the baseline. Its launch arguments are unverified until the user's first run.
 - Filter a user's error log: `python3 tools/errorlog.py <error.log> [folder]`
 - Session hook (`.claude/hooks/session-start.sh`) fetches `.cwtools/`, clones `reference/emf/`, and unpacks `/mnt/project-files/ck2-vanilla/ck2-game-files.zip` into `vanilla/` when it exists. Manually: `tools/fetch_vanilla.sh <zip>`.
 - Game files are cached (CK2 3.3.3, uploaded by the user 2026-11-12). If the cache is lost, follow the `game-files` skill; the user prefers a manual upload over Steam logins.
