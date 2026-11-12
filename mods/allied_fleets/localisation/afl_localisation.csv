@@ -1,0 +1,10 @@
+#CODE;ENGLISH;FRENCH;GERMAN;;SPANISH;;;;;;;;;x
+afl_request_ships;Request Ships;;;;;;;;;;;;;x
+afl_request_ships_desc;Ask [Root.GetTitledName] to lend you a fleet of 20 ships for this war, for 50 gold. The ships are yours to command and disband when the war ends.;;;;;;;;;;;;;x
+EVTDESC_afl_1;[afl_requester.GetTitledName], our ally, asks us to lend a fleet of 20 ships for the war, and offers 50 gold in return.;;;;;;;;;;;;;x
+EVTOPTA_afl_1;Lend them the ships.;;;;;;;;;;;;;x
+EVTOPTB_afl_1;We need our ships.;;;;;;;;;;;;;x
+EVTDESC_afl_2;Our ally has agreed. A fleet of 20 ships awaits our orders in the nearest port.;;;;;;;;;;;;;x
+EVTOPTA_afl_2;Excellent.;;;;;;;;;;;;;x
+EVTDESC_afl_3;Our ally has refused to lend us ships.;;;;;;;;;;;;;x
+EVTOPTA_afl_3;So be it.;;;;;;;;;;;;;x
