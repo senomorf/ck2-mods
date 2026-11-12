@@ -1,0 +1,8 @@
+# CWTools findings that are known false positives for CK2 3.3.3.
+# One Python regex per line, matched against the finding's message.
+# Add a pattern only with the vanilla file that disproves the finding.
+
+# spawn_fleet/spawn_unit without earmark: vanilla/decisions/jd_decisions.txt (spawn_fleet, no earmark)
+^Missing earmark, expecting at least 1$
+# province = closest: vanilla/decisions/unit_decisions.txt (conscript_merchant_ships)
+^closest is not a target\.

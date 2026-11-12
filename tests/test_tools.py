@@ -97,6 +97,14 @@ class ToolsTest(unittest.TestCase):
         self.assertIn("2x", r.stdout)
         self.assertNotIn("unrelated", r.stdout)
 
+class CwtoolsCheckTest(unittest.TestCase):
+    def test_skips_without_cwtools(self) -> None:
+        import cwtools_check
+        from unittest import mock
+        with mock.patch("shutil.which", return_value=None), mock.patch("builtins.print") as p:
+            self.assertEqual(cwtools_check.main(["--strict", "_template"]), 0)
+        self.assertIn("skipped", p.call_args[0][0])
+
 
 if __name__ == "__main__":
     unittest.main()

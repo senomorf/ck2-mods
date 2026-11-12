@@ -49,8 +49,8 @@ class SteamFetchTest(unittest.TestCase):
     def test_parse_ascii_qr(self) -> None:
         grid = sfv.parse_ascii_qr(ASCII)
         self.assertIsNotNone(grid)
-        # Quiet zone of 2 modules each side, then the original grid.
-        self.assertEqual([row[2:-2] for row in grid], GRID)
+        # The 2-module padding each side is trimmed.
+        self.assertEqual(grid, GRID)
 
     def test_write_png(self) -> None:
         with tempfile.TemporaryDirectory() as d:
