@@ -5,6 +5,9 @@ runner must provide. Host setup (installing runners, game files, isolation) is d
 homelab repo; this file is the contract those hosts must meet. Nothing here is verified on a runner
 yet: each section says what is.
 
+Host work is tracked in the homelab repo: senomorf/homelab#2320 (public-repo decision),
+senomorf/homelab#2321 (Windows runner on Polaris), senomorf/homelab#2322 (Linux headless game).
+
 ## Layers
 
 | Layer | Where | What it catches | Status |
