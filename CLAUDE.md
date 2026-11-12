@@ -26,7 +26,7 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 ## Commands
 
 - New mod: `python3 tools/new_mod.py <folder> --prefix <p> --name "Name"`
-- Lint: `python3 tools/lint.py [--cwtools] [folder ...]` (must pass before pushing). `--cwtools` adds CWTools checks (needs `cwtools` and `vanilla/`, ~30-40 s); its findings are warnings, since its 2019 rules misreport some valid script. Verify each against `vanilla/`, and add confirmed false positives to `tools/cwtools_ignore.txt` with the vanilla file that disproves them.
+- Lint: `python3 tools/lint.py [--cwtools] [folder ...]` (must pass before pushing). It includes `tools/xref.py` cross-reference checks: fired events exist, flags set and used, event targets saved, decision localisation. `--cwtools` adds CWTools checks (needs `cwtools` and `vanilla/`, ~30-40 s); its findings are warnings, since its 2019 rules misreport some valid script. Verify each against `vanilla/`, and add confirmed false positives to `tools/cwtools_ignore.txt` with the vanilla file that disproves them.
 - Tests for the tools: `python3 -m unittest discover -s tests`
 - Package: `python3 tools/package.py <folder>` -> `dist/<folder>.zip`
 - Filter a user's error log: `python3 tools/errorlog.py <error.log> [folder]`

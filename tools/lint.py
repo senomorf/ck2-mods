@@ -18,6 +18,9 @@ Warnings:
   - event id not using the mod's prefix (from mods/<mod>/PREFIX)
   - desc/name/title key not found in the mod's or vanilla localisation
 
+Cross-reference checks (fired events exist, flags set and used, event
+targets saved, decision localisation) come from tools/xref.py.
+
 Vanilla localisation is read from vanilla/localisation when present.
 This is a heuristic checker, not a full CK2 parser; the game's error.log
 is still the final word.
@@ -25,6 +28,8 @@ is still the final word.
 import re
 import sys
 from pathlib import Path
+
+import xref
 
 ROOT = Path(__file__).resolve().parent.parent
 MODS = ROOT / "mods"
@@ -186,6 +191,8 @@ def main(argv: list[str]) -> int:
     rep = Report()
     for folder in folders:
         lint_mod(folder, vanilla_keys, rep)
+        if (MODS / folder).is_dir():
+            xref.check_mod(folder, lambda kind, path, line, msg: (rep.error if kind == "error" else rep.warn)(path, f"line {line}: {msg}"))
     print(f"{len(folders)} mod(s) checked: {rep.errors} error(s), {rep.warnings} warning(s)")
     if use_cwtools and folders:
         import cwtools_check
