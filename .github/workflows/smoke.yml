@@ -14,10 +14,14 @@ concurrency:
 jobs:
   windows:
     name: windows smoke
-    # Fork pull requests never reach the self-hosted runner: this repository is public.
+    # Fork pull requests never reach the self-hosted runner (this repository is public), and
+    # Renovate's pull requests are skipped: they change no mod.
     if: >-
       vars.CK2_SMOKE_WINDOWS == 'true' &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      (github.event_name != 'pull_request' ||
+       (github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.user.login != 'renovate[bot]' &&
+        !startsWith(github.head_ref, 'renovate/')))
     runs-on: [self-hosted, windows, ck2]
     timeout-minutes: 30
     steps:
@@ -63,7 +67,10 @@ jobs:
     name: linux smoke
     if: >-
       vars.CK2_SMOKE_LINUX == 'true' &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      (github.event_name != 'pull_request' ||
+       (github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.user.login != 'renovate[bot]' &&
+        !startsWith(github.head_ref, 'renovate/')))
     runs-on: [self-hosted, linux, ck2]
     timeout-minutes: 30
     steps:

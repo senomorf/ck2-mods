@@ -34,7 +34,7 @@ internet can log in to Steam once and keep the game.
 | `CK2_SMOKE_LINUX=true` | the `linux smoke` job runs on `[self-hosted, linux, ck2]` |
 
 With a variable unset, its job is skipped rather than left queued. Jobs run on pushes to `main`,
-pull requests **from branches of this repository only** (`head.repo.full_name == github.repository`),
+pull requests **from branches of this repository only** (`head.repo.full_name == github.repository`), except Renovate's (author `renovate[bot]` or branch `renovate/*`),
 and by hand (`workflow_dispatch`). The job-level `if` is evaluated before a runner is assigned, so a fork's
 pull request never reaches a self-hosted runner. See [Security](#security).
 
