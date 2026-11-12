@@ -1,0 +1,71 @@
+namespace = afl
+
+# afl.1: the ally decides on a request for ships.
+# ROOT = the ally, event_target:afl_requester = the ruler asking.
+character_event = {
+	id = afl.1
+	desc = EVTDESC_afl_1
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	# Accept: the requester pays 50 gold to the ally and gets a fleet of
+	# their own, the same size and terms as vanilla conscript_merchant_ships
+	# (vanilla/decisions/unit_decisions.txt).
+	option = {
+		name = EVTOPTA_afl_1
+		wealth = 50
+		event_target:afl_requester = {
+			wealth = -50
+			spawn_fleet = {
+				province = closest
+				owner = event_target:afl_requester
+				disband_on_peace = yes
+				earmark = afl_lent_ships
+				troops = {
+					galleys = { 20 20 }
+				}
+			}
+			clr_character_flag = afl_request_pending
+			character_event = { id = afl.2 }
+		}
+		ai_chance = {
+			factor = 75
+		}
+	}
+
+	# Decline
+	option = {
+		name = EVTOPTB_afl_1
+		event_target:afl_requester = {
+			clr_character_flag = afl_request_pending
+			character_event = { id = afl.3 }
+		}
+		ai_chance = {
+			factor = 25
+		}
+	}
+}
+
+# afl.2: tells the requester the ally agreed.
+character_event = {
+	id = afl.2
+	desc = EVTDESC_afl_2
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_2
+	}
+}
+
+# afl.3: tells the requester the ally refused.
+character_event = {
+	id = afl.3
+	desc = EVTDESC_afl_3
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_3
+	}
+}

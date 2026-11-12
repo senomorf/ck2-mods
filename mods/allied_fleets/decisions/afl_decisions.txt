@@ -1,0 +1,40 @@
+# Allied Fleets: ask an ally to lend you ships.
+# Targeted decision: ROOT = the ally (target), FROM = the ruler asking.
+# Pattern: break_non_aggression_pact (vanilla/decisions/rip_various_decisions.txt)
+# for a decision targeting a character outside your realm.
+
+targeted_decisions = {
+
+	afl_request_ships = {
+		ai_target_filter = self
+		ai = no
+
+		from_potential = {
+			is_playable = yes
+		}
+		potential = {
+			is_allied_with = FROM
+		}
+		allow = {
+			FROM = {
+				war = yes
+				wealth = 50
+				NOT = { has_earmarked_regiments = afl_lent_ships }
+				NOT = { has_character_flag = afl_request_pending }
+			}
+		}
+		effect = {
+			FROM = {
+				save_event_target_as = afl_requester
+				set_character_flag = afl_request_pending
+			}
+			character_event = { id = afl.1 }
+		}
+		revoke_allowed = {
+			always = no
+		}
+		ai_will_do = {
+			factor = 0
+		}
+	}
+}
