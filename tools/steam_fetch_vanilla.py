@@ -62,7 +62,11 @@ def parse_ascii_qr(lines: list[str]) -> list[list[bool]] | None:
     rows = [r.ljust(width) for r in rows]
     runs = [len(m.group(0)) for r in rows for m in re.finditer(r"█+| +", r)]
     unit = min(runs) if runs else 1
-    return [[r[i] == "█" for i in range(0, width, unit)] for r in rows]
+    grid = [[r[i] == "█" for i in range(0, width, unit)] for r in rows]
+    # Drop DepotDownloader's own padding; write_png adds an even quiet zone.
+    cols = [x for x in range(len(grid[0])) if any(row[x] for row in grid)]
+    grid = [row[cols[0]:cols[-1] + 1] for row in grid if any(row)]
+    return grid
 
 
 def write_png(grid: list[list[bool]], path: Path, scale: int = 8, border: int = 4) -> None:

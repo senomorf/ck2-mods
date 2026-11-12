@@ -26,14 +26,15 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 ## Commands
 
 - New mod: `python3 tools/new_mod.py <folder> --prefix <p> --name "Name"`
-- Lint: `python3 tools/lint.py [folder ...]` (must pass before pushing)
+- Lint: `python3 tools/lint.py [--cwtools] [folder ...]` (must pass before pushing). `--cwtools` adds CWTools checks (needs `cwtools` and `vanilla/`, ~30-40 s); its findings are warnings, since its 2019 rules misreport some valid script. Verify each against `vanilla/`, and add confirmed false positives to `tools/cwtools_ignore.txt` with the vanilla file that disproves them.
 - Tests for the tools: `python3 -m unittest discover -s tests`
 - Package: `python3 tools/package.py <folder>` -> `dist/<folder>.zip`
 - Filter a user's error log: `python3 tools/errorlog.py <error.log> [folder]`
 - Session hook (`.claude/hooks/session-start.sh`) fetches `.cwtools/`, clones `reference/emf/`, and unpacks `/mnt/project-files/ck2-vanilla/ck2-game-files.zip` into `vanilla/` when it exists. Manually: `tools/fetch_vanilla.sh <zip>`.
-- Download game files from Steam (user scans a QR code): `python3 tools/steam_fetch_vanilla.py --qr`. Follow the `game-files` skill.
+- Game files are cached (CK2 3.3.3, uploaded by the user 2026-11-12). If the cache is lost, follow the `game-files` skill; the user prefers a manual upload over Steam logins.
 - Container setup: `tools/cloud_setup.sh` (DepotDownloader, .NET 9, CWTools CLI), called by the `ck2-mod-dev` environment's setup script. Edit it here, not in the environment.
-- CWTools CLI (`cwtools`) is installed by `tools/cloud_setup.sh` in the `ck2-mod-dev` environment. Its CK2 support is partial and it is not yet wired into lint: run `cwtools --help` and try it on a mod before relying on it.
+- CWTools CLI (`cwtools`) is installed by `tools/cloud_setup.sh` in the `ck2-mod-dev` environment. Run it through `tools/cwtools_check.py` (or `lint.py --cwtools`), which builds a vanilla cache in `.cache/cwtools/`.
+- If `vanilla/` or `.cwtools/` is missing at session start (seen 2026-11-12: the hook did not run in a session that opened in `/home/user` rather than the repo), run `CLAUDE_CODE_REMOTE=true CLAUDE_PROJECT_DIR=$PWD bash .claude/hooks/session-start.sh`.
 
 ## Git workflow
 

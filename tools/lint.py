@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Static checks for CK2 mods in mods/.
 
-Usage: tools/lint.py [mod_folder ...]   (default: every mod except _template)
+Usage: tools/lint.py [--cwtools] [mod_folder ...]   (default: every mod except _template)
+
+--cwtools also runs tools/cwtools_check.py (CWTools rules: unknown effects,
+triggers, scopes, traits). Its findings are warnings and never fail lint.
 
 Errors (exit 1):
   - descriptor mods/<mod>.mod missing, or its path does not point at mod/<mod>
@@ -174,6 +177,8 @@ def lint_mod(folder: str, vanilla_keys: dict[str, Path], rep: Report) -> None:
 
 
 def main(argv: list[str]) -> int:
+    use_cwtools = "--cwtools" in argv
+    argv = [a for a in argv if a != "--cwtools"]
     folders = argv or sorted(p.name for p in MODS.iterdir() if p.is_dir() and not p.name.startswith("_"))
     vanilla_keys: dict[str, Path] = {}
     if (VANILLA / "localisation").is_dir():
@@ -182,6 +187,9 @@ def main(argv: list[str]) -> int:
     for folder in folders:
         lint_mod(folder, vanilla_keys, rep)
     print(f"{len(folders)} mod(s) checked: {rep.errors} error(s), {rep.warnings} warning(s)")
+    if use_cwtools and folders:
+        import cwtools_check
+        cwtools_check.main(folders)
     return 1 if rep.errors else 0
 
 

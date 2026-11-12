@@ -6,7 +6,7 @@
 #
 # Installs:
 #   - DepotDownloader: downloads the game's files from Steam (tools/steam_fetch_vanilla.py)
-#   - .NET 9 SDK + CWTools CLI: optional extra validation (not yet wired into lint)
+#   - .NET 9 SDK + CWTools CLI: optional extra validation (tools/cwtools_check.py, lint.py --cwtools)
 # Each step is optional: failures are logged and never stop the session.
 # Safe to run again: installed tools are skipped.
 set -u
