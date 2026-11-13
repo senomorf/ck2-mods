@@ -1,5 +1,6 @@
 import contextlib
 import io
+import os
 import shutil
 import subprocess
 import sys
@@ -48,6 +49,16 @@ class ToolsTest(unittest.TestCase):
         code, out = self.lint()
         self.assertEqual(code, 1)
         self.assertIn("unclosed", out)
+
+    def test_github_annotations(self) -> None:
+        (self.mod / "events" / "zzt_dup.txt").write_text("character_event = {\n\tid = zzt.1\n}\n")
+        r = subprocess.run([sys.executable, "tools/lint.py", self.folder], cwd=ROOT, capture_output=True, text=True,
+                           env={**os.environ, "GITHUB_ACTIONS": "true"})
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertRegex(r.stdout, r"(?m)^::error file=mods/zz_selftest/events/zzt_[a-z]+\.txt(,line=\d+)?::.*duplicate event id zzt\.1")
+        env = {k: v for k, v in os.environ.items() if k != "GITHUB_ACTIONS"}
+        r = subprocess.run([sys.executable, "tools/lint.py", self.folder], cwd=ROOT, capture_output=True, text=True, env=env)
+        self.assertNotIn("::error", r.stdout)
 
     def test_brace_in_comment_and_string_ignored(self) -> None:
         (self.mod / "events" / "zzt_ok.txt").write_text('# { not code\nx = "a { b"\n')
