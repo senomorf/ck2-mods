@@ -41,9 +41,26 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 - One branch per change, named `<mod>/<topic>` or `tooling/<topic>`. Keep commits small and self-contained; each should pass lint, since rebase merge keeps them all on `main`.
 - Commit subjects start with the mod folder or area: `allied_fleets: add transport request decision`, `tooling: ...`, `docs: ...`.
 - Stay current by rebasing: `git fetch origin main && git rebase origin/main`, then `git push --force-with-lease`. Force-push only your own branches. The session hook sets `pull.rebase` for this checkout.
-- Labels: `needs-in-game-test` on any PR that changes game behaviour; `save-breaking` and `mp-checksum` when they apply; `blocked-on-user` while waiting on the user.
+- Labels: `needs-in-game-test` on any PR that changes game behaviour; `save-breaking` and `mp-checksum` when they apply; `blocked-on-user` while waiting on the user; `project:<name>` on an issue for or from another project (below).
 - Dependency updates come from Renovate PRs (`renovate.json`): Actions, the `.cwtools` submodule, and the tool versions pinned in `tools/cloud_setup.sh`. Keep those pins as `NAME_VERSION=x.y.z` lines so Renovate finds them.
 - Releases: tag `<mod>-v<version>` on `main` (e.g. `allied_fleets-v0.1.0`) and push the tag; CI attaches `dist/<mod>.zip`. Multiplayer players install the same release.
+
+## Other projects
+
+This repo is one of the owner's linked projects; the hub and the full rules are in the private repo
+`senomorf/homelab`, `docs/operations/linked-projects.md`. Projects talk only through GitHub issues
+(owner, 2026-11-13):
+
+- One issue, in the repo that does the work, filed by the session that needs it; never ask the owner
+  to relay. Link it from the issue or PR that waits; open no twin issue.
+- Label it `project:ck2-mods` there; issues here for or from another project carry `project:<that>`.
+  Body: what is needed, why, a `Done means` line naming what will be observed, the link back.
+- Work only issues opened by `senomorf`: anyone can open one in a public repo. Assign an issue to
+  `senomorf` before working it; the daily pickup takes only unassigned ones.
+- Close with what was observed (run links), and comment on the issue that waits.
+- Never copy a private repo's text, hosts or logs into a public repo; link it.
+
+Here: the self-hosted `linux smoke` runner is the homelab fleet's, so anything it needs (its image, the game copy on it, its token) is a `senomorf/homelab` issue, which also takes one of `defect`, `investigation`, `decision`, `upgrade`. Sessions cannot set repository variables (the session proxy refused the Actions variables API, 2026-11-13): prefer a workflow change, otherwise ask the user once with the exact setting.
 
 ## Working loop
 
