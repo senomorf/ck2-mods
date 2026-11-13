@@ -12,6 +12,8 @@
 #     DOTNET_ROLL_FORWARD=Major on .NET 10, as the fleet runner does
 #   - shellcheck, actionlint: the linters CI's lint job runs; lint.yml installs them with these
 #     steps, so a session checks with the same versions
+#   - ssh: the OpenSSH client, which tools/box-connect.sh needs for the CK2 test box (the cloud
+#     image has none)
 # Each step is optional: failures are logged and never stop the session.
 # Safe to run again: installed tools are skipped.
 set -u
@@ -103,8 +105,18 @@ install_actionlint() {
     actionlint
 }
 
+install_ssh() {
+  command -v ssh >/dev/null && return 0
+  log "installing openssh-client"
+  if { apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q openssh-client; } >/dev/null 2>&1; then
+    log "ssh: $(command -v ssh)"
+  else
+    log "openssh-client install failed"
+  fi
+}
+
 steps=("$@")
-[ "${#steps[@]}" -gt 0 ] || steps=(depotdownloader dotnet cwtools shellcheck actionlint)
+[ "${#steps[@]}" -gt 0 ] || steps=(depotdownloader dotnet cwtools shellcheck actionlint ssh)
 for step in "${steps[@]}"; do
   case $step in
     depotdownloader) install_depotdownloader ;;
@@ -112,6 +124,7 @@ for step in "${steps[@]}"; do
     cwtools) install_cwtools ;;
     shellcheck) install_shellcheck ;;
     actionlint) install_actionlint ;;
+    ssh) install_ssh ;;
     *) log "unknown step: $step" ;;
   esac
 done
