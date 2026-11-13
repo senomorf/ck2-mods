@@ -130,6 +130,12 @@ its steps files or `tools/install.sh`, and by hand. It picks mods the way the sm
    Single Player > Continue loads it (`tools/campaign/continue.txt`); it runs to 1068.1.1. So each
    mod plays the same year vanilla did, from a save made without it, which also checks that an
    existing save loads with the mod.
+   When the push or pull request changes a mod that its base commit already has, the base's
+   version of the mod plays that year first, and this version loads the save it made and plays the
+   next year (to 1069.1.1). So a save holding the old version's flags, modifiers and characters
+   must load with the new one (CLAUDE.md: keep existing saves loading). The base version's run is
+   in `<mod>.base/` in the artifact; if it fails, this version loads vanilla's save instead. It adds
+   about 12 minutes per such mod. Manual runs have no base, so they skip it.
 3. New `error.log` lines against the vanilla run are split by whether they name the mod (its
    folder, prefix or a file name). Those fail the job; the rest are listed as warnings, because
    the game's own runtime errors differ from run to run. A mod whose name `system.log` lacks fails.
