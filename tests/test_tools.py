@@ -141,3 +141,56 @@ class CwtoolsCheckTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HarnessTest(unittest.TestCase):
+    def test_instrument(self) -> None:
+        import harness
+
+        text = (
+            "namespace = zzt\n"
+            "# character_event = { id = zzt.0 }\n"
+            "character_event = {\n\tid = zzt.1\n\tdesc = \"a { b\"\n\timmediate = {\n\t\twealth = 1\n\t}\n\toption = { name = OK }\n}\n"
+            "province_event = { id = zzt.2 option = { name = OK } }\n"
+            "narrative_event = {\n\tid = zzt.3\n\toption = { name = OK immediate = { } }\n}\n"
+        )
+        out, ids = harness.instrument(text)
+        self.assertEqual(ids, ["zzt.1", "zzt.2", "zzt.3"])
+        self.assertIn('immediate = {\n\t\tlog = "CK2TEST fired zzt.1"', out)
+        self.assertIn('immediate = { log = "CK2TEST fired zzt.2" }', out)
+        # zzt.3's only immediate is inside an option, so the event gets its own.
+        self.assertRegex(out, r'option = \{ name = OK immediate = \{ \} \}\n\timmediate = \{ log = "CK2TEST fired zzt.3" \}')
+        self.assertNotIn("zzt.0", ids)
+        self.assertEqual(out.count("CK2TEST"), 3)
+        self.assertEqual(out.count("{") - out.count("}"), text.count("{") - text.count("}"))
+
+    def test_report(self) -> None:
+        mod, tests = ROOT / "mods" / "zz_harnesstest", ROOT / "tests" / "game" / "zz_harnesstest"
+        for d in (mod, tests):
+            self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        (mod / "events").mkdir(parents=True)
+        (mod / "events" / "zzh_events.txt").write_text(
+            "namespace = zzh\ncharacter_event = { id = zzh.1 }\ncharacter_event = { id = zzh.2 }\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "game.log"
+
+            def report(*lines: str) -> subprocess.CompletedProcess:
+                log.write_text("".join(f"[effectimplementation.cpp:1]: {line}\n" for line in lines))
+                return run("tools/harness.py", "report", "zz_harnesstest", str(log))
+
+            # No tests: events are only counted.
+            r = report("CK2TEST fired zzh.1")
+            self.assertEqual(r.returncode, 0, r.stdout)
+            self.assertIn("events fired: 1 of 2", r.stdout)
+            tests.mkdir(parents=True)
+            r = report("CK2TEST fired zzh.1", "CK2TEST pass a")
+            self.assertEqual(r.returncode, 1, r.stdout)
+            self.assertIn("never fired: zzh.2", r.stdout)
+            self.assertIn("did not log CK2TEST done", r.stdout)
+            done = ("CK2TEST fired zzh.1", "CK2TEST fired zzh.2", "CK2TEST pass a", "CK2TEST done")
+            r = report(*done)
+            self.assertEqual(r.returncode, 0, r.stdout)
+            r = report(*done, "CK2TEST fail b")
+            self.assertEqual(r.returncode, 1, r.stdout)
+            self.assertIn("FAIL: b", r.stdout)
