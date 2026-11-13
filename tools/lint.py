@@ -30,6 +30,7 @@ import sys
 from pathlib import Path
 
 import xref
+from annotate import annotate
 
 ROOT = Path(__file__).resolve().parent.parent
 MODS = ROOT / "mods"
@@ -49,10 +50,12 @@ class Report:
     def error(self, path: Path, msg: str) -> None:
         self.errors += 1
         print(f"ERROR {rel(path)}: {msg}")
+        annotate("error", rel(path), msg)
 
     def warn(self, path: Path, msg: str) -> None:
         self.warnings += 1
         print(f"warn  {rel(path)}: {msg}")
+        annotate("warning", rel(path), msg)
 
 
 def rel(path: Path) -> str:

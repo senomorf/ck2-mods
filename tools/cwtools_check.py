@@ -26,6 +26,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from annotate import annotate
+
 ROOT = Path(__file__).resolve().parent.parent
 MODS = ROOT / "mods"
 VANILLA = ROOT / "vanilla"
@@ -124,6 +126,7 @@ def main(argv: list[str]) -> int:
     shown = [f for f in findings if not any(p.search(f[3]) for p in ignores)]
     for path, line, cat, msg in shown:
         print(f"cwtools {path}:{line}: {cat} {msg}")
+        annotate("error" if strict else "warning", path, f"CWTools {cat}: {msg}", line)
     print(f"cwtools: {len(folders)} mod(s), {len(shown)} finding(s), {len(findings) - len(shown)} ignored as known false positives")
     return 1 if strict and shown else 0
 
