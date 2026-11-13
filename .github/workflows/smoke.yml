@@ -1,5 +1,6 @@
 # Boot the real game with each changed mod on self-hosted runners. See docs/test-pipeline.md.
-# Off until a runner exists: set repository variable CK2_SMOKE_WINDOWS (or CK2_SMOKE_LINUX) to true.
+# linux: the homelab fleet's runner. windows: off until repository variable CK2_SMOKE_WINDOWS is
+# true (no Windows runner is planned; tools/smoke.ps1 is for checks by hand).
 name: smoke
 on:
   push:
@@ -65,20 +66,39 @@ jobs:
 
   linux:
     name: linux smoke
+    # Same guards as the windows job: no fork pull requests, no Renovate.
     if: >-
-      vars.CK2_SMOKE_LINUX == 'true' &&
-      (github.event_name != 'pull_request' ||
-       (github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.user.login != 'renovate[bot]' &&
-        !startsWith(github.head_ref, 'renovate/')))
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.user.login != 'renovate[bot]' &&
+       !startsWith(github.head_ref, 'renovate/'))
     runs-on: [self-hosted, linux, ck2]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Smoke changed mods
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          EVENT: ${{ github.event_name }}
         run: |
-          if [ ! -x tools/smoke.sh ]; then
-            echo "tools/smoke.sh not written yet; see docs/test-pipeline.md (Linux runner contract)"
-            exit 1
+          # Every mod on a manual run, when the smoke itself changed, or when git cannot say what
+          # changed; otherwise only the changed ones, and nothing when no mod changed.
+          mods=()
+          if [ "$EVENT" != workflow_dispatch ] && [[ $BASE_SHA =~ ^[0-9a-f]{40}$ && ! $BASE_SHA =~ ^0+$ ]] &&
+             changed=$(git diff --name-only "$BASE_SHA" HEAD) &&
+             ! grep -qxE 'tools/(smoke|install)\.sh|\.github/workflows/smoke\.yml' <<<"$changed"; then
+            for d in mods/*/; do
+              d=${d%/}; d=${d#mods/}
+              if [[ $d != _* ]] && grep -qE "^mods/$d(/|\.mod$)" <<<"$changed"; then mods+=("$d"); fi
+            done
+            if [ "${#mods[@]}" -eq 0 ]; then echo 'no mod changed'; exit 0; fi
           fi
-          tools/smoke.sh
+          tools/smoke.sh "${mods[@]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-linux
+          path: smoke-reports
+          if-no-files-found: ignore
