@@ -59,6 +59,10 @@
 #      CAMPAIGN_BASE               a commit with the previous version of the mods (the pull
 #                                  request's base); unset, each mod loads vanilla's save
 #      CAMPAIGN_PROBE_SAVE         --steps only: a save to put in "save games" first
+#      CAMPAIGN_PROBE_MOD          --steps only: a mod folder to run with (the harness copy)
+#      CAMPAIGN_PROBE_EFFECTS      --steps only: a file of effects, copied to ck2test_effects.txt in
+#                                  the user folder, where the console's `run ck2test_effects.txt`
+#                                  reads it (tools/campaign/run_effects.txt)
 #
 # Measured on the fleet runner, PR #15's probe runs (2026-11-13): the game runs full screen at
 # 1280x720; a click lands only when the pointer moved about 2 s before it; keys did not reach the
@@ -349,7 +353,13 @@ stop() {
 if [ -n "$probe" ]; then
   rm -rf "$saves"
   if [ -n "${CAMPAIGN_PROBE_SAVE:-}" ]; then mkdir -p "$saves"; cp -p "$CAMPAIGN_PROBE_SAVE" "$saves/"; fi
+  if [ -n "${CAMPAIGN_PROBE_EFFECTS:-}" ]; then cp "$CAMPAIGN_PROBE_EFFECTS" "$ud/ck2test_effects.txt"; fi
   mapfile -t args < <(launch_args "$probe")
+  if [ -n "${CAMPAIGN_PROBE_MOD:-}" ]; then
+    m=$CAMPAIGN_PROBE_MOD
+    rm -rf "${ud:?}/mod/$m"; python3 "$repo/tools/harness.py" install "$m" "$ud/mod/$m"; cp "$repo/mods/$m.mod" "$ud/mod/"
+    args+=("-mod=mod/$m.mod")
+  fi
   start probe "${args[@]}"
   run_steps "$probe" || true
   stop
