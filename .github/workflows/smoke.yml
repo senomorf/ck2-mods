@@ -83,20 +83,19 @@ jobs:
         run: |
           for t in python3 cwtools dotnet xdotool; do printf '%-8s %s\n' "$t" "$(command -v "$t" || echo missing)"; done
           python3 --version 2>&1 || true
-          missing=()
-          for t in python3 cwtools; do command -v "$t" >/dev/null || missing+=("$t"); done
-          if [ "${#missing[@]}" -gt 0 ]; then
-            echo "::warning::the runner image lacks ${missing[*]}, so these checks were skipped (docs/test-pipeline.md, Linux runner)"
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            ln -sfn "${CK2_GAME_DIR:-/game}" vanilla
-          fi
+          for t in python3 cwtools; do
+            if command -v "$t" >/dev/null; then
+              echo "$t=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "::warning::the runner image lacks $t, so its checks were skipped (docs/test-pipeline.md, Linux runner)"
+            fi
+          done
+          ln -sfn "${CK2_GAME_DIR:-/game}" vanilla
       - name: Lint and cross-references with the game's files
-        if: steps.tools.outputs.run == 'true'
+        if: steps.tools.outputs.python3 == 'true'
         run: python3 tools/lint.py
       - name: CWTools with the game's files
-        if: ${{ !cancelled() && steps.tools.outputs.run == 'true' }}
+        if: ${{ !cancelled() && steps.tools.outputs.python3 == 'true' && steps.tools.outputs.cwtools == 'true' }}
         run: python3 tools/cwtools_check.py --strict
 
   linux:
