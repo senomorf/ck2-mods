@@ -91,6 +91,7 @@ jobs:
             fi
           done
           ln -sfn "${CK2_GAME_DIR:-/game}" vanilla
+          echo "vanilla/ -> $(readlink vanilla): $(find -L vanilla/events vanilla/decisions vanilla/common -name '*.txt' | wc -l) script files, $(find -L vanilla/localisation -name '*.csv' | wc -l) localisation files"
       - name: Lint and cross-references with the game's files
         if: steps.tools.outputs.python3 == 'true'
         run: python3 tools/lint.py
