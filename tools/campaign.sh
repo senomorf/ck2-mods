@@ -1,0 +1,309 @@
+#!/usr/bin/env bash
+# Runtime smoke (roadmap #13, step 2): run CK2 for an in-game year with each mod and fail on new
+# error.log lines that name the mod. The game runs headless (Xvfb, Mesa's software OpenGL) and is
+# driven through its menus with xdotool clicks from steps files, with a screenshot at each `shot`.
+#
+# Usage: tools/campaign.sh [mod...]      no mod named: every mod under mods/ but _template
+#        tools/campaign.sh --steps FILE  probe: boot vanilla, follow one steps file, keep everything
+#
+# Flow:
+#  1. vanilla: start a new game through the menus (tools/campaign/new_game.txt), run it at full
+#     speed to the first yearly autosave (CAMPAIGN_START), keep that save, run on to CAMPAIGN_END.
+#  2. each mod: put that save back as the only one, boot with the mod, Single Player > Continue
+#     (tools/campaign/continue.txt), run to CAMPAIGN_END. So each mod plays the same year as
+#     vanilla did, from a save made without it: this also checks that existing saves load.
+#  3. report the mod run's error.log lines that vanilla's run does not have. Lines that name the
+#     mod (its prefix, folder or one of its file names) fail the run; the rest are listed as
+#     warnings, since the game's own runtime errors differ from run to run.
+#
+# Steps files, one step per line ('#' starts a comment):
+#   shot NAME               screenshot to <report>/NN-NAME.png
+#   click X Y               move the pointer to X,Y, wait 2 s, left-click
+#   move X Y                move the pointer to X,Y
+#   key KEYSYM...           xdotool key (X keysyms: Escape, Return, grave, space)
+#   type TEXT               type TEXT
+#   wait SECONDS            sleep
+#   focus                   give the game's window the X input focus
+#   info                    log windows, pointer, CPUs, memory and the game's RSS
+#   until SECONDS REGEX     wait up to SECONDS for REGEX in logs/game.log; fails the run
+#   untilsave DATE SECONDS  wait up to SECONDS for a save dated DATE (Y.M.D) or later; fails the run
+#
+# Env: CK2_GAME_DIR, CK2_USER_DIR  as for tools/smoke.sh
+#      CAMPAIGN_OUT                reports (default campaign-reports/ in the repo)
+#      CAMPAIGN_START, CAMPAIGN_END  dates (default 1067.1.1 and 1068.1.1: the 1066 start's first two
+#                                  yearly autosaves)
+#      CAMPAIGN_TIMEOUT            seconds each run may take to reach a date (default 1500)
+#
+# Measured on the fleet runner, PR #15's probe runs (2026-11-13): the game runs full screen at
+# 1280x720; a click lands only when the pointer moved about 2 s before it; keys did not reach the
+# game in runs 4 and 11; the menus take about 6 minutes under llvmpipe. Coordinates in the steps
+# files were read off those runs' screenshots.
+set -euo pipefail
+repo=$(cd "$(dirname "$0")/.." && pwd)
+game=${CK2_GAME_DIR:-/game}
+ud=${CK2_USER_DIR:-$HOME/.paradoxinteractive/Crusader Kings II}
+out=${CAMPAIGN_OUT:-$repo/campaign-reports}
+start_date=${CAMPAIGN_START:-1067.1.1} end_date=${CAMPAIGN_END:-1068.1.1}
+limit=${CAMPAIGN_TIMEOUT:-1500}
+steps_dir=$repo/tools/campaign
+
+probe=
+if [ "${1:-}" = --steps ]; then probe=${2:?usage: tools/campaign.sh --steps FILE}; shift 2; fi
+if [ "$#" -gt 0 ]; then
+  mods=("$@")
+elif [ -n "$probe" ]; then
+  mods=()
+else
+  mods=()
+  for d in "$repo"/mods/*/; do d=${d%/}; d=${d##*/}; [[ $d == _* ]] || mods+=("$d"); done
+fi
+for m in "${mods[@]}"; do
+  [ -d "$repo/mods/$m" ] && [ -f "$repo/mods/$m.mod" ] || { echo "campaign: no mods/$m with mods/$m.mod" >&2; exit 2; }
+done
+[ -x "$game/ck2" ] || { echo "campaign: no executable ck2 in $game (set CK2_GAME_DIR)" >&2; exit 2; }
+for t in Xvfb xdotool xwd xwdtopnm pnmtopng; do
+  command -v "$t" >/dev/null || { echo "campaign: $t is not installed" >&2; exit 2; }
+done
+if pgrep -x ck2 >/dev/null; then echo "campaign: ck2 is already running" >&2; exit 2; fi
+unshare -rn true 2>/dev/null || { echo "campaign: cannot give the game a network namespace (unshare -rn)" >&2; exit 2; }
+
+export DISPLAY=:${CAMPAIGN_DISPLAY:-98} SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-dummy} LIBGL_ALWAYS_SOFTWARE=1
+Xvfb "$DISPLAY" -screen 0 1280x720x24 -nolisten tcp -noreset >/dev/null 2>&1 &
+xvfb=$!
+pid=
+work=$(mktemp -d)
+cleanup() { [ -z "$pid" ] || kill -9 "$pid" 2>/dev/null || true; kill "$xvfb" 2>/dev/null || true; rm -rf "$work"; }
+trap cleanup EXIT
+sleep 2
+kill -0 "$xvfb" 2>/dev/null || { echo "campaign: Xvfb did not start on $DISPLAY" >&2; exit 2; }
+rm -rf "$out"; mkdir -p "$out" "$ud/mod"
+saves="$ud/save games"
+
+# The game fills in the rest of settings.txt with its defaults (probe run 1: autosave="YEARLY",
+# compress_autosaves=no). has_disabled_welcome_screen=yes skips the main menu's welcome dialog.
+# The mapRenderingOptions keys are the ones the game wrote; turning the decorations off is meant to
+# spare llvmpipe some work. [Unverified] how much that speeds the game up.
+write_settings() {
+  cat > "$ud/settings.txt" <<'SETTINGS'
+gui=
+{
+	language=l_english
+	has_set_language=yes
+}
+has_disabled_welcome_screen=yes
+hints=no
+mapRenderingOptions=
+{
+	draw_terrain=yes
+	draw_water=no
+	draw_borders=yes
+	draw_trees=no
+	draw_rivers=no
+	draw_postfx=no
+	draw_sky=no
+	draw_bloom=no
+	draw_tooltips=yes
+	draw_hires_terrain=no
+	draw_citysprawl=no
+}
+province_embellishment=no
+SETTINGS
+}
+
+# Y.M.D -> a number that sorts like the date.
+datenum() { local y m d; IFS=. read -r y m d <<< "$1"; echo $((10#$y * 10000 + 10#$m * 100 + 10#$d)); }
+# newest_save: "MTIME PATH" of the newest save, MTIME in whole seconds.
+newest_save() { find "$saves" -name '*.ck2' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n 1 | sed -E 's/^([0-9]+)[.0-9]* /\1 /'; }
+# save_date FILE: the game date in a save, or nothing. Probe run 12 (2026-11-13) wrote two
+# autosaves (21 and 24 MB, compress_autosaves=no) whose first 64 KB had no line starting with
+# date=, so this reads the first MB, takes date= after any non-name character, and opens a zip.
+save_date() {
+  python3 -I - "$1" <<'PY' 2>/dev/null || true
+import re, sys, zipfile
+p = sys.argv[1]
+if zipfile.is_zipfile(p):
+    with zipfile.ZipFile(p) as z:
+        name = max(z.infolist(), key=lambda i: i.file_size).filename
+        data = z.open(name).read(1 << 20)
+else:
+    with open(p, 'rb') as f:
+        data = f.read(1 << 20)
+m = re.search(rb'(?:^|[^_A-Za-z0-9])date="?([0-9]+[.][0-9]+[.][0-9]+)', data)
+if m:
+    print(m.group(1).decode())
+PY
+}
+# save_head FILE: the first bytes of a save, escaped, for the log.
+save_head() { python3 -I -c 'import sys; print(repr(open(sys.argv[1], "rb").read(160)))' "$1" 2>/dev/null || true; }
+# Lines compared without their leading [file:line]: tags, which move between game builds.
+norm() { sed -E 's/\r$//; s/^(\[[^]]*\])+[[:space:]]*:?[[:space:]]*//; s/[[:space:]]+$//' "$@" | grep -v '^$' || true; }
+
+dest='' n=0 result=''
+log() { printf '%5ss %s\n' "$SECONDS" "$*" | tee -a "$dest/steps.log"; }
+shot() {
+  xwd -root -display "$DISPLAY" 2>/dev/null | xwdtopnm 2>/dev/null | pnmtopng > "$dest/$(printf '%02d' "$n")-$1.png" 2>/dev/null \
+    || echo "campaign: screenshot $1 failed" >&2
+}
+fail() { result=$1; shot failed; }
+
+# wait_save DATE SECONDS: wait for a save written after this call whose date is DATE or later, or
+# whose date can't be read (then the first such save counts, with a warning); keep its path in
+# $save. 1 when none comes. Saves written before the call (the mod runs' starting save) don't count.
+save=
+wait_save() {
+  local want=$1 secs=$2 t0=$SECONDS since mt f got size
+  since=$(date +%s)
+  while :; do
+    read -r mt f <<< "$(newest_save)" || true
+    if [ -n "${f:-}" ] && [ "$mt" -gt "$since" ]; then
+      size=-1   # the game writes a 20+ MB save over a few seconds: wait until it stops growing
+      while [ "$size" != "$(stat -c %s "$f" 2>/dev/null)" ]; do size=$(stat -c %s "$f" 2>/dev/null); sleep 3; done
+      got=$(save_date "$f")
+      if [ -z "$got" ]; then
+        log "  warning: no date found in $(basename "$f") ($size bytes), counting it as $want; it starts: $(save_head "$f")"
+        save=$f; return 0
+      fi
+      if [ "$(datenum "$got")" -ge "$(datenum "$want")" ]; then
+        log "  save dated $got after $((SECONDS - t0))s ($(basename "$f"), $size bytes)"; save=$f; return 0
+      fi
+      since=$mt
+    fi
+    if [ $((SECONDS - t0)) -ge "$secs" ] || ! kill -0 "$pid" 2>/dev/null; then
+      log "  no save dated $want or later in $((SECONDS - t0))s"; return 1
+    fi
+    sleep 10
+  done
+}
+
+# run_steps FILE: follow a steps file; sets $result on a failure and returns 1.
+run_steps() {
+  local line cmd rest x y secs re t0 wid keys
+  while IFS= read -r line || [ -n "$line" ]; do
+    line=${line%%#*}; read -r cmd rest <<< "$line" || true
+    [ -n "${cmd:-}" ] || continue
+    n=$((n + 1))
+    kill -0 "$pid" 2>/dev/null || { log "step $n: the game is not running"; result=exited; return 1; }
+    log "step $n: $cmd $rest"
+    case $cmd in
+      shot) shot "$rest" ;;
+      click) read -r x y <<< "$rest"; xdotool mousemove "$x" "$y" sleep 2 click 1 ;;
+      move) read -r x y <<< "$rest"; xdotool mousemove "$x" "$y" ;;
+      key) read -ra keys <<< "$rest"; xdotool key --delay 150 "${keys[@]}" ;;
+      type) xdotool type --delay 100 "$rest" ;;
+      wait) sleep "$rest" ;;
+      focus)
+        wid=$(xdotool search --onlyvisible --name '^ck2$' 2>/dev/null | head -n 1 || true)
+        if [ -n "$wid" ]; then xdotool windowfocus --sync "$wid" || true; log "  focus: $(xdotool getwindowfocus 2>&1)"; else log "  no ck2 window"; fi
+        ;;
+      info)
+        { xdotool search --onlyvisible --name . getwindowname %@ getwindowgeometry %@; xdotool getmouselocation --shell
+          echo "cpus: $(nproc)"; grep -E '^(MemTotal|MemAvailable)' /proc/meminfo; cat /sys/fs/cgroup/memory.max 2>/dev/null
+          ps -o rss=,etime= -p "$pid" | awk '{print "ck2 rss MiB: " int($1/1024) ", running " $2}'; } 2>&1 | tee -a "$dest/steps.log" || true
+        ;;
+      until)
+        read -r secs re <<< "$rest"
+        t0=$SECONDS
+        until grep -aqsE "$re" "$ud/logs/game.log"; do
+          if [ $((SECONDS - t0)) -ge "$secs" ] || ! kill -0 "$pid" 2>/dev/null; then break; fi
+          sleep 2
+        done
+        if grep -aqsE "$re" "$ud/logs/game.log"; then log "  found after $((SECONDS - t0))s"; else log "  not found in ${secs}s"; fail "timed out at step $n"; return 1; fi
+        ;;
+      untilsave) read -r x secs <<< "$rest"; wait_save "$x" "$secs" || { fail "no save by $x at step $n"; return 1; } ;;
+      *) log "  unknown step"; fail "bad step $n"; return 1 ;;
+    esac
+  done < "$1"
+}
+
+# start NAME [game args...]: boot the game with a fresh report folder $dest.
+start() {
+  dest="$out/$1"; shift
+  n=0 result=ok
+  rm -rf "$dest" "$ud/logs"; mkdir -p "$dest"
+  write_settings
+  (cd "$game" && LD_LIBRARY_PATH="$game${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" exec unshare -rn ./ck2 -skiplauncher -debugscripts "$@") \
+    > "$dest/stdout.log" 2>&1 &
+  pid=$!
+  log "started ck2 -skiplauncher -debugscripts $*"
+}
+# stop: end the game, keep its logs and the newest save's date.
+stop() {
+  n=$((n + 1)); shot end
+  kill -0 "$pid" 2>/dev/null || { [ "$result" != ok ] || result=exited; }
+  if [ -n "$pid" ]; then
+    kill "$pid" 2>/dev/null || true
+    for _ in 1 2 3 4 5; do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+    kill -9 "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; pid=
+  fi
+  cp "$ud"/logs/*.log "$dest/" 2>/dev/null || true
+  log "result: $result"
+}
+
+if [ -n "$probe" ]; then
+  rm -rf "$saves"
+  start probe
+  run_steps "$probe" || true
+  stop
+  [ "$result" = ok ]
+  exit
+fi
+
+# 1. vanilla, from a new game
+rm -rf "$saves"
+start _vanilla
+if run_steps "$steps_dir/new_game.txt"; then
+  if wait_save "$start_date" "$limit"; then
+    cp -p "$save" "$work/"
+    log "  kept $(basename "$save") as the start for the mod runs"
+    wait_save "$end_date" "$limit" || fail "vanilla did not reach $end_date"
+  else
+    fail "vanilla did not reach $start_date"
+  fi
+fi
+stop
+vanilla=$result
+norm "$out/_vanilla/error.log" 2>/dev/null | sort -u > "$out/_vanilla/error.norm"
+if [ "$vanilla" != ok ] || ! compgen -G "$work/*.ck2" >/dev/null; then
+  echo "campaign: vanilla run failed ($vanilla); see $out/_vanilla" >&2
+  exit 1
+fi
+
+# 2. each mod, from vanilla's save
+failed=()
+for m in "${mods[@]}"; do
+  prefix=$(tr -d '[:space:]' < "$repo/mods/$m/PREFIX" 2>/dev/null || true)
+  rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work"/*.ck2 "$saves/"
+  "$repo/tools/install.sh" "$m" "$ud" >/dev/null
+  start "$m" "-mod=mod/$m.mod"
+  if run_steps "$steps_dir/continue.txt"; then
+    wait_save "$end_date" "$limit" || fail "did not reach $end_date"
+  fi
+  stop
+  rm -f "$ud/mod/$m" "$ud/mod/$m.mod"
+  dest="$out/$m"
+  # 3. new lines, split by whether they name the mod
+  norm "$dest/error.log" 2>/dev/null | grep -vxF -f "$out/_vanilla/error.norm" | sort | uniq -c | sort -rn > "$dest/new-errors.txt" || true
+  {
+    printf '%s\n' "$m"
+    [ -z "$prefix" ] || printf '%s_\n%s.\n' "$prefix" "$prefix"
+    (cd "$repo/mods/$m" && find . -type f ! -name PREFIX ! -name README.md -printf '%f\n')
+  } | grep -v '^$' | sort -u > "$dest/names.txt"
+  grep -iF -f "$dest/names.txt" "$dest/new-errors.txt" > "$dest/mod-errors.txt" || true
+  grep -viF -f "$dest/names.txt" "$dest/new-errors.txt" > "$dest/other-errors.txt" || true
+  nm=$(grep -c . "$dest/mod-errors.txt" || true) no=$(grep -c . "$dest/other-errors.txt" || true)
+  seen=false
+  if grep -aqsF "mod/$m" "$dest/system.log"; then seen=true; fi
+  {
+    echo "CK2 campaign test: $m"
+    echo "result: $result (vanilla's $start_date save loaded with the mod, run to $end_date)"
+    echo "mod named in logs: $seen"
+    echo "new error.log lines that name the mod: $nm"
+    cat "$dest/mod-errors.txt"
+    echo "other new error.log lines (warnings; the game's own runtime errors vary between runs): $no"
+    head -n 50 "$dest/other-errors.txt"
+  } > "$dest/report.txt"
+  cat "$dest/report.txt"
+  if [ "$result" != ok ] || [ "$nm" -gt 0 ] || [ "$seen" != true ]; then failed+=("$m"); fi
+done
+[ "${#failed[@]}" -eq 0 ] || { echo "failed: ${failed[*]}"; exit 1; }
+echo "all mods clean: ${mods[*]}"
