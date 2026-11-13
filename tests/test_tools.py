@@ -1,6 +1,7 @@
 import contextlib
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -55,7 +56,9 @@ class ToolsTest(unittest.TestCase):
         r = subprocess.run([sys.executable, "tools/lint.py", self.folder], cwd=ROOT, capture_output=True, text=True,
                            env={**os.environ, "GITHUB_ACTIONS": "true"})
         self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertRegex(r.stdout, r"(?m)^::error file=mods/zz_selftest/events/zzt_[a-z]+\.txt(,line=\d+)?::.*duplicate event id zzt\.1")
+        m = re.search(r"(?m)^::error file=(mods/zz_selftest/events/zzt_[a-z]+\.txt),line=(\d+)::line \2: duplicate event id zzt\.1", r.stdout)
+        self.assertIsNotNone(m, r.stdout)
+        self.assertRegex((ROOT / m[1]).read_text().splitlines()[int(m[2]) - 1], r"^\s*id = zzt\.1$")
         env = {k: v for k, v in os.environ.items() if k != "GITHUB_ACTIONS"}
         r = subprocess.run([sys.executable, "tools/lint.py", self.folder], cwd=ROOT, capture_output=True, text=True, env=env)
         self.assertNotIn("::error", r.stdout)
