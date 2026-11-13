@@ -1,0 +1,4 @@
+self-hosted-runner:
+  # The homelab fleet runner (docs/test-pipeline.md) and the planned Windows one.
+  labels:
+    - ck2
