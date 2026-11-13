@@ -20,6 +20,7 @@ What comes next, from runtime checks to save loading, is planned in #13.
 | CWTools (`lint.py --cwtools`) | cloud sessions (needs `cwtools` and `vanilla/`) | unknown effects, triggers, scopes, traits | working; warnings only, noisy on vanilla |
 | Static with the game's files (`linux static` job) | the fleet runner, against its game copy at `/game` | the same lint and cross-references, with all of vanilla's names; CWTools in CI | working: lint, cross-references and CWTools `--strict` (red run on #14: `CW262` for an unknown effect) |
 | Linux smoke (`tools/smoke.sh`) | the homelab fleet's runner, `linux smoke` job | anything the game itself logs at boot: parse errors, unknown keys, broken references | working: green and red runs on same-repo PRs (#10); see [Linux runner](#linux-runner) |
+| Linux campaign (`tools/campaign.sh`) | the fleet runner, `linux campaign` job (`campaign.yml`) | errors the game logs while it plays: events, decisions and on_actions that fire during a year, and loading a save made without the mod | working: [green run](https://github.com/senomorf/ck2-mods/actions/runs/43468936925/job/132035403675) on #15 with `allied_fleets` (red run pending); see [Campaign test](#campaign-test) |
 | Windows smoke (`tools/smoke.ps1`) | the owner's PC (Polaris), by hand | same, on the Windows build | script written; launch arguments unverified; no runner planned |
 | Scripted in-game checks | either runner, after the smoke | events firing, decisions available, effects applied | idea only: the console `run <file>` command could fire each event; unverified |
 
@@ -115,6 +116,32 @@ Tested in the runner image before the job existed (#10): a clean `allied_fleets`
 lines, a copy with an unknown effect 4. In the job, 2026-11-13: [green](https://github.com/senomorf/ck2-mods/actions/runs/43420436244/job/131868779709) on #7 (booted after
 24 s, mod named, 0 new lines) and [red](https://github.com/senomorf/ck2-mods/actions/runs/43420596435/job/131869314332) on throwaway #12, whose one new line was
 `Unknown effect-type: "afl_no_such_effect" at  file: events/afl_events.txt line: 16`.
+
+## Campaign test
+
+`tools/campaign.sh` plays the game for a year (#13, step 2). `.github/workflows/campaign.yml` runs it
+on the fleet runner for pushes to `main` and same-repo pull requests that change a mod, the script,
+its steps files or `tools/install.sh`, and by hand. It picks mods the way the smoke job does.
+
+1. Vanilla: a new 1066 game through the menus (`tools/campaign/new_game.txt`), the console command
+   `observe` so no character waits for input, the fastest speed, run to the first yearly autosave
+   (1067.1.1). That save is kept, and the game runs on to the next one (1068.1.1).
+2. Each mod: the kept save is put back as the only save, the game boots with the mod, and
+   Single Player > Continue loads it (`tools/campaign/continue.txt`); it runs to 1068.1.1. So each
+   mod plays the same year vanilla did, from a save made without it, which also checks that an
+   existing save loads with the mod.
+3. New `error.log` lines against the vanilla run are split by whether they name the mod (its
+   folder, prefix or a file name). Those fail the job; the rest are listed as warnings, because
+   the game's own runtime errors differ from run to run. A mod whose name `system.log` lacks fails.
+
+The steps files are xdotool clicks, keys and waits, with a screenshot at each `shot`; the artifact
+`campaign-linux` holds them with `steps.log`, the logs and `report.txt` per run. What the steps
+rely on, measured on PR #15's probe runs, is in `docs/ck2-notes.md`: clicks need the pointer moved
+about 2 s before, and keys need the window focused. On the [green run](https://github.com/senomorf/ck2-mods/actions/runs/43468936925/job/132035403675) (#15, 2026-11-13) the menus
+took 7.5 minutes, vanilla reached 1067.1.1 at 10 minutes and 1068.1.1 at 18, and `allied_fleets`
+took 12.3 minutes from boot to 1068.1.1: 30 minutes for one mod, plus about 12 for each further mod.
+The game used up to 2 GiB of the job's 3 GiB on the runner's 4 CPUs. `tools/campaign.sh --steps FILE` follows one steps file from a vanilla boot and
+keeps everything, for working out new steps.
 
 ## Security
 
