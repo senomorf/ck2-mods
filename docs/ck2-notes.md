@@ -11,3 +11,7 @@ Facts about CK2 script and behaviour that someone has confirmed. One line each, 
 | `spawn_fleet` works without `earmark`, and accepts `province = closest` | `vanilla/decisions/jd_decisions.txt`, `vanilla/decisions/unit_decisions.txt` (3.3.3) | read 2026-11-12, not tested in game |
 | CWTools CLI 0.6.0-alpha with the 2019 rules reports ~28,000 errors on vanilla 3.3.3, so its findings are hints, not facts | `cwtools ... --scope all validate errors` on `vanilla/` | checked 2026-11-12 |
 | Targeted decisions live in a top-level `targeted_decisions = { }` block | e.g. `reference/emf/EMF/decisions/mnm_society_decisions.txt` | read 2026-11-11 |
+| Linux 3.3.5.1 logs `After first history execution` to `game.log` once a boot reaches the main menu | `tools/smoke.sh` header; measured on the fleet runner | reported in #10, 2026-11-13 |
+| An empty user folder stops at a "Choose language" dialog; `settings.txt` `gui = { language=l_english has_set_language=yes }` skips it, `language="l_english"` alone does not | same | reported in #10, 2026-11-13 |
+| The Linux build without a Steam client logs `SteamAPI_Init() failed` and carries on only with no network; with one it asks to be started through Steam and exits 1 | same | reported in #10, 2026-11-13 |
+| `system.log` names `mod/<folder>` when the game loads that mod | same | reported in #10, 2026-11-13 |
