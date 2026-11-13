@@ -1,0 +1,7 @@
+# Starts the allied_fleets in-game tests on load (tests/game/allied_fleets/events/afltest_events.txt).
+# Several files may add to one on_action: vanilla/common/on_actions/_on_actions.info.
+on_startup = {
+	events = {
+		afltest.1
+	}
+}
