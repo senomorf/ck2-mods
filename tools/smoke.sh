@@ -44,7 +44,10 @@ if pgrep -x ck2 >/dev/null; then echo "smoke: ck2 is already running" >&2; exit 
 unshare -rn true 2>/dev/null || { echo "smoke: cannot give the game a network namespace (unshare -rn)" >&2; exit 2; }
 
 export DISPLAY=:${SMOKE_DISPLAY:-99} SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-dummy} LIBGL_ALWAYS_SOFTWARE=1
-Xvfb "$DISPLAY" -screen 0 1280x720x24 -nolisten tcp >/dev/null 2>&1 &
+# -noreset: by default Xvfb resets when its last client disconnects, and a connection made during
+# the reset fails. A boot then dies at once with "Failed to initialize SDL! SDL_Error: No available
+# video device" (seen once, 2026-11-13, on the boot right after the baseline's).
+Xvfb "$DISPLAY" -screen 0 1280x720x24 -nolisten tcp -noreset >/dev/null 2>&1 &
 xvfb=$!
 pid=
 cleanup() { [ -z "$pid" ] || kill -9 "$pid" 2>/dev/null || true; kill "$xvfb" 2>/dev/null || true; }
