@@ -22,6 +22,24 @@
       "matchStrings": ["CWTOOLS_CLI_VERSION=(?<currentValue>\\S+)"],
       "datasourceTemplate": "nuget",
       "depNameTemplate": "CWTools.CLI"
+    },
+    {
+      "customType": "regex",
+      "description": "ShellCheck pinned in the cloud setup script (CI's lint job installs the same)",
+      "managerFilePatterns": ["/^tools/cloud_setup\\.sh$/"],
+      "matchStrings": ["SHELLCHECK_VERSION=(?<currentValue>\\S+)"],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "koalaman/shellcheck",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "actionlint pinned in the cloud setup script (CI's lint job installs the same)",
+      "managerFilePatterns": ["/^tools/cloud_setup\\.sh$/"],
+      "matchStrings": ["ACTIONLINT_VERSION=(?<currentValue>\\S+)"],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "rhysd/actionlint",
+      "extractVersionTemplate": "^v(?<version>.+)$"
     }
   ]
 }

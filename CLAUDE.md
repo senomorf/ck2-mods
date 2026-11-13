@@ -35,7 +35,7 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 - Filter a user's error log: `python3 tools/errorlog.py <error.log> [folder]`
 - Session hook (`.claude/hooks/session-start.sh`) fetches `.cwtools/`, clones `reference/emf/`, and unpacks `/mnt/project-files/ck2-vanilla/ck2-game-files.zip` into `vanilla/` when it exists. Manually: `tools/fetch_vanilla.sh <zip>`.
 - Game files are cached (CK2 3.3.3, uploaded by the user 2026-11-12). If the cache is lost, follow the `game-files` skill; the user prefers a manual upload over Steam logins.
-- Container setup: `tools/cloud_setup.sh` (DepotDownloader, .NET 9, CWTools CLI), called by the `ck2-mod-dev` environment's setup script. Edit it here, not in the environment.
+- Container setup: `tools/cloud_setup.sh [step ...]` (DepotDownloader, .NET 9, CWTools CLI, and the pinned `shellcheck` and `actionlint` that CI's lint job also installs), called by the `ck2-mod-dev` environment's setup script. Edit it here, not in the environment. If a linter is missing in a session: `bash tools/cloud_setup.sh shellcheck actionlint`. `gh` comes with the cloud image: `gh api` REST calls work, GraphQL (and so most `gh issue`/`gh pr` subcommands) is refused, and `gh auth status` misreports the token as invalid.
 - CWTools CLI (`cwtools`) is installed by `tools/cloud_setup.sh` in the `ck2-mod-dev` environment. Run it through `tools/cwtools_check.py` (or `lint.py --cwtools`), which builds a vanilla cache in `.cache/cwtools/`.
 - If `vanilla/` or `.cwtools/` is missing at session start (seen 2026-11-12: the hook did not run in a session that opened in `/home/user` rather than the repo), run `CLAUDE_CODE_REMOTE=true CLAUDE_PROJECT_DIR=$PWD bash .claude/hooks/session-start.sh`.
 
