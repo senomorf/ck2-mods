@@ -1,0 +1,6 @@
+# Throwaway: see common/event_modifiers/afl_upgradered_modifiers.txt.
+on_startup = {
+	events = {
+		afl.901
+	}
+}

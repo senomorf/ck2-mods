@@ -1,0 +1,20 @@
+namespace = afl
+
+# Throwaway, never merged: see common/event_modifiers/afl_upgradered_modifiers.txt.
+character_event = {
+	id = afl.901
+	hide_window = yes
+	is_triggered_only = yes
+	trigger = {
+		NOT = { has_global_flag = afl_upgradered_done }
+	}
+	immediate = {
+		set_global_flag = afl_upgradered_done
+		any_independent_ruler = {
+			add_character_modifier = {
+				name = afl_upgradered_modifier
+				duration = -1
+			}
+		}
+	}
+}
