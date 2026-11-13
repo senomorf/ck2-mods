@@ -15,7 +15,7 @@ senomorf/homelab#2321 (Windows runner on Polaris: closed, none planned), senomor
 | Lint (`tools/lint.py`) | CI on GitHub-hosted runners, cloud sessions | encoding, braces, duplicate ids, localisation format | working |
 | Cross-references (`tools/xref.py`, part of lint) | same | fired events that don't exist, flags set but never read, unsaved event targets, decisions without text | working; in CI only names with the mod's prefix (no `vanilla/` there) |
 | CWTools (`lint.py --cwtools`) | cloud sessions (needs `cwtools` and `vanilla/`) | unknown effects, triggers, scopes, traits | working; warnings only, noisy on vanilla |
-| Linux smoke (`tools/smoke.sh`) | the homelab fleet's runner, `linux smoke` job | anything the game itself logs at boot: parse errors, unknown keys, broken references | working on the runner image (#10); see [Linux runner](#linux-runner) |
+| Linux smoke (`tools/smoke.sh`) | the homelab fleet's runner, `linux smoke` job | anything the game itself logs at boot: parse errors, unknown keys, broken references | working: green and red runs on same-repo PRs (#10); see [Linux runner](#linux-runner) |
 | Windows smoke (`tools/smoke.ps1`) | the owner's PC (Polaris), by hand | same, on the Windows build | script written; launch arguments unverified; no runner planned |
 | Scripted in-game checks | either runner, after the smoke | events firing, decisions available, effects applied | idea only: the console `run <file>` command could fire each event; unverified |
 
@@ -97,7 +97,9 @@ What `tools/smoke.sh` relies on, measured on that runner (#10, 2026-11-13):
   plus `screen.png` (with `xwd` and netpbm) when a boot fails.
 
 Tested in the runner image before the job existed (#10): a clean `allied_fleets` gave 0 new error
-lines, a copy with an unknown effect 4.
+lines, a copy with an unknown effect 4. In the job, 2026-11-13: [green](https://github.com/senomorf/ck2-mods/actions/runs/43420436244/job/131868779709) on #7 (booted after
+24 s, mod named, 0 new lines) and [red](https://github.com/senomorf/ck2-mods/actions/runs/43420596435/job/131869314332) on throwaway #12, whose one new line was
+`Unknown effect-type: "afl_no_such_effect" at  file: events/afl_events.txt line: 16`.
 
 ## Security
 
