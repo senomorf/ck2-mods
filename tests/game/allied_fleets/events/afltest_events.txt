@@ -1,0 +1,100 @@
+namespace = afltest
+
+# In-game tests for allied_fleets, run by tools/campaign.sh through tools/harness.py. The mod run
+# loads a vanilla save in observe mode, so nobody takes afl_request_ships (it has ai = no). These
+# events do what its effect does for AI rulers and fire afl.1, 20 times so that both of the AI's
+# answers (ai_chance 75 and 25) come up: a run without a refusal has odds of 0.75^20, about 0.3%.
+# Constructs, all seen in vanilla 3.3.3: on_startup (common/on_actions/00_on_actions.txt; it fires
+# for every character on load, .cwtools/on_actions.cwt), set_global_flag, random_independent_ruler,
+# any_realm_province with port = yes, change_variable and check_variable, log, has_earmarked_regiments.
+
+# afltest.1: the first ruler on_startup reaches starts the requests, once.
+character_event = {
+	id = afltest.1
+	hide_window = yes
+	is_triggered_only = yes
+
+	trigger = {
+		is_ruler = yes
+		NOT = { has_global_flag = afl_test_started }
+	}
+
+	immediate = {
+		set_global_flag = afl_test_started
+		log = "CK2TEST start allied_fleets"
+		character_event = { id = afltest.2 days = 1 }
+	}
+}
+
+# afltest.2: one request, then the next one two days later; after the 20th, afltest.4.
+character_event = {
+	id = afltest.2
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		change_variable = { which = afl_test_runs value = 1 }
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				wealth = 60
+				NOT = { has_character_flag = afl_request_pending }
+				NOT = { has_character_flag = afl_test_requester }
+				any_realm_province = { port = yes }
+			}
+			# What afl_request_ships' effect does for the ruler asking.
+			save_event_target_as = afl_requester
+			set_character_flag = afl_request_pending
+			set_character_flag = afl_test_requester
+			character_event = { id = afltest.3 days = 10 }
+			random_independent_ruler = {
+				limit = {
+					is_landed = yes
+					NOT = { character = PREV }
+				}
+				character_event = { id = afl.1 }
+			}
+		}
+		if = {
+			limit = { NOT = { check_variable = { which = afl_test_runs value = 20 } } }
+			character_event = { id = afltest.2 days = 2 }
+		}
+		if = {
+			limit = { check_variable = { which = afl_test_runs value = 20 } }
+			character_event = { id = afltest.4 days = 15 }
+		}
+	}
+}
+
+# afltest.3: ten days after a request, for the ruler who asked.
+character_event = {
+	id = afltest.3
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = {
+			limit = { has_character_flag = afl_request_pending }
+			log = "CK2TEST fail afl.1 answers the request: afl_request_pending still set ten days later"
+		}
+		if = {
+			limit = { NOT = { has_character_flag = afl_request_pending } }
+			log = "CK2TEST pass afl.1 answers the request"
+		}
+		if = {
+			limit = { has_earmarked_regiments = afl_lent_ships }
+			log = "CK2TEST pass an accepted request leaves the requester the lent fleet"
+		}
+	}
+}
+
+# afltest.4: the end.
+character_event = {
+	id = afltest.4
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		log = "CK2TEST done"
+	}
+}
