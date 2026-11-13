@@ -1,0 +1,24 @@
+# tools/campaign.sh, each mod's run: load the vanilla save (the only one in "save games") with
+# Single Player > Continue, then run at full speed. Coordinates: see new_game.txt.
+until 300 After first history execution
+wait 25             # "Loading Graphics..." still covers the menu 10 s after the marker (probe run 2)
+click 640 246       # main menu "Single Player" (seen, probe run 4)
+wait 5
+shot single-player
+click 640 356       # "Continue": loads the newest save (seen in probe run 4's single player menu)
+wait 150            # [Unverified] load time; a new game took about 120 s from Start Game to the map
+shot loaded
+click 1100 50       # the date: a click unpauses
+wait 10
+click 1240 50       # "+" speed, four times
+wait 2
+click 1240 50
+wait 2
+click 1240 50
+wait 2
+click 1240 50
+wait 2
+move 640 600
+wait 30
+shot running
+info
