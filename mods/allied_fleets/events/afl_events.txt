@@ -13,6 +13,7 @@ character_event = {
 	# (vanilla/decisions/unit_decisions.txt).
 	option = {
 		name = EVTOPTA_afl_1
+		afl_no_such_effect = yes # deliberate: linux static must fail on this (throwaway PR, #13)
 		wealth = 50
 		event_target:afl_requester = {
 			wealth = -50
