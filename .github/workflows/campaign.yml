@@ -11,6 +11,7 @@ on:
       - tools/campaign.sh
       - tools/campaign/**
       - tools/harness.py
+      - tools/ck2save.py
       - tests/game/**
       - .github/workflows/campaign.yml
   pull_request:
@@ -19,6 +20,7 @@ on:
       - tools/campaign.sh
       - tools/campaign/**
       - tools/harness.py
+      - tools/ck2save.py
       - tests/game/**
       - .github/workflows/campaign.yml
   workflow_dispatch:

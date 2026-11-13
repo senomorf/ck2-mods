@@ -1,0 +1,6 @@
+# Checks on the save the campaign test's allied_fleets run ends with (tools/ck2save.py check).
+# One per line: present NAME | absent NAME | count PATH OP N. See tools/ck2save.py.
+present afl_test_started                            # the tests' global flag: they ran
+count character/*/flags/afl_test_requester >= 1    # the requesters the tests picked
+present afl_lent_ships                              # fleets lent by an accepted request (earmark)
+absent afl_request_pending                          # every request was answered
