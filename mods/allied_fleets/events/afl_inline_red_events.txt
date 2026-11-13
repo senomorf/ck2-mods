@@ -1,0 +1,11 @@
+namespace = afl
+
+# Throwaway, never merged: a deliberate lint error for #21 item 9 (inline findings).
+character_event = {
+	id = afl.1
+	hide_window = yes
+	is_triggered_only = yes
+	immediate = {
+		afl_no_such_effect = yes
+	}
+}
