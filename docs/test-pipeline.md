@@ -123,11 +123,12 @@ lines, a copy with an unknown effect 4. In the job, 2026-11-13: [green](https://
 on the fleet runner for pushes to `main` and same-repo pull requests that change a mod, the script,
 its steps files or `tools/install.sh`, and by hand. It picks mods the way the smoke job does.
 
-1. Vanilla: a new 1066 game through the menus (`tools/campaign/new_game.txt`), the console command
+1. Vanilla: a new 1066 game (`tools/campaign/new_game.txt`: launch options `-startgame
+   -start_date=1066.9.15` open the character selection, skipping the menus), the console command
    `observe` so no character waits for input, the fastest speed, run to the first yearly autosave
    (1067.1.1). That save is kept, and the game runs on to the next one (1068.1.1).
-2. Each mod: the kept save is put back as the only save, the game boots with the mod, and
-   Single Player > Continue loads it (`tools/campaign/continue.txt`); it runs to 1068.1.1. So each
+2. Each mod: the kept save is put back as the only save, and the game boots with the mod straight
+   into it (`tools/campaign/continue.txt`: `-startgame -start_save=<save>`); it runs to 1068.1.1. So each
    mod plays the same year vanilla did, from a save made without it, which also checks that an
    existing save loads with the mod.
    When the push or pull request changes a mod that its base commit already has, the base's
@@ -162,7 +163,14 @@ save under the hash of that version's files. The game never changes (3.3.5.1 is 
 with a warm cache skips vanilla, and skips a base version it has seen. The cache is saved even when
 a mod fails, and a change to the script or its steps files starts a new one.
 
-The steps files are xdotool clicks, keys and waits, with a screenshot at each `shot`; the artifact
+The steps files are xdotool clicks, keys and waits, with a screenshot at each `shot`; a `launch`
+line in a steps file adds launch options. The game writes few `game.log` lines, but enough to wait
+on instead of timers: `clickuntil` clicks until a line appears (the lobby's random-character button
+until "set as primary local", Game Rules' Start Game until "Launching SINGLEPLAYER-game"), and
+`repeat` follows a short steps file until one does (closing the start splash and typing `observe`
+until "unset as primary local"). The fixed waits left are margins of a few seconds. On the live test
+box (2026-11-13) a new game was running at full speed 123 s after launch, against 381 s on #15's
+run through the menus. The artifact
 `campaign-linux` holds them with `steps.log`, the logs and `report.txt` per run. What the steps
 rely on, measured on PR #15's probe runs, is in `docs/ck2-notes.md`: clicks need the pointer moved
 about 2 s before, and keys need the window focused. On the [green run](https://github.com/senomorf/ck2-mods/actions/runs/43468936925/job/132035403675) (#15, 2026-11-13) the menus

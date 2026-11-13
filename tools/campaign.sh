@@ -9,7 +9,7 @@
 # Flow:
 #  1. vanilla: start a new game through the menus (tools/campaign/new_game.txt), run it at full
 #     speed to the first yearly autosave (CAMPAIGN_START), keep that save, run on to CAMPAIGN_END.
-#  2. each mod: put that save back as the only one, boot with the mod, Single Player > Continue
+#  2. each mod: put that save back as the only one, boot with the mod straight into it
 #     (tools/campaign/continue.txt), run to CAMPAIGN_END. So each mod plays the same year as
 #     vanilla did, from a save made without it: this also checks that existing saves load.
 #     With CAMPAIGN_BASE (a git commit) naming a version of the mod that this one changes, that
@@ -34,6 +34,14 @@
 #   info                    log windows, pointer, CPUs, memory and the game's RSS
 #   until SECONDS REGEX     wait up to SECONDS for REGEX in logs/game.log; fails the run
 #   untilsave DATE SECONDS  wait up to SECONDS for a save dated DATE (Y.M.D) or later; fails the run
+#   clickuntil X Y SECONDS REGEX
+#                           click X,Y every few seconds until game.log gains a line matching REGEX;
+#                           fails the run after SECONDS
+#   repeat SECONDS REGEX FILE
+#                           follow steps FILE (next to this one) again and again until game.log
+#                           gains a line matching REGEX; fails the run after SECONDS
+#   launch ARGS...          not a step: extra arguments for the game, read before it starts.
+#                           %SAVE% stands for the name of the newest save in "save games"
 #
 # Env: CK2_GAME_DIR, CK2_USER_DIR  as for tools/smoke.sh
 #      CAMPAIGN_OUT                reports (default campaign-reports/ in the repo)
@@ -44,6 +52,7 @@
 #                                  error lines and year, and base versions' saves; reused when there
 #      CAMPAIGN_BASE               a commit with the previous version of the mods (the pull
 #                                  request's base); unset, each mod loads vanilla's save
+#      CAMPAIGN_PROBE_SAVE         --steps only: a save to put in "save games" first
 #
 # Measured on the fleet runner, PR #15's probe runs (2026-11-13): the game runs full screen at
 # 1280x720; a click lands only when the pointer moved about 2 s before it; keys did not reach the
@@ -186,12 +195,27 @@ wait_save() {
   done
 }
 
-# run_steps FILE: follow a steps file; sets $result on a failure and returns 1.
-run_steps() {
-  local line cmd rest x y secs re t0 wid keys
+# matches REGEX: how many game.log lines match REGEX.
+matches() { local c; c=$(grep -acE "$1" "$ud/logs/game.log" 2>/dev/null) || true; echo "${c:-0}"; }
+# launch_args FILE: the game arguments FILE's launch lines give, one per line, %SAVE% filled in.
+launch_args() {
+  local line cmd rest sv a words
+  sv=$(newest_save) || true; sv=${sv#* }; sv=${sv##*/}
   while IFS= read -r line || [ -n "$line" ]; do
     line=${line%%#*}; read -r cmd rest <<< "$line" || true
-    [ -n "${cmd:-}" ] || continue
+    [ "${cmd:-}" = launch ] || continue
+    read -ra words <<< "$rest"
+    for a in "${words[@]}"; do printf '%s\n' "${a//%SAVE%/$sv}"; done
+  done < "$1"
+}
+
+# run_steps FILE: follow a steps file; sets $result on a failure and returns 1.
+run_steps() {
+  local line cmd rest x y secs re t0 wid keys c0 file tries here
+  here=$(dirname "$1")
+  while IFS= read -r line || [ -n "$line" ]; do
+    line=${line%%#*}; read -r cmd rest <<< "$line" || true
+    [ -n "${cmd:-}" ] && [ "$cmd" != launch ] || continue
     n=$((n + 1))
     kill -0 "$pid" 2>/dev/null || { log "step $n: the game is not running"; result=exited; return 1; }
     log "step $n: $cmd $rest"
@@ -221,6 +245,31 @@ run_steps() {
         if grep -aqsE "$re" "$ud/logs/game.log"; then log "  found after $((SECONDS - t0))s"; else log "  not found in ${secs}s"; fail "timed out at step $n"; return 1; fi
         ;;
       untilsave) read -r x secs <<< "$rest"; wait_save "$x" "$secs" || { fail "no save by $x at step $n"; return 1; } ;;
+      clickuntil)
+        read -r x y secs re <<< "$rest"
+        t0=$SECONDS c0=$(matches "$re") tries=0
+        while [ "$(matches "$re")" -le "$c0" ]; do
+          if [ $((SECONDS - t0)) -ge "$secs" ] || ! kill -0 "$pid" 2>/dev/null; then
+            log "  no match in ${secs}s ($tries clicks)"; fail "timed out at step $n"; return 1
+          fi
+          xdotool mousemove "$x" "$y" sleep 2 click 1; tries=$((tries + 1))
+          for _ in 1 2 3; do sleep 1; [ "$(matches "$re")" -le "$c0" ] || break; done
+        done
+        log "  matched after $((SECONDS - t0))s ($tries clicks)"
+        ;;
+      repeat)
+        read -r secs re <<< "$rest"; file=${re##* }; re=${re% *}
+        t0=$SECONDS c0=$(matches "$re") tries=0
+        while [ "$(matches "$re")" -le "$c0" ]; do
+          if [ $((SECONDS - t0)) -ge "$secs" ] || ! kill -0 "$pid" 2>/dev/null; then
+            log "  no match in ${secs}s ($tries rounds)"; fail "timed out at step $n"; return 1
+          fi
+          tries=$((tries + 1)); log "  round $tries of $file"
+          run_steps "$here/$file" || return 1
+          for _ in 1 2 3 4 5 6; do sleep 1; [ "$(matches "$re")" -le "$c0" ] || break; done
+        done
+        log "  matched after $((SECONDS - t0))s ($tries rounds)"
+        ;;
       *) log "  unknown step"; fail "bad step $n"; return 1 ;;
     esac
   done < "$1"
@@ -252,7 +301,9 @@ stop() {
 
 if [ -n "$probe" ]; then
   rm -rf "$saves"
-  start probe
+  if [ -n "${CAMPAIGN_PROBE_SAVE:-}" ]; then mkdir -p "$saves"; cp -p "$CAMPAIGN_PROBE_SAVE" "$saves/"; fi
+  mapfile -t args < <(launch_args "$probe")
+  start probe "${args[@]}"
   run_steps "$probe" || true
   stop
   [ "$result" = ok ]
@@ -272,7 +323,8 @@ if [ -n "$cache" ] && [ -f "$cache/vanilla/start.ck2" ] && [ -f "$cache/vanilla/
   log "vanilla: restored from the cache ($(cat "$cache/vanilla/made-by" 2>/dev/null || echo unknown run)), not run"
 else
   rm -rf "$saves"
-  start _vanilla
+  mapfile -t args < <(launch_args "$steps_dir/new_game.txt")
+  start _vanilla "${args[@]}"
   if run_steps "$steps_dir/new_game.txt"; then
     if wait_save "$start_date" "$limit"; then
       cp -p "$save" "$work/start.ck2"
@@ -320,7 +372,8 @@ for m in "${mods[@]}"; do
       rm -rf "$work/base" "${ud:?}/mod/$m"; mkdir -p "$work/base" "$ud/mod"
       git -C "$repo" archive "$CAMPAIGN_BASE" "mods/$m" "mods/$m.mod" | tar -x -C "$work/base"
       cp -r "$work/base/mods/$m" "$ud/mod/$m"; cp "$work/base/mods/$m.mod" "$ud/mod/"
-      start "$m.base" "-mod=mod/$m.mod"
+      mapfile -t args < <(launch_args "$steps_dir/continue.txt")
+      start "$m.base" "-mod=mod/$m.mod" "${args[@]}"
       log "the version in ${CAMPAIGN_BASE:0:12}, to make a save with its state"
       if run_steps "$steps_dir/continue.txt" && wait_save "$end_date" "$limit"; then
         cp -p "$save" "$work/upgrade/"
@@ -343,7 +396,8 @@ for m in "${mods[@]}"; do
   # tests/game/$m.
   python3 "$repo/tools/harness.py" install "$m" "$ud/mod/$m"
   cp "$repo/mods/$m.mod" "$ud/mod/"
-  start "$m" "-mod=mod/$m.mod"
+  mapfile -t args < <(launch_args "$steps_dir/continue.txt")
+  start "$m" "-mod=mod/$m.mod" "${args[@]}"
   if run_steps "$steps_dir/continue.txt"; then
     wait_save "$to" "$limit" || fail "did not reach $to"
   fi
