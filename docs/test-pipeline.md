@@ -10,11 +10,15 @@ senomorf/homelab#2321 (Windows runner on Polaris: closed, none planned), senomor
 
 ## Layers
 
+What comes next, from runtime checks to save loading, is planned in #13.
+
+
 | Layer | Where | What it catches | Status |
 | --- | --- | --- | --- |
 | Lint (`tools/lint.py`) | CI on GitHub-hosted runners, cloud sessions | encoding, braces, duplicate ids, localisation format | working |
 | Cross-references (`tools/xref.py`, part of lint) | same | fired events that don't exist, flags set but never read, unsaved event targets, decisions without text | working; in CI only names with the mod's prefix (no `vanilla/` there) |
 | CWTools (`lint.py --cwtools`) | cloud sessions (needs `cwtools` and `vanilla/`) | unknown effects, triggers, scopes, traits | working; warnings only, noisy on vanilla |
+| Static with the game's files (`linux static` job) | the fleet runner, against its game copy at `/game` | the same lint and cross-references, with all of vanilla's names; CWTools in CI | lint and cross-references working; CWTools waits for the runner's image (senomorf/homelab#2411) |
 | Linux smoke (`tools/smoke.sh`) | the homelab fleet's runner, `linux smoke` job | anything the game itself logs at boot: parse errors, unknown keys, broken references | working: green and red runs on same-repo PRs (#10); see [Linux runner](#linux-runner) |
 | Windows smoke (`tools/smoke.ps1`) | the owner's PC (Polaris), by hand | same, on the Windows build | script written; launch arguments unverified; no runner planned |
 | Scripted in-game checks | either runner, after the smoke | events firing, decisions available, effects applied | idea only: the console `run <file>` command could fire each event; unverified |
@@ -30,6 +34,7 @@ keeps a copy of the game instead.
 
 | Job | Runs on | Switched on by |
 | --- | --- | --- |
+| `linux static` | `[self-hosted, linux, ck2]`, the fleet runner | always. Links `vanilla/` to `/game`, runs `tools/lint.py`, then `tools/cwtools_check.py --strict` when `cwtools` is installed; a missing tool skips its step with a warning |
 | `linux smoke` | `[self-hosted, linux, ck2]`, the fleet runner | always (no variable: sessions can't set repository variables) |
 | `windows smoke` | `[self-hosted, windows, ck2]` | repository variable `CK2_SMOKE_WINDOWS=true`; unset, the job is skipped rather than left queued. No Windows runner is planned |
 
@@ -76,6 +81,7 @@ The homelab fleet runs it (senomorf/homelab#2322); what it provides, per #10:
 | User dir | env `CK2_USER_DIR`, set by the runner |
 | Display | Xvfb plus Mesa's software OpenGL (llvmpipe) |
 | Network | public only |
+| Tools | `python3` 3.12.3, Xvfb, `xwd` and netpbm. Not yet: `dotnet` and the CWTools CLI, `xdotool` (senomorf/homelab#2411) |
 
 What `tools/smoke.sh` relies on, measured on that runner (#10, 2026-11-13):
 
