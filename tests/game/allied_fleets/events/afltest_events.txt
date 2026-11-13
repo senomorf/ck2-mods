@@ -81,6 +81,11 @@ character_event = {
 			limit = { NOT = { has_character_flag = afl_request_pending } }
 			log = "CK2TEST pass afl.1 answers the request"
 		}
+		# Throwaway, never merged: a deliberately broken check for the harness's red run (#13, step 3).
+		if = {
+			limit = { NOT = { has_character_flag = afl_request_pending } }
+			log = "CK2TEST fail deliberately broken: afl_request_pending stays set after the answer"
+		}
 		if = {
 			limit = { has_earmarked_regiments = afl_lent_ships }
 			log = "CK2TEST pass an accepted request leaves the requester the lent fleet"
