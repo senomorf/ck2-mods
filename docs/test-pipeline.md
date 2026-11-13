@@ -171,6 +171,27 @@ script sets `compress_autosaves=no`) into `save-checks.txt`:
 `python3 tools/ck2save.py SAVE info|get PATH|names PREFIX|check FILE|dangling PREFIX DIR...` does
 the same by hand, on a save from the artifact or the owner's game.
 
+### Trying effects by hand
+
+The console's `run FILE` runs a file of effects (`docs/ck2-notes.md`). With the live test box a
+session can load a save, fire a mod's event or run its effects, and read the result in about a
+minute, instead of a campaign run:
+
+```
+tools/box-run.sh env CAMPAIGN_PROBE_SAVE=.box/start.ck2 CAMPAIGN_PROBE_EFFECTS=.box/fx.txt \
+  CAMPAIGN_PROBE_MOD=allied_fleets tools/campaign.sh --steps tools/campaign/run_effects.txt
+```
+
+`tools/box-run.sh` copies the working tree's `tools/`, `mods/` and `tests/`, plus the gitignored
+`.box/` folder for saves and scratch files, to the box, runs the command there and brings
+`campaign-reports/` back. A save to start from: any yearly autosave in a campaign run's artifact.
+`ssh ck2box box-stop` when done, since the box shares the CI runner's memory.
+
+The effects run in no character's scope (observe mode), so start them with a scope such as
+`random_independent_ruler = { ... }`, and add `log = "..."` lines to see what happened in
+`campaign-reports/probe/game.log`. With a mod, the harness copy logs `CK2TEST fired <id>` for each of
+its events, and its in-game tests start too (from the save's first day).
+
 The runner keeps nothing between jobs, so the workflow keeps `.campaign-cache/` in `actions/cache`
 (`CAMPAIGN_CACHE`), keyed on the hash of `tools/campaign.sh` and `tools/campaign/**`: vanilla's
 1067.1.1 save, its normalised `error.log` lines and its year's duration, and each base version's
