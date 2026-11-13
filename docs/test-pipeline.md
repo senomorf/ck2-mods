@@ -88,6 +88,12 @@ What `tools/smoke.sh` relies on, measured on that runner (#10, 2026-11-13):
   without a network. With one it prints "Please start Crusader Kings II through steam for your
   first time start-up" and exits 1 after about 16 s. So the game runs in its own network namespace
   (`unshare -rn`, only a downed loopback), while the job keeps its network for GitHub.
+- **Xvfb runs with `-noreset`**. Without it Xvfb resets when its last client disconnects, and a
+  connection made meanwhile fails. One boot right after the baseline's died at once with
+  "Failed to initialize SDL! SDL_Error: No available video device"
+  ([run](https://github.com/senomorf/ck2-mods/actions/runs/43421049097/job/131870832530)). A
+  close-then-reopen test in a cloud session (Xvfb 21.1) failed 5 of 600 times without `-noreset`
+  and 0 of 600 with it.
 - **Baseline**: the runner keeps nothing between jobs, so each run boots vanilla first and compares
   each mod's `error.log` with it, ignoring the leading `[file:line]` tags.
 - **Mod loaded**: `system.log` names `mod/<folder>` when the game loads the mod, and a vanilla boot
