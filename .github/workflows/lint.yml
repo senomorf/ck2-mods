@@ -15,8 +15,15 @@ jobs:
         run: python3 -m unittest discover -s tests -v
       - name: Lint mods
         run: python3 tools/lint.py
+      - name: Pinned linters (tools/cloud_setup.sh, the versions cloud sessions get)
+        run: |
+          sudo bash tools/cloud_setup.sh shellcheck actionlint
+          /usr/local/bin/shellcheck --version
+          /usr/local/bin/actionlint --version
       - name: Shell scripts
-        run: shellcheck tools/*.sh .claude/hooks/*.sh
+        run: /usr/local/bin/shellcheck tools/*.sh .claude/hooks/*.sh
+      - name: Workflows
+        run: /usr/local/bin/actionlint
       - name: PowerShell scripts parse
         shell: pwsh
         run: |
