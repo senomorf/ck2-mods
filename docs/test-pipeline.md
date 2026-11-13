@@ -20,9 +20,9 @@ What comes next, from runtime checks to save loading, is planned in #13.
 | CWTools (`lint.py --cwtools`) | cloud sessions (needs `cwtools` and `vanilla/`) | unknown effects, triggers, scopes, traits | working; warnings only, noisy on vanilla |
 | Static with the game's files (`linux static` job) | the fleet runner, against its game copy at `/game` | the same lint and cross-references, with all of vanilla's names; CWTools in CI | working: lint, cross-references and CWTools `--strict` (red run on #14: `CW262` for an unknown effect) |
 | Linux smoke (`tools/smoke.sh`) | the homelab fleet's runner, `linux smoke` job | anything the game itself logs at boot: parse errors, unknown keys, broken references | working: green and red runs on same-repo PRs (#10); see [Linux runner](#linux-runner) |
-| Linux campaign (`tools/campaign.sh`) | the fleet runner, `linux campaign` job (`campaign.yml`) | errors the game logs while it plays: events, decisions and on_actions that fire during a year, and loading a save made without the mod | working: [green run](https://github.com/senomorf/ck2-mods/actions/runs/43468936925/job/132035403675) on #15 with `allied_fleets` (red run pending); see [Campaign test](#campaign-test) |
+| Linux campaign (`tools/campaign.sh`) | the fleet runner, `linux campaign` job (`campaign.yml`) | errors the game logs while it plays a year with the mod, and loading a save made without it. Not runtime script faults: dividing by a zero variable and an unsaved event target logged nothing ([red run](https://github.com/senomorf/ck2-mods/actions/runs/43486984204/job/132097929990) on #17); in-game tests catch what those break | working: [green run](https://github.com/senomorf/ck2-mods/actions/runs/43468936925/job/132035403675) on #15 with `allied_fleets` (red run pending); see [Campaign test](#campaign-test) |
 | Windows smoke (`tools/smoke.ps1`) | the owner's PC (Polaris), by hand | same, on the Windows build | script written; launch arguments unverified; no runner planned |
-| In-game tests (`tools/harness.py`, `tests/game/<mod>/`) | the `linux campaign` job, in each mod's run | events that never fire, effects that don't do what they should: test events check the mod's state and log pass or fail | working: first [run](https://github.com/senomorf/ck2-mods/actions/runs/43475355959) (#18) fired all 3 `allied_fleets` events (afl.1 20 times, afl.2 15, afl.3 5) and passed 35 checks; red run pending |
+| In-game tests (`tools/harness.py`, `tests/game/<mod>/`) | the `linux campaign` job, in each mod's run | events that never fire, effects that don't do what they should: test events check the mod's state and log pass or fail | working: first [run](https://github.com/senomorf/ck2-mods/actions/runs/43475355959) (#18) fired all 3 `allied_fleets` events (afl.1 20 times, afl.2 15, afl.3 5) and passed 35 checks; the [red run](https://github.com/senomorf/ck2-mods/actions/runs/43486984204/job/132097929990) on #17 failed on a deliberately broken check, 20 times |
 
 Why runners: the game can't run in a Claude cloud session. The agent proxy carries neither the
 WebSocket nor the raw TCP connections Steam login needs (`/root/.ccr/README.md`, "Not supported
@@ -139,6 +139,10 @@ its steps files or `tools/install.sh`, and by hand. It picks mods the way the sm
 3. New `error.log` lines against the vanilla run are split by whether they name the mod (its
    folder, prefix or a file name). Those fail the job; the rest are listed as warnings, because
    the game's own runtime errors differ from run to run. A mod whose name `system.log` lacks fails.
+   `error.log` shows what the game finds wrong while loading files and some runtime problems, but
+   not script mistakes that run without complaint: on #17 an event that divided by a zero
+   variable and scoped to a never-saved event target ran 348 times and logged nothing, in
+   `error.log` or any other log. Behaviour needs in-game tests (below).
 
 In each mod's run the mod is a copy made by `tools/harness.py install`, not install.sh's link. The
 copy gets a `log = "CK2TEST fired <id>"` line at the start of every event's `immediate` block (one
