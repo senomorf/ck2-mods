@@ -155,6 +155,13 @@ check, or for a mod with tests, a missing `done` or an event that never fired, f
 without tests only gets its events counted. `on_startup` starts the tests: it fires for every
 character when a save loads (`.cwtools/on_actions.cwt`), so test events guard with a global flag.
 
+The runner keeps nothing between jobs, so the workflow keeps `.campaign-cache/` in `actions/cache`
+(`CAMPAIGN_CACHE`), keyed on the hash of `tools/campaign.sh` and `tools/campaign/**`: vanilla's
+1067.1.1 save, its normalised `error.log` lines and its year's duration, and each base version's
+save under the hash of that version's files. The game never changes (3.3.5.1 is final), so a run
+with a warm cache skips vanilla, and skips a base version it has seen. The cache is saved even when
+a mod fails, and a change to the script or its steps files starts a new one.
+
 The steps files are xdotool clicks, keys and waits, with a screenshot at each `shot`; the artifact
 `campaign-linux` holds them with `steps.log`, the logs and `report.txt` per run. What the steps
 rely on, measured on PR #15's probe runs, is in `docs/ck2-notes.md`: clicks need the pointer moved

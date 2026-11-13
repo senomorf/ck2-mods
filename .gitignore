@@ -8,3 +8,4 @@ reference/
 .cache/
 smoke-reports/
 campaign-reports/
+.campaign-cache/

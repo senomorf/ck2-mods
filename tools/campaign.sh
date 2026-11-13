@@ -40,6 +40,8 @@
 #      CAMPAIGN_START, CAMPAIGN_END  dates (default 1067.1.1 and 1068.1.1: the 1066 start's first two
 #                                  yearly autosaves)
 #      CAMPAIGN_TIMEOUT            seconds each run may take to reach a date (default 1500)
+#      CAMPAIGN_CACHE              a folder kept between runs (actions/cache): vanilla's save,
+#                                  error lines and year, and base versions' saves; reused when there
 #      CAMPAIGN_BASE               a commit with the previous version of the mods (the pull
 #                                  request's base); unset, each mod loads vanilla's save
 #
@@ -257,24 +259,43 @@ if [ -n "$probe" ]; then
   exit
 fi
 
-# 1. vanilla, from a new game
-rm -rf "$saves"
-start _vanilla
-if run_steps "$steps_dir/new_game.txt"; then
-  if wait_save "$start_date" "$limit"; then
-    cp -p "$save" "$work/"
-    log "  kept $(basename "$save") as the start for the mod runs"
-    wait_save "$end_date" "$limit" || fail "vanilla did not reach $end_date"
-  else
-    fail "vanilla did not reach $start_date"
+# 1. vanilla, from a new game, or from CAMPAIGN_CACHE when an earlier run left it there. The game
+# never changes (3.3.5.1 is the last version), so vanilla's run depends only on this script and its
+# steps files, which the workflow's cache key hashes.
+cache=${CAMPAIGN_CACHE:-}
+if [ -n "$cache" ] && [ -f "$cache/vanilla/start.ck2" ] && [ -f "$cache/vanilla/error.norm" ]; then
+  dest="$out/_vanilla"; mkdir -p "$dest"
+  cp -p "$cache/vanilla/start.ck2" "$work/"
+  cp "$cache/vanilla/error.norm" "$dest/"
+  cp "$cache/vanilla/steps.log" "$dest/cached-steps.log" 2>/dev/null || true
+  cp "$cache/vanilla/year-seconds" "$dest/" 2>/dev/null || true
+  log "vanilla: restored from the cache ($(cat "$cache/vanilla/made-by" 2>/dev/null || echo unknown run)), not run"
+else
+  rm -rf "$saves"
+  start _vanilla
+  if run_steps "$steps_dir/new_game.txt"; then
+    if wait_save "$start_date" "$limit"; then
+      cp -p "$save" "$work/start.ck2"
+      log "  kept $(basename "$save") as the start for the mod runs"
+      t0=$SECONDS
+      if wait_save "$end_date" "$limit"; then echo $((SECONDS - t0)) > "$dest/year-seconds"; else fail "vanilla did not reach $end_date"; fi
+    else
+      fail "vanilla did not reach $start_date"
+    fi
   fi
-fi
-stop
-vanilla=$result
-norm "$out/_vanilla/error.log" 2>/dev/null | sort -u > "$out/_vanilla/error.norm"
-if [ "$vanilla" != ok ] || ! compgen -G "$work/*.ck2" >/dev/null; then
-  echo "campaign: vanilla run failed ($vanilla); see $out/_vanilla" >&2
-  exit 1
+  stop
+  vanilla=$result
+  norm "$out/_vanilla/error.log" 2>/dev/null | sort -u > "$out/_vanilla/error.norm"
+  if [ "$vanilla" != ok ] || ! [ -f "$work/start.ck2" ]; then
+    echo "campaign: vanilla run failed ($vanilla); see $out/_vanilla" >&2
+    exit 1
+  fi
+  if [ -n "$cache" ]; then
+    rm -rf "$cache/vanilla"; mkdir -p "$cache/vanilla"
+    cp -p "$work/start.ck2" "$out/_vanilla/error.norm" "$out/_vanilla/steps.log" "$cache/vanilla/"
+    cp "$out/_vanilla/year-seconds" "$cache/vanilla/" 2>/dev/null || true
+    echo "run ${GITHUB_RUN_ID:-local} on $(date -u +%Y-%m-%d)" > "$cache/vanilla/made-by"
+  fi
 fi
 
 # 2. each mod, from vanilla's save
@@ -288,18 +309,28 @@ for m in "${mods[@]}"; do
   # first, so this version loads a save that holds the old version's state.
   if [ -n "${CAMPAIGN_BASE:-}" ] && git -C "$repo" cat-file -e "$CAMPAIGN_BASE:mods/$m.mod" 2>/dev/null &&
      ! git -C "$repo" diff --quiet "$CAMPAIGN_BASE" -- "mods/$m" "mods/$m.mod"; then
-    rm -rf "$work/base" "${ud:?}/mod/$m"; mkdir -p "$work/base" "$ud/mod"
-    git -C "$repo" archive "$CAMPAIGN_BASE" "mods/$m" "mods/$m.mod" | tar -x -C "$work/base"
-    cp -r "$work/base/mods/$m" "$ud/mod/$m"; cp "$work/base/mods/$m.mod" "$ud/mod/"
-    start "$m.base" "-mod=mod/$m.mod"
-    log "the version in ${CAMPAIGN_BASE:0:12}, to make a save with its state"
-    if run_steps "$steps_dir/continue.txt" && wait_save "$end_date" "$limit"; then
-      rm -rf "$work/upgrade"; mkdir -p "$work/upgrade"; cp -p "$save" "$work/upgrade/"
+    rm -rf "$work/upgrade"; mkdir -p "$work/upgrade"
+    # The base version's save depends only on that version's files (and this script, which the
+    # cache key hashes), so it is kept under their tree's hash.
+    based=""; [ -z "$cache" ] || based="$cache/base/$m-$(git -C "$repo" rev-parse "$CAMPAIGN_BASE:mods/$m").ck2"
+    if [ -n "$based" ] && [ -f "$based" ]; then
+      cp -p "$based" "$work/upgrade/"
+      dest="$out/$m.base"; mkdir -p "$dest"; log "the ${CAMPAIGN_BASE:0:12} version's save: restored from the cache, not run"
     else
-      [ "$result" != ok ] || fail "did not reach $end_date"
+      rm -rf "$work/base" "${ud:?}/mod/$m"; mkdir -p "$work/base" "$ud/mod"
+      git -C "$repo" archive "$CAMPAIGN_BASE" "mods/$m" "mods/$m.mod" | tar -x -C "$work/base"
+      cp -r "$work/base/mods/$m" "$ud/mod/$m"; cp "$work/base/mods/$m.mod" "$ud/mod/"
+      start "$m.base" "-mod=mod/$m.mod"
+      log "the version in ${CAMPAIGN_BASE:0:12}, to make a save with its state"
+      if run_steps "$steps_dir/continue.txt" && wait_save "$end_date" "$limit"; then
+        cp -p "$save" "$work/upgrade/"
+        if [ -n "$based" ]; then mkdir -p "$cache/base"; cp -p "$save" "$based"; fi
+      else
+        [ "$result" != ok ] || fail "did not reach $end_date"
+      fi
+      stop
+      rm -rf "${ud:?}/mod/$m" "$ud/mod/$m.mod"
     fi
-    stop
-    rm -rf "${ud:?}/mod/$m" "$ud/mod/$m.mod"
     if compgen -G "$work/upgrade/*.ck2" >/dev/null; then
       rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work"/upgrade/*.ck2 "$saves/"
       from="the ${CAMPAIGN_BASE:0:12} version's $end_date save" to=$(next_year "$end_date")
