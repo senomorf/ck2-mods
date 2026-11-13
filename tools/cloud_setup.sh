@@ -7,7 +7,9 @@
 # Usage: tools/cloud_setup.sh [step ...]   (no step: all of them)
 # Steps:
 #   - depotdownloader: downloads the game's files from Steam (tools/steam_fetch_vanilla.py)
-#   - dotnet, cwtools: .NET 9 SDK + CWTools CLI, optional extra validation (lint.py --cwtools)
+#   - dotnet, cwtools: .NET 10 SDK + CWTools CLI, optional extra validation (lint.py --cwtools).
+#     The CLI targets .NET 9 (end of life 2026-11-10), so `cwtools` runs it with
+#     DOTNET_ROLL_FORWARD=Major on .NET 10, as the fleet runner does
 #   - shellcheck, actionlint: the linters CI's lint job runs; lint.yml installs them with these
 #     steps, so a session checks with the same versions
 # Each step is optional: failures are logged and never stop the session.
@@ -19,7 +21,7 @@ DEPOTDOWNLOADER_VERSION=3.4.0
 CWTOOLS_CLI_VERSION=0.6.0-alpha
 SHELLCHECK_VERSION=0.11.0
 ACTIONLINT_VERSION=1.7.12
-DOTNET_CHANNEL=9.0
+DOTNET_CHANNEL=10.0
 export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
 
 install_depotdownloader() {
@@ -42,11 +44,13 @@ install_depotdownloader() {
 }
 
 install_dotnet() {
-  command -v dotnet >/dev/null 2>&1 && return 0
+  if dotnet --list-sdks 2>/dev/null | grep -q "^${DOTNET_CHANNEL%%.*}\."; then
+    return 0
+  fi
   if curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
     && bash /tmp/dotnet-install.sh --channel "$DOTNET_CHANNEL" --install-dir /usr/share/dotnet >/dev/null; then
     ln -sf /usr/share/dotnet/dotnet /usr/local/bin/dotnet
-    log "installed .NET $(dotnet --version)"
+    log "installed .NET SDK $(dotnet --version)"
   else
     log "could not install .NET $DOTNET_CHANNEL; CWTools CLI skipped"
   fi
@@ -54,13 +58,18 @@ install_dotnet() {
 
 install_cwtools() {
   command -v dotnet >/dev/null 2>&1 || return 0
-  command -v cwtools >/dev/null 2>&1 && return 0
-  if dotnet tool install --tool-path /opt/cwtools CWTools.CLI --version "$CWTOOLS_CLI_VERSION" >/dev/null; then
-    ln -sf /opt/cwtools/cwtools /usr/local/bin/cwtools
-    log "installed CWTools CLI $CWTOOLS_CLI_VERSION"
-  else
-    log "could not install CWTools CLI"
+  if [ ! -x /opt/cwtools/cwtools ]; then
+    if dotnet tool install --tool-path /opt/cwtools CWTools.CLI --version "$CWTOOLS_CLI_VERSION" >/dev/null; then
+      log "installed CWTools CLI $CWTOOLS_CLI_VERSION"
+    else
+      log "could not install CWTools CLI"
+      return 0
+    fi
   fi
+  # A wrapper, not a link: the CLI needs DOTNET_ROLL_FORWARD=Major to run on .NET 10.
+  rm -f /usr/local/bin/cwtools
+  printf '#!/bin/sh\nDOTNET_ROLL_FORWARD=Major exec /opt/cwtools/cwtools "$@"\n' > /usr/local/bin/cwtools
+  chmod 0755 /usr/local/bin/cwtools
 }
 
 # install_release NAME VERSION URL MEMBER: one binary from a .tar.gz release into /usr/local/bin,

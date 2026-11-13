@@ -18,6 +18,7 @@ later runs take ~30 s. Exit 1 only with --strict and findings left after the
 ignore list.
 """
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -31,6 +32,8 @@ VANILLA = ROOT / "vanilla"
 RULES = ROOT / ".cwtools"
 CACHE_DIR = ROOT / ".cache" / "cwtools"
 IGNORE = ROOT / "tools" / "cwtools_ignore.txt"
+# The CLI targets .NET 9, which reached end of life on 2026-11-10; let it run on a newer runtime.
+ENV = {**os.environ, "DOTNET_ROLL_FORWARD": os.environ.get("DOTNET_ROLL_FORWARD") or "Major"}
 
 
 def load_ignores() -> list[re.Pattern]:
@@ -59,7 +62,7 @@ def ensure_cache(exe: str) -> Path | None:
     r = subprocess.run(
         [exe, "--directory", str(VANILLA), "--game", "ck2", "--scope", "vanilla", "--rulespath", str(RULES),
          "serialize", "--outputcachefile", str(cache), "full"],
-        cwd=CACHE_DIR, capture_output=True, text=True,
+        cwd=CACHE_DIR, capture_output=True, text=True, env=ENV,
     )
     if r.returncode != 0 or not cache.exists():
         print(f"cwtools: could not build vanilla cache:\n{r.stdout[-2000:]}{r.stderr[-2000:]}")
@@ -83,7 +86,7 @@ def run(folders: list[str], exe: str, cache: Path) -> list[tuple[str, int, str, 
             [exe, "--directory", str(tmp), "--game", "ck2", "--scope", "mods", "--rulespath", str(RULES),
              "--cachefile", str(cache), "--cachetype", "full",
              "validate", "--reporttype", "json", "--outputfile", str(out), "errors"],
-            cwd=tmp, capture_output=True, text=True,
+            cwd=tmp, capture_output=True, text=True, env=ENV,
         )
         if not out.exists():
             raise RuntimeError(f"cwtools produced no report (exit {r.returncode}):\n{r.stdout[-2000:]}{r.stderr[-2000:]}")

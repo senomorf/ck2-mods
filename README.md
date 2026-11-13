@@ -40,7 +40,7 @@ Use the `ck2-mod-dev` environment. Its setup script is one line that calls the r
 [ -f ck2-mods/tools/cloud_setup.sh ] && bash ck2-mods/tools/cloud_setup.sh; exit 0
 ```
 
-`tools/cloud_setup.sh` installs DepotDownloader, .NET 9 and the CWTools CLI. New containers run the version on `main`. The session-start hook in `.claude/hooks/` then provides:
+`tools/cloud_setup.sh` installs DepotDownloader, .NET 10 and the CWTools CLI. New containers run the version on `main`. The session-start hook in `.claude/hooks/` then provides:
 
 | Path | Source | In git? |
 | --- | --- | --- |
