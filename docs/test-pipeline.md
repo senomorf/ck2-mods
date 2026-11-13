@@ -2,11 +2,11 @@
 
 How a mod change gets checked, from cheapest to closest to the real game, and what each self-hosted
 runner must provide. Host setup (installing runners, game files, isolation) is done from the owner's
-homelab repo; this file is the contract those hosts must meet. Nothing here is verified on a runner
-yet: each section says what is.
+homelab repo; this file is the contract those hosts must meet. Each section says what is verified.
 
 Host work is tracked in the homelab repo: senomorf/homelab#2320 (public-repo decision),
-senomorf/homelab#2321 (Windows runner on Polaris), senomorf/homelab#2322 (Linux headless game).
+senomorf/homelab#2321 (Windows runner on Polaris: closed, none planned), senomorf/homelab#2322
+(Linux headless game: the runner exists). This repo's half of the Linux runner: #10.
 
 ## Layers
 
@@ -15,31 +15,33 @@ senomorf/homelab#2321 (Windows runner on Polaris), senomorf/homelab#2322 (Linux 
 | Lint (`tools/lint.py`) | CI on GitHub-hosted runners, cloud sessions | encoding, braces, duplicate ids, localisation format | working |
 | Cross-references (`tools/xref.py`, part of lint) | same | fired events that don't exist, flags set but never read, unsaved event targets, decisions without text | working; in CI only names with the mod's prefix (no `vanilla/` there) |
 | CWTools (`lint.py --cwtools`) | cloud sessions (needs `cwtools` and `vanilla/`) | unknown effects, triggers, scopes, traits | working; warnings only, noisy on vanilla |
-| Windows smoke (`tools/smoke.ps1`) | the owner's PC (Polaris), by hand or a self-hosted runner | anything the game itself logs at boot: parse errors, unknown keys, broken references | script written; launch arguments unverified |
-| Linux smoke (to be written: `tools/smoke.sh`) | a Linux self-hosted runner with the CK2 Linux build | same as Windows, without the owner's PC | not started; needs a host with the game |
+| Linux smoke (`tools/smoke.sh`) | the homelab fleet's runner, `linux smoke` job | anything the game itself logs at boot: parse errors, unknown keys, broken references | working on the runner image (#10); see [Linux runner](#linux-runner) |
+| Windows smoke (`tools/smoke.ps1`) | the owner's PC (Polaris), by hand | same, on the Windows build | script written; launch arguments unverified; no runner planned |
 | Scripted in-game checks | either runner, after the smoke | events firing, decisions available, effects applied | idea only: the console `run <file>` command could fire each event; unverified |
 
 Why runners: the game can't run in a Claude cloud session. The agent proxy carries neither the
 WebSocket nor the raw TCP connections Steam login needs (`/root/.ccr/README.md`, "Not supported
-through the proxy"), and a several-GB game install doesn't belong in a session. A host with direct
-internet can log in to Steam once and keep the game.
+through the proxy"), and a several-GB game install doesn't belong in a session. The fleet runner
+keeps a copy of the game instead.
 
 ## Workflow
 
-`.github/workflows/smoke.yml` runs the smoke on each runner that is switched on:
+`.github/workflows/smoke.yml` has two jobs:
 
-| Repository variable | Effect |
-| --- | --- |
-| `CK2_SMOKE_WINDOWS=true` | the `windows smoke` job runs on `[self-hosted, windows, ck2]` |
-| `CK2_SMOKE_LINUX=true` | the `linux smoke` job runs on `[self-hosted, linux, ck2]` |
+| Job | Runs on | Switched on by |
+| --- | --- | --- |
+| `linux smoke` | `[self-hosted, linux, ck2]`, the fleet runner | always (no variable: sessions can't set repository variables) |
+| `windows smoke` | `[self-hosted, windows, ck2]` | repository variable `CK2_SMOKE_WINDOWS=true`; unset, the job is skipped rather than left queued. No Windows runner is planned |
 
-With a variable unset, its job is skipped rather than left queued. Jobs run on pushes to `main`,
+Jobs run on pushes to `main`,
 pull requests **from branches of this repository only** (`head.repo.full_name == github.repository`), except Renovate's (author `renovate[bot]` or branch `renovate/*`),
 and by hand (`workflow_dispatch`). The job-level `if` is evaluated before a runner is assigned, so a fork's
 pull request never reaches a self-hosted runner. See [Security](#security).
 
-Each job smokes every mod the push or pull request changed (all mods on `main` and by hand). It
-uploads the report as an artifact and fails on any new `error.log` line.
+Each job smokes every mod the push or pull request changed, and every mod on a manual run. The
+Linux job also smokes every mod when `tools/smoke.sh`, `tools/install.sh` or the workflow changed,
+or when git can't tell what changed, and skips the boot when no mod changed. Each job uploads its
+reports as an artifact (`smoke-linux`, `smoke-windows`) and fails on any new `error.log` line.
 
 ## Windows runner contract
 
@@ -62,23 +64,40 @@ To verify on the first run, then record in `docs/ck2-notes.md`:
 3. Does `error.log` stop growing once the main menu is up? That is the "booted" signal `smoke.ps1` waits for.
 4. How long does a boot take?
 
-## Linux runner contract
+## Linux runner
+
+The homelab fleet runs it (senomorf/homelab#2322); what it provides, per #10:
 
 | Need | Detail |
 | --- | --- |
-| Labels | `self-hosted`, `linux`, `ck2` |
-| Registration | repository runner for `senomorf/ck2-mods` only, ephemeral preferred |
-| CPU | x86_64. [Unverified] whether 3.3.3's Linux binary is 32- or 64-bit: forum reports conflict ([thread](https://admin-forum.paradoxplaza.com/forum/threads/what-is-the-graphics-system-for-ck2-and-other-pdx-games-on-linux.1463776)) |
-| Display | Xvfb plus Mesa's software OpenGL (llvmpipe). CK2 on Linux uses OpenGL 2.1 (same thread) |
-| Game | Steam app 203770. Depots per [SteamDB](https://steamdb.info/app/203770/depots), not verified: `203771` CKIIMain (shared content), `210909` Linux binaries. DLC depots are optional for a smoke. Download once with DepotDownloader and Steam QR login on the host, which needs direct internet. Path in env `CK2_GAME_DIR`, outside any checkout |
-| User dir | env `CK2_USER_DIR` (CK2 on Linux uses `~/.paradoxinteractive/Crusader Kings II`; `tools/install.sh` assumes that) |
-| Libraries | whatever `ldd` on the binary lists. Forum reports name `libGLU.so.1` and `libtbb.so.2` |
-| Steam | as for Windows: unknown whether the binary starts without a Steam client. If it refuses, the runner needs a Steam client, or the host isn't usable |
-| Time | expect slow boots under software rendering; budget 15 minutes a job until measured |
+| Runner | `dunkirk-ck2mods-1`, a repository runner for `senomorf/ck2-mods`, ephemeral (a fresh container per job) |
+| Labels | `ck2`, `dunkirk`, and the defaults `self-hosted`, `Linux`, `X64` |
+| Game | CK2 3.3.5.1, native Linux build, read-only at `/game` (`CK2_GAME_DIR` defaults to it) |
+| User dir | env `CK2_USER_DIR`, set by the runner |
+| Display | Xvfb plus Mesa's software OpenGL (llvmpipe) |
+| Network | public only |
 
-To verify first: the binary starts under `xvfb-run`, reaches the main menu (screenshot with
-`xwd` or `import`), and writes `error.log`. Only then write `tools/smoke.sh`, mirroring
-`smoke.ps1`.
+What `tools/smoke.sh` relies on, measured on that runner (#10, 2026-11-13):
+
+- **Booted** means `game.log` gains `After first history execution`. A boot took 20 to 30 s under
+  llvmpipe, 70 s once with the host busy. The script keeps the game running 15 s more, then kills it.
+- **Language dialog**: an empty user folder stops at "Choose language" and waits for a click.
+  `settings.txt` with `gui = { language=l_english has_set_language=yes }` skips it;
+  `language="l_english"` alone does not. The script writes that file when it lacks `has_set_language`.
+- **No Steam client, no network**: the game logs `SteamAPI_Init() failed` and carries on, but only
+  without a network. With one it prints "Please start Crusader Kings II through steam for your
+  first time start-up" and exits 1 after about 16 s. So the game runs in its own network namespace
+  (`unshare -rn`, only a downed loopback), while the job keeps its network for GitHub.
+- **Baseline**: the runner keeps nothing between jobs, so each run boots vanilla first and compares
+  each mod's `error.log` with it, ignoring the leading `[file:line]` tags.
+- **Mod loaded**: `system.log` names `mod/<folder>` when the game loads the mod, and a vanilla boot
+  doesn't. A mod whose name is missing fails even with no new errors.
+- The script refuses (exit 2) without an executable `ck2`, Xvfb, or `unshare -rn`, or when `ck2`
+  already runs. It saves `report.txt`, `new-errors.txt` and the logs per mod in `smoke-reports/`,
+  plus `screen.png` (with `xwd` and netpbm) when a boot fails.
+
+Tested in the runner image before the job existed (#10): a clean `allied_fleets` gave 0 new error
+lines, a copy with an unknown effect 4.
 
 ## Security
 
