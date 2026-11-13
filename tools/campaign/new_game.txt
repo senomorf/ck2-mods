@@ -1,44 +1,31 @@
-# tools/campaign.sh, the vanilla run: from the main menu to a new 1066 game running in observe mode
-# at full speed. Coordinates are for the 1280x720 Xvfb screen (the game runs full screen at
-# 1280x720) and were read off the screenshots of PR #15's probe runs on the fleet runner
-# (2026-11-13); "run N" below is that probe run.
+# tools/campaign.sh, the vanilla run: a new 1066 game running in observe mode at full speed.
+# Coordinates are for the 1280x720 Xvfb screen (the game runs full screen at 1280x720) and were read
+# off the screenshots of PR #15's probe runs on the fleet runner (2026-11-13; "run N" below) and of
+# the live test box's probes (2026-11-13; "box"). Waits are on game.log lines where the game writes
+# one; the fixed waits left are short margins.
+#
+# -startgame -start_date goes straight to the 1066 character selection, skipping the main menu,
+# Single Player, New Game and the era screen (box: the selection showed about 30 s after the
+# history marker, against about 140 s of waits through the menus).
+launch -startgame -start_date=1066.9.15
 until 300 After first history execution
-wait 25             # run 2: "Loading Graphics..." still covered the menu 10 s after the marker
-click 640 246       # main menu "Single Player" (run 4)
+# The lobby's dice button picks a random playable character; game.log gets "Human ... set as
+# primary local" once it does (box). Clicks before the lobby is up land on a loading screen.
+clickuntil 995 686 300 set as primary local
+shot lobby
 wait 3
-click 640 406       # "New Game" (run 4)
-wait 20
-click 819 245       # era "High Middle Ages, 1066" (run 5); 769 and 867 show "DLC Required" on the runner's copy
-wait 90             # run 6: the era's text and characters took 40 to 100 s to settle under llvmpipe
-shot era
-click 718 677       # "Custom Game Setup" (run 6). Clicking a portrait on the era screen does not select
-                    # it (run 9), so the era screen's Start Game stays greyed
-wait 40
-click 995 686       # lobby dice button: a random playable character (run 7)
+click 1163 654      # "Play" (run 7): the Game Rules window was up 2 s later (box)
+wait 5
+clickuntil 937 601 120 Launching SINGLEPLAYER-game   # Game Rules: "Start Game" (run 8)
+# The game loads under the Game Rules window, then starts paused under the "Welcome to Crusader
+# Kings II!" splash (common/hints.txt splash_screen, then splash_screen_2), even with hints=no in
+# settings.txt (run 10); box: the splash came about 27 s after the Launching line. new_game_observe.txt
+# closes it and types `observe` in the console; observing writes "Human ... unset as primary local".
 wait 15
-click 1163 654      # "Play" (run 7)
-wait 30
-click 937 601       # Game Rules window: "Start Game" (run 8)
-wait 120
+repeat 300 unset as primary local new_game_observe.txt
 shot ingame
-# The game starts paused under the "Welcome to Crusader Kings II!" splash (common/hints.txt
-# splash_screen, then splash_screen_2), even with hints=no in settings.txt (run 10).
-click 950 615       # splash "Next" (run 10)
-wait 5
-click 950 615       # page 2's close button, same place (run 11)
-wait 5
-# Keys reach the game only once its window has the X input focus: no window manager sets it
-# (keys were ignored in runs 4 and 11, worked after `focus` in run 12).
-focus
-key grave           # the console (run 12)
-wait 5
-type observe        # play no character, so nothing waits for the player's choices (run 12: the
-key Return          # portrait turned to "?" and the game ran on to 1068 with no input)
-wait 5
-key grave           # close the console
-wait 3
 click 1100 50       # the date: a click unpauses (run 12)
-wait 20
+wait 5
 click 1240 50       # "+" speed, four times to the fastest (run 12)
 wait 2
 click 1240 50
@@ -48,6 +35,6 @@ wait 2
 click 1240 50
 wait 2
 move 640 600        # off the buttons, so no tooltip covers the date
-wait 30
+wait 10
 shot running
 info

@@ -1,0 +1,16 @@
+# tools/campaign/new_game.txt repeats these steps until game.log shows `observe` took effect: close
+# the start splash's two pages, then play no character, so nothing waits for the player's choices
+# (run 12: the portrait turned to "?" and the game ran on to 1068 with no input).
+click 950 615       # splash "Next" (run 10)
+wait 3
+click 950 615       # page 2's close button, same place (run 11)
+wait 3
+# Keys reach the game only once its window has the X input focus: no window manager sets it
+# (keys were ignored in runs 4 and 11, worked after `focus` in run 12).
+focus
+key grave           # the console (run 12)
+wait 3
+type observe
+key Return
+wait 3
+key grave           # close the console

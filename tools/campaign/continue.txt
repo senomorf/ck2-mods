@@ -1,15 +1,15 @@
-# tools/campaign.sh, each mod's run: load the vanilla save (the only one in "save games") with
-# Single Player > Continue, then run at full speed. Coordinates: see new_game.txt.
-until 300 After first history execution
-wait 25             # "Loading Graphics..." still covers the menu 10 s after the marker (probe run 2)
-click 640 246       # main menu "Single Player" (seen, probe run 4)
-wait 5
-shot single-player
-click 640 356       # "Continue": loads the newest save (seen in probe run 4's single player menu)
-wait 150            # [Unverified] load time; a new game took about 120 s from Start Game to the map
+# tools/campaign.sh, each mod's run: load the save (the only one in "save games") straight into the
+# game, then run it at full speed. Coordinates: see new_game.txt.
+#
+# -startgame -start_save=<file in save games> skips the main menu and Single Player > Continue: on
+# the live test box (2026-11-13) game.log said "Launching SINGLEPLAYER-game" 34 s after the start,
+# and the map showed, paused, 5 s later, still observing ("Country: No Character").
+launch -startgame -start_save=%SAVE%
+until 300 Launching SINGLEPLAYER-game
+wait 10
 shot loaded
 click 1100 50       # the date: a click unpauses
-wait 10
+wait 5
 click 1240 50       # "+" speed, four times
 wait 2
 click 1240 50
@@ -19,6 +19,6 @@ wait 2
 click 1240 50
 wait 2
 move 640 600
-wait 30
+wait 10
 shot running
 info
