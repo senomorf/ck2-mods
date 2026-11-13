@@ -59,4 +59,16 @@ fi
 if command -v cwtools >/dev/null 2>&1; then
   say "cwtools CLI available"
 fi
+
+# The CK2 test box (senomorf/homelab#2440), when the environment has its CK2_BOX_* variables.
+# In the background, so the session doesn't wait for it (about 17 s cold), and with
+# CK2_BOX_PROBE=0, so the box itself starts only when something runs `ssh ck2box ...`.
+if [ -n "${CK2_BOX_NETBIRD_SETUP_KEY:-}" ] && [ "$(id -u)" = 0 ]; then
+  if command -v ssh >/dev/null 2>&1 && command -v nc >/dev/null 2>&1; then
+    CK2_BOX_PROBE=0 setsid nohup bash tools/box-connect.sh </dev/null >/tmp/ck2box-connect.log 2>&1 &
+    say "connecting to the CK2 test box in the background (log /tmp/ck2box-connect.log); then ssh ck2box box-status"
+  else
+    say "CK2 box variables are set but ssh or nc is missing: bash tools/cloud_setup.sh ssh, then tools/box-connect.sh"
+  fi
+fi
 exit 0
