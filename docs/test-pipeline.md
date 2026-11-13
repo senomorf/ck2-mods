@@ -18,7 +18,7 @@ What comes next, from runtime checks to save loading, is planned in #13.
 | Lint (`tools/lint.py`) | CI on GitHub-hosted runners, cloud sessions | encoding, braces, duplicate ids, localisation format | working |
 | Cross-references (`tools/xref.py`, part of lint) | same | fired events that don't exist, flags set but never read, unsaved event targets, decisions without text | working; in CI only names with the mod's prefix (no `vanilla/` there) |
 | CWTools (`lint.py --cwtools`) | cloud sessions (needs `cwtools` and `vanilla/`) | unknown effects, triggers, scopes, traits | working; warnings only, noisy on vanilla |
-| Static with the game's files (`linux static` job) | the fleet runner, against its game copy at `/game` | the same lint and cross-references, with all of vanilla's names; CWTools in CI | lint and cross-references working; CWTools waits for the runner's image (senomorf/homelab#2411) |
+| Static with the game's files (`linux static` job) | the fleet runner, against its game copy at `/game` | the same lint and cross-references, with all of vanilla's names; CWTools in CI | working: lint, cross-references and CWTools `--strict` (red run on #14: `CW262` for an unknown effect) |
 | Linux smoke (`tools/smoke.sh`) | the homelab fleet's runner, `linux smoke` job | anything the game itself logs at boot: parse errors, unknown keys, broken references | working: green and red runs on same-repo PRs (#10); see [Linux runner](#linux-runner) |
 | Windows smoke (`tools/smoke.ps1`) | the owner's PC (Polaris), by hand | same, on the Windows build | script written; launch arguments unverified; no runner planned |
 | Scripted in-game checks | either runner, after the smoke | events firing, decisions available, effects applied | idea only: the console `run <file>` command could fire each event; unverified |
@@ -42,6 +42,9 @@ Jobs run on pushes to `main`,
 pull requests **from branches of this repository only** (`head.repo.full_name == github.repository`), except Renovate's (author `renovate[bot]` or branch `renovate/*`),
 and by hand (`workflow_dispatch`). The job-level `if` is evaluated before a runner is assigned, so a fork's
 pull request never reaches a self-hosted runner. See [Security](#security).
+
+So a Renovate update to an action in `smoke.yml` first runs on the fleet runner after it merges, on `main`.
+Watch that run, and revert the update if it fails there.
 
 Each job smokes every mod the push or pull request changed, and every mod on a manual run. The
 Linux job also smokes every mod when `tools/smoke.sh`, `tools/install.sh` or the workflow changed,
@@ -81,7 +84,7 @@ The homelab fleet runs it (senomorf/homelab#2322); what it provides, per #10:
 | User dir | env `CK2_USER_DIR`, set by the runner |
 | Display | Xvfb plus Mesa's software OpenGL (llvmpipe) |
 | Network | public only |
-| Tools | `python3` 3.12.3, Xvfb, `xwd` and netpbm. Not yet: `dotnet` and the CWTools CLI, `xdotool` (senomorf/homelab#2411) |
+| Tools | `python3` 3.12.3, Xvfb, `xwd` and netpbm, `xdotool`, the CWTools CLI 0.6.0-alpha on the .NET 10 runtime with `DOTNET_ROLL_FORWARD=Major` (no SDK; senomorf/homelab#2411). A `cwtools_check.py` run peaked at 2.28 GiB RSS in a cloud session (2026-11-13); the job is capped at 3 GiB |
 
 What `tools/smoke.sh` relies on, measured on that runner (#10, 2026-11-13):
 
