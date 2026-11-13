@@ -9,14 +9,16 @@ on:
       - mods/**
       - tools/campaign.sh
       - tools/campaign/**
-      - tools/install.sh
+      - tools/harness.py
+      - tests/game/**
       - .github/workflows/campaign.yml
   pull_request:
     paths:
       - mods/**
       - tools/campaign.sh
       - tools/campaign/**
-      - tools/install.sh
+      - tools/harness.py
+      - tests/game/**
       - .github/workflows/campaign.yml
   workflow_dispatch:
 permissions:
@@ -46,14 +48,15 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           # Every mod on a manual run, when the campaign test itself changed, or when git cannot
-          # say what changed; otherwise only the changed ones, and nothing when no mod changed.
+          # say what changed; otherwise the mods whose files or in-game tests changed, and nothing when
+          # none did.
           mods=()
           if [ "$EVENT" != workflow_dispatch ] && [[ $BASE_SHA =~ ^[0-9a-f]{40}$ && ! $BASE_SHA =~ ^0+$ ]] &&
              changed=$(git diff --name-only "$BASE_SHA" HEAD) &&
-             ! grep -qE '^(tools/campaign(\.sh|/)|tools/install\.sh$|\.github/workflows/campaign\.yml$)' <<<"$changed"; then
+             ! grep -qE '^(tools/campaign(\.sh|/)|tools/harness\.py$|\.github/workflows/campaign\.yml$)' <<<"$changed"; then
             for d in mods/*/; do
               d=${d%/}; d=${d#mods/}
-              if [[ $d != _* ]] && grep -qE "^mods/$d(/|\.mod$)" <<<"$changed"; then mods+=("$d"); fi
+              if [[ $d != _* ]] && grep -qE "^(mods/$d(/|\.mod$)|tests/game/$d/)" <<<"$changed"; then mods+=("$d"); fi
             done
             if [ "${#mods[@]}" -eq 0 ]; then echo 'no mod changed'; exit 0; fi
           fi

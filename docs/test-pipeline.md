@@ -22,7 +22,7 @@ What comes next, from runtime checks to save loading, is planned in #13.
 | Linux smoke (`tools/smoke.sh`) | the homelab fleet's runner, `linux smoke` job | anything the game itself logs at boot: parse errors, unknown keys, broken references | working: green and red runs on same-repo PRs (#10); see [Linux runner](#linux-runner) |
 | Linux campaign (`tools/campaign.sh`) | the fleet runner, `linux campaign` job (`campaign.yml`) | errors the game logs while it plays: events, decisions and on_actions that fire during a year, and loading a save made without the mod | working: [green run](https://github.com/senomorf/ck2-mods/actions/runs/43468936925/job/132035403675) on #15 with `allied_fleets` (red run pending); see [Campaign test](#campaign-test) |
 | Windows smoke (`tools/smoke.ps1`) | the owner's PC (Polaris), by hand | same, on the Windows build | script written; launch arguments unverified; no runner planned |
-| Scripted in-game checks | either runner, after the smoke | events firing, decisions available, effects applied | idea only: the console `run <file>` command could fire each event; unverified |
+| In-game tests (`tools/harness.py`, `tests/game/<mod>/`) | the `linux campaign` job, in each mod's run | events that never fire, effects that don't do what they should: test events check the mod's state and log pass or fail | working: first [run](https://github.com/senomorf/ck2-mods/actions/runs/43475355959) (#18) fired all 3 `allied_fleets` events (afl.1 20 times, afl.2 15, afl.3 5) and passed 35 checks; red run pending |
 
 Why runners: the game can't run in a Claude cloud session. The agent proxy carries neither the
 WebSocket nor the raw TCP connections Steam login needs (`/root/.ccr/README.md`, "Not supported
@@ -133,6 +133,17 @@ its steps files or `tools/install.sh`, and by hand. It picks mods the way the sm
 3. New `error.log` lines against the vanilla run are split by whether they name the mod (its
    folder, prefix or a file name). Those fail the job; the rest are listed as warnings, because
    the game's own runtime errors differ from run to run. A mod whose name `system.log` lacks fails.
+
+In each mod's run the mod is a copy made by `tools/harness.py install`, not install.sh's link. The
+copy gets a `log = "CK2TEST fired <id>"` line at the start of every event's `immediate` block (one
+is added where an event has none), and the files under `tests/game/<mod>/`, laid out like the mod
+(`events/`, `common/on_actions/`). Those are test events: they set up a situation, fire the mod's
+events, and log `CK2TEST pass <check>` or `CK2TEST fail <check>`, then `CK2TEST done`. The `log`
+effect writes to `game.log` under `-debugscripts` (`vanilla/ChangeLog.txt`). `tools/harness.py
+report` turns those lines into `harness.txt`: how often each event fired, and each check. A failed
+check, or for a mod with tests, a missing `done` or an event that never fired, fails the run. A mod
+without tests only gets its events counted. `on_startup` starts the tests: it fires for every
+character when a save loads (`.cwtools/on_actions.cwt`), so test events guard with a global flag.
 
 The steps files are xdotool clicks, keys and waits, with a screenshot at each `shot`; the artifact
 `campaign-linux` holds them with `steps.log`, the logs and `report.txt` per run. What the steps

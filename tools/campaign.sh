@@ -12,9 +12,13 @@
 #  2. each mod: put that save back as the only one, boot with the mod, Single Player > Continue
 #     (tools/campaign/continue.txt), run to CAMPAIGN_END. So each mod plays the same year as
 #     vanilla did, from a save made without it: this also checks that existing saves load.
+#     The mod is installed as a copy by tools/harness.py, which logs each of its events as it fires
+#     and adds the mod's in-game tests from tests/game/<mod>/, if any.
 #  3. report the mod run's error.log lines that vanilla's run does not have. Lines that name the
 #     mod (its prefix, folder or one of its file names) fail the run; the rest are listed as
-#     warnings, since the game's own runtime errors differ from run to run.
+#     warnings, since the game's own runtime errors differ from run to run. Then the harness's
+#     report (harness.txt): a failed test, unfinished tests, or, for a mod with tests, an event that
+#     never fired fail the run too.
 #
 # Steps files, one step per line ('#' starts a comment):
 #   shot NAME               screenshot to <report>/NN-NAME.png
@@ -273,20 +277,24 @@ failed=()
 for m in "${mods[@]}"; do
   prefix=$(tr -d '[:space:]' < "$repo/mods/$m/PREFIX" 2>/dev/null || true)
   rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work"/*.ck2 "$saves/"
-  "$repo/tools/install.sh" "$m" "$ud" >/dev/null
+  # A copy, not install.sh's link: tools/harness.py marks each event and adds tests/game/$m.
+  python3 "$repo/tools/harness.py" install "$m" "$ud/mod/$m"
+  cp "$repo/mods/$m.mod" "$ud/mod/"
   start "$m" "-mod=mod/$m.mod"
   if run_steps "$steps_dir/continue.txt"; then
     wait_save "$end_date" "$limit" || fail "did not reach $end_date"
   fi
   stop
-  rm -f "$ud/mod/$m" "$ud/mod/$m.mod"
+  rm -rf "${ud:?}/mod/$m" "$ud/mod/$m.mod"
   dest="$out/$m"
+  hs=0; python3 "$repo/tools/harness.py" report "$m" "$dest/game.log" > "$dest/harness.txt" || hs=$?
   # 3. new lines, split by whether they name the mod
   norm "$dest/error.log" 2>/dev/null | grep -vxF -f "$out/_vanilla/error.norm" | sort | uniq -c | sort -rn > "$dest/new-errors.txt" || true
   {
     printf '%s\n' "$m"
     [ -z "$prefix" ] || printf '%s_\n%s.\n' "$prefix" "$prefix"
     (cd "$repo/mods/$m" && find . -type f ! -name PREFIX ! -name README.md -printf '%f\n')
+    [ ! -d "$repo/tests/game/$m" ] || find "$repo/tests/game/$m" -type f -printf '%f\n'
   } | grep -v '^$' | sort -u > "$dest/names.txt"
   grep -iF -f "$dest/names.txt" "$dest/new-errors.txt" > "$dest/mod-errors.txt" || true
   grep -viF -f "$dest/names.txt" "$dest/new-errors.txt" > "$dest/other-errors.txt" || true
@@ -301,9 +309,11 @@ for m in "${mods[@]}"; do
     cat "$dest/mod-errors.txt"
     echo "other new error.log lines (warnings; the game's own runtime errors vary between runs): $no"
     head -n 50 "$dest/other-errors.txt"
+    echo
+    cat "$dest/harness.txt"
   } > "$dest/report.txt"
   cat "$dest/report.txt"
-  if [ "$result" != ok ] || [ "$nm" -gt 0 ] || [ "$seen" != true ]; then failed+=("$m"); fi
+  if [ "$result" != ok ] || [ "$nm" -gt 0 ] || [ "$seen" != true ] || [ "$hs" -ne 0 ]; then failed+=("$m"); fi
 done
 [ "${#failed[@]}" -eq 0 ] || { echo "failed: ${failed[*]}"; exit 1; }
 echo "all mods clean: ${mods[*]}"
