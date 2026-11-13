@@ -64,6 +64,41 @@ jobs:
           path: smoke-reports
           if-no-files-found: ignore
 
+  static:
+    name: linux static
+    # Lint, cross-references and CWTools with the game's own files, which GitHub-hosted runners lack.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.user.login != 'renovate[bot]' &&
+       !startsWith(github.head_ref, 'renovate/'))
+    runs-on: [self-hosted, linux, ck2]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Tools on the runner
+        id: tools
+        run: |
+          for t in python3 cwtools dotnet xdotool; do printf '%-8s %s\n' "$t" "$(command -v "$t" || echo missing)"; done
+          python3 --version 2>&1 || true
+          missing=()
+          for t in python3 cwtools; do command -v "$t" >/dev/null || missing+=("$t"); done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::warning::the runner image lacks ${missing[*]}, so these checks were skipped (docs/test-pipeline.md, Linux runner)"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            ln -sfn "${CK2_GAME_DIR:-/game}" vanilla
+          fi
+      - name: Lint and cross-references with the game's files
+        if: steps.tools.outputs.run == 'true'
+        run: python3 tools/lint.py
+      - name: CWTools with the game's files
+        if: ${{ !cancelled() && steps.tools.outputs.run == 'true' }}
+        run: python3 tools/cwtools_check.py --strict
+
   linux:
     name: linux smoke
     # Same guards as the windows job: no fork pull requests, no Renovate.
