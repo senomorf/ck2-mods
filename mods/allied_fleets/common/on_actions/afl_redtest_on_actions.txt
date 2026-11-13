@@ -1,0 +1,7 @@
+# Throwaway: fires afl.900 for every character once a year (vanilla on_yearly_pulse, which several
+# files may extend: vanilla/common/on_actions/_on_actions.info).
+on_yearly_pulse = {
+	events = {
+		afl.900
+	}
+}

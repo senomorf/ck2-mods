@@ -1,0 +1,17 @@
+namespace = afl
+
+# Throwaway, never merged: the campaign test's red run (#13, step 2). Faults that show only when the
+# event runs, to see which of them the game reports in error.log under -debugscripts.
+character_event = {
+	id = afl.900
+	hide_window = yes
+	is_triggered_only = yes
+	trigger = { independent = yes }
+	immediate = {
+		log = "afl.900 fired for [Root.GetBestName]"
+		set_variable = { which = afl_zero value = 0 }
+		set_variable = { which = afl_one value = 1 }
+		divide_variable = { which = afl_one which = afl_zero }
+		event_target:afl_never_saved = { wealth = 1 }
+	}
+}
