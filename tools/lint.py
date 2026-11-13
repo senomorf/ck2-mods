@@ -81,6 +81,11 @@ def read(path: Path, rep: Report) -> str | None:
     return text
 
 
+def line_of(text: str, offset: int) -> int:
+    """1-based line of offset; strip_comments keeps line breaks, so it matches the file."""
+    return text.count("\n", 0, offset) + 1
+
+
 def strip_comments(text: str) -> str:
     """Remove # comments, ignoring # inside double-quoted strings."""
     out = []
@@ -156,7 +161,7 @@ def lint_mod(folder: str, vanilla_keys: dict[str, Path], rep: Report) -> None:
     load_loc(sorted((mod / "localisation").glob("*.csv")), rep, mod_keys)
 
     event_ids: dict[str, Path] = {}
-    refs: list[tuple[Path, str]] = []
+    refs: list[tuple[Path, int, str]] = []
     for path in sorted(mod.rglob("*")):
         if path.suffix not in SCRIPT_SUFFIXES or not path.is_file():
             continue
@@ -168,20 +173,21 @@ def lint_mod(folder: str, vanilla_keys: dict[str, Path], rep: Report) -> None:
         if path.suffix != ".txt":
             continue
         if "events" in path.relative_to(mod).parts:
-            for eid in EVENT_ID.findall(code):
+            for m in EVENT_ID.finditer(code):
+                eid, n = m.group(1), line_of(code, m.start(1))
                 if eid in event_ids:
-                    rep.error(path, f"duplicate event id {eid} (also in {rel(event_ids[eid])})")
+                    rep.error(path, f"line {n}: duplicate event id {eid} (also in {rel(event_ids[eid])})")
                 event_ids.setdefault(eid, path)
                 if prefix and not eid.startswith(prefix + "."):
-                    rep.warn(path, f"event id {eid} does not use prefix {prefix}")
-        refs += [(path, k) for k in LOC_REF.findall(code)]
+                    rep.warn(path, f"line {n}: event id {eid} does not use prefix {prefix}")
+        refs += [(path, line_of(code, m.start(1)), m.group(1)) for m in LOC_REF.finditer(code)]
 
-    for path, key in refs:
+    for path, n, key in refs:
         if key in mod_keys or key in vanilla_keys or key in ("yes", "no"):
             continue
         if key.isupper() or "_" in key:
             where = "mod or vanilla" if vanilla_keys else "mod (vanilla/ not present)"
-            rep.warn(path, f"localisation key {key} not found in {where}")
+            rep.warn(path, f"line {n}: localisation key {key} not found in {where}")
 
 
 def main(argv: list[str]) -> int:
