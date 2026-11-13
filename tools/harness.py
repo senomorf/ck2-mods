@@ -24,6 +24,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 EVENT_KEY = re.compile(r"[a-z_]*_event$")
 MARK = "CK2TEST"
+SAVE_CHECKS = Path("save_checks.txt")
 
 
 def scan(text: str):
@@ -125,7 +126,8 @@ def install(mod: str, dest: Path) -> int:
     tests = REPO / "tests" / "game" / mod
     added = 0
     if tests.is_dir():
-        for f in sorted(p for p in tests.rglob("*") if p.is_file()):
+        # save_checks.txt is read from the save by tools/ck2save.py, not by the game.
+        for f in sorted(p for p in tests.rglob("*") if p.is_file() and p.relative_to(tests) != SAVE_CHECKS):
             target = dest / f.relative_to(tests)
             if target.exists():
                 print(f"harness: tests/game/{mod}/{f.relative_to(tests)} would replace a mod file", file=sys.stderr)

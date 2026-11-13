@@ -21,7 +21,10 @@
 #     mod (its prefix, folder or one of its file names) fail the run; the rest are listed as
 #     warnings, since the game's own runtime errors differ from run to run. Then the harness's
 #     report (harness.txt): a failed test, unfinished tests, or, for a mod with tests, an event that
-#     never fired fail the run too.
+#     never fired fail the run too. Then the run's last save, read by tools/ck2save.py: the checks
+#     in tests/game/<mod>/save_checks.txt, if there is one (save-checks.txt), and, when this
+#     version loaded the base version's save, the mod's names that save holds and this version
+#     no longer mentions (dangling.txt). A failed check or a dangling name fails the run.
 #
 # Steps files, one step per line ('#' starts a comment):
 #   shot NAME               screenshot to <report>/NN-NAME.png
@@ -400,7 +403,7 @@ next_year() { local y m d; IFS=. read -r y m d <<< "$1"; echo "$((10#$y + 1)).$m
 for m in "${mods[@]}"; do
   prefix=$(tr -d '[:space:]' < "$repo/mods/$m/PREFIX" 2>/dev/null || true)
   rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work"/*.ck2 "$saves/"
-  from="vanilla's $start_date save" to=$end_date
+  from="vanilla's $start_date save" to=$end_date loaded=
   # 2a. a mod that CAMPAIGN_BASE has and this version changes: play the year with the base version
   # first, so this version loads a save that holds the old version's state.
   if [ -n "${CAMPAIGN_BASE:-}" ] && git -C "$repo" cat-file -e "$CAMPAIGN_BASE:mods/$m.mod" 2>/dev/null &&
@@ -431,6 +434,7 @@ for m in "${mods[@]}"; do
     if compgen -G "$work/upgrade/*.ck2" >/dev/null; then
       rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work"/upgrade/*.ck2 "$saves/"
       from="the ${CAMPAIGN_BASE:0:12} version's $end_date save" to=$(next_year "$end_date")
+      loaded=$(compgen -G "$work/upgrade/*.ck2" | head -n 1)
     else
       log "  the base version made no save; this version loads vanilla's save instead"
       from="vanilla's $start_date save (the base version's run failed: see $m.base)"
@@ -443,12 +447,38 @@ for m in "${mods[@]}"; do
   mapfile -t args < <(launch_args "$steps_dir/continue.txt")
   start "$m" "-mod=mod/$m.mod" "${args[@]}"
   if run_steps "$steps_dir/continue.txt"; then
-    wait_save "$to" "$limit" || fail "did not reach $to"
+    if wait_save "$to" "$limit"; then cp -p "$save" "$work/last.ck2"; else fail "did not reach $to"; fi
   fi
   stop
   rm -rf "${ud:?}/mod/$m" "$ud/mod/$m.mod"
   dest="$out/$m"
   hs=0; python3 "$repo/tools/harness.py" report "$m" "$dest/game.log" > "$dest/harness.txt" || hs=$?
+  # The save's state: checks from tests/game/$m/save_checks.txt on the last save, and names the
+  # base version's save holds that this version dropped (#20: the game logs nothing for those).
+  ss=0
+  {
+    echo "Save checks: $m"
+    if [ -f "$repo/tests/game/$m/save_checks.txt" ]; then
+      if [ -f "$work/last.ck2" ]; then
+        python3 "$repo/tools/ck2save.py" "$work/last.ck2" check "$repo/tests/game/$m/save_checks.txt" || ss=1
+      else
+        echo "CK2SAVE fail no save from this run to check"; ss=1
+      fi
+    else
+      echo "no tests/game/$m/save_checks.txt"
+    fi
+    if [ -n "$loaded" ] && [ -n "$prefix" ]; then
+      dirs=("$repo/mods/$m"); [ ! -d "$repo/tests/game/$m" ] || dirs+=("$repo/tests/game/$m")
+      if python3 "$repo/tools/ck2save.py" "$loaded" dangling "$prefix" "${dirs[@]}" > "$dest/dangling.txt"; then
+        echo "dangling names in the base version's save: none"
+      else
+        echo "CK2SAVE fail dangling names: the base version's save holds these, and this version no longer mentions them"
+        echo "(remove nothing old saves hold, or label the pull request save-breaking):"
+        cat "$dest/dangling.txt"; ss=1
+      fi
+    fi
+  } > "$dest/save-checks.txt"
+  rm -f "$work/last.ck2"
   # 3. new lines, split by whether they name the mod
   norm "$dest/error.log" 2>/dev/null | grep -vxF -f "$out/_vanilla/error.norm" | sort | uniq -c | sort -rn > "$dest/new-errors.txt" || true
   {
@@ -472,9 +502,11 @@ for m in "${mods[@]}"; do
     head -n 50 "$dest/other-errors.txt"
     echo
     cat "$dest/harness.txt"
+    echo
+    cat "$dest/save-checks.txt"
   } > "$dest/report.txt"
   cat "$dest/report.txt"
-  if [ "$result" != ok ] || [ "$nm" -gt 0 ] || [ "$seen" != true ] || [ "$hs" -ne 0 ]; then failed+=("$m"); fi
+  if [ "$result" != ok ] || [ "$nm" -gt 0 ] || [ "$seen" != true ] || [ "$hs" -ne 0 ] || [ "$ss" -ne 0 ]; then failed+=("$m"); fi
 done
 [ "${#failed[@]}" -eq 0 ] || { echo "failed: ${failed[*]}"; exit 1; }
 echo "all mods clean: ${mods[*]}"

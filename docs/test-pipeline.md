@@ -156,6 +156,21 @@ check, or for a mod with tests, a missing `done` or an event that never fired, f
 without tests only gets its events counted. `on_startup` starts the tests: it fires for every
 character when a save loads (`.cwtools/on_actions.cwt`), so test events guard with a global flag.
 
+After the year, `tools/ck2save.py` reads the run's last autosave (plain Clausewitz text, since the
+script sets `compress_autosaves=no`) into `save-checks.txt`:
+
+- `tests/game/<mod>/save_checks.txt`, if there is one: checks on the state the year left, one per
+  line, `present NAME` / `absent NAME` (a flag, modifier, earmark or event id anywhere in the save)
+  or `count PATH OP N` (`count character/*/flags/afl_test_requester >= 1`). A failed check fails the
+  run. The harness does not copy this file into the mod.
+- When this version loaded the base version's save: the names with the mod's prefix that save holds
+  and that this version's files (and tests) no longer mention. Any fails the run, since the game
+  logs nothing for them (#20: a deleted modifier that old saves held loaded and ran without a line).
+  Keep what old saves hold, or label the pull request `save-breaking`.
+
+`python3 tools/ck2save.py SAVE info|get PATH|names PREFIX|check FILE|dangling PREFIX DIR...` does
+the same by hand, on a save from the artifact or the owner's game.
+
 The runner keeps nothing between jobs, so the workflow keeps `.campaign-cache/` in `actions/cache`
 (`CAMPAIGN_CACHE`), keyed on the hash of `tools/campaign.sh` and `tools/campaign/**`: vanilla's
 1067.1.1 save, its normalised `error.log` lines and its year's duration, and each base version's
