@@ -1,6 +1,7 @@
-# Runtime smoke (roadmap #13, step 2): play an in-game year with each changed mod on the fleet
-# runner, from a save vanilla made, and fail on new error.log lines that name the mod. See
-# tools/campaign.sh and docs/test-pipeline.md.
+# Runtime smoke (roadmap #13, steps 2 to 4): play an in-game year with each changed mod on the
+# fleet runner, from a save vanilla made or one the mod's previous version made, and fail on new
+# error.log lines that name the mod or failed in-game tests. See tools/campaign.sh and
+# docs/test-pipeline.md.
 name: campaign
 on:
   push:
@@ -37,7 +38,7 @@ jobs:
        github.event.pull_request.user.login != 'renovate[bot]' &&
        !startsWith(github.head_ref, 'renovate/'))
     runs-on: [self-hosted, linux, ck2]
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
         with:
@@ -59,6 +60,12 @@ jobs:
               if [[ $d != _* ]] && grep -qE "^(mods/$d(/|\.mod$)|tests/game/$d/)" <<<"$changed"; then mods+=("$d"); fi
             done
             if [ "${#mods[@]}" -eq 0 ]; then echo 'no mod changed'; exit 0; fi
+          fi
+          # A mod the base commit already has plays a year in that version first; this version
+          # then loads its save (tools/campaign.sh, CAMPAIGN_BASE).
+          if [ "$EVENT" != workflow_dispatch ] && [[ $BASE_SHA =~ ^[0-9a-f]{40}$ && ! $BASE_SHA =~ ^0+$ ]] &&
+             git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            export CAMPAIGN_BASE=$BASE_SHA
           fi
           tools/campaign.sh "${mods[@]}"
       - uses: actions/upload-artifact@v4

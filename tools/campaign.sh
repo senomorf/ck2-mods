@@ -12,6 +12,9 @@
 #  2. each mod: put that save back as the only one, boot with the mod, Single Player > Continue
 #     (tools/campaign/continue.txt), run to CAMPAIGN_END. So each mod plays the same year as
 #     vanilla did, from a save made without it: this also checks that existing saves load.
+#     With CAMPAIGN_BASE (a git commit) naming a version of the mod that this one changes, that
+#     version plays the year first, and this version loads its save and plays the next year:
+#     a save made with the old version must load with the new one.
 #     The mod is installed as a copy by tools/harness.py, which logs each of its events as it fires
 #     and adds the mod's in-game tests from tests/game/<mod>/, if any.
 #  3. report the mod run's error.log lines that vanilla's run does not have. Lines that name the
@@ -37,6 +40,8 @@
 #      CAMPAIGN_START, CAMPAIGN_END  dates (default 1067.1.1 and 1068.1.1: the 1066 start's first two
 #                                  yearly autosaves)
 #      CAMPAIGN_TIMEOUT            seconds each run may take to reach a date (default 1500)
+#      CAMPAIGN_BASE               a commit with the previous version of the mods (the pull
+#                                  request's base); unset, each mod loads vanilla's save
 #
 # Measured on the fleet runner, PR #15's probe runs (2026-11-13): the game runs full screen at
 # 1280x720; a click lands only when the pointer moved about 2 s before it; keys did not reach the
@@ -274,15 +279,42 @@ fi
 
 # 2. each mod, from vanilla's save
 failed=()
+next_year() { local y m d; IFS=. read -r y m d <<< "$1"; echo "$((10#$y + 1)).$m.$d"; }
 for m in "${mods[@]}"; do
   prefix=$(tr -d '[:space:]' < "$repo/mods/$m/PREFIX" 2>/dev/null || true)
   rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work"/*.ck2 "$saves/"
-  # A copy, not install.sh's link: tools/harness.py marks each event and adds tests/game/$m.
+  from="vanilla's $start_date save" to=$end_date
+  # 2a. a mod that CAMPAIGN_BASE has and this version changes: play the year with the base version
+  # first, so this version loads a save that holds the old version's state.
+  if [ -n "${CAMPAIGN_BASE:-}" ] && git -C "$repo" cat-file -e "$CAMPAIGN_BASE:mods/$m.mod" 2>/dev/null &&
+     ! git -C "$repo" diff --quiet "$CAMPAIGN_BASE" -- "mods/$m" "mods/$m.mod"; then
+    rm -rf "$work/base" "${ud:?}/mod/$m"; mkdir -p "$work/base" "$ud/mod"
+    git -C "$repo" archive "$CAMPAIGN_BASE" "mods/$m" "mods/$m.mod" | tar -x -C "$work/base"
+    cp -r "$work/base/mods/$m" "$ud/mod/$m"; cp "$work/base/mods/$m.mod" "$ud/mod/"
+    start "$m.base" "-mod=mod/$m.mod"
+    log "the version in ${CAMPAIGN_BASE:0:12}, to make a save with its state"
+    if run_steps "$steps_dir/continue.txt" && wait_save "$end_date" "$limit"; then
+      rm -rf "$work/upgrade"; mkdir -p "$work/upgrade"; cp -p "$save" "$work/upgrade/"
+    else
+      [ "$result" != ok ] || fail "did not reach $end_date"
+    fi
+    stop
+    rm -rf "${ud:?}/mod/$m" "$ud/mod/$m.mod"
+    if compgen -G "$work/upgrade/*.ck2" >/dev/null; then
+      rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work"/upgrade/*.ck2 "$saves/"
+      from="the ${CAMPAIGN_BASE:0:12} version's $end_date save" to=$(next_year "$end_date")
+    else
+      log "  the base version made no save; this version loads vanilla's save instead"
+      from="vanilla's $start_date save (the base version's run failed: see $m.base)"
+    fi
+  fi
+  # 2b. this version. A copy, not install.sh's link: tools/harness.py marks each event and adds
+  # tests/game/$m.
   python3 "$repo/tools/harness.py" install "$m" "$ud/mod/$m"
   cp "$repo/mods/$m.mod" "$ud/mod/"
   start "$m" "-mod=mod/$m.mod"
   if run_steps "$steps_dir/continue.txt"; then
-    wait_save "$end_date" "$limit" || fail "did not reach $end_date"
+    wait_save "$to" "$limit" || fail "did not reach $to"
   fi
   stop
   rm -rf "${ud:?}/mod/$m" "$ud/mod/$m.mod"
@@ -303,7 +335,7 @@ for m in "${mods[@]}"; do
   if grep -aqsF "mod/$m" "$dest/system.log"; then seen=true; fi
   {
     echo "CK2 campaign test: $m"
-    echo "result: $result (vanilla's $start_date save loaded with the mod, run to $end_date)"
+    echo "result: $result ($from loaded with this version, run to $to)"
     echo "mod named in logs: $seen"
     echo "new error.log lines that name the mod: $nm"
     cat "$dest/mod-errors.txt"
