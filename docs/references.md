@@ -6,5 +6,5 @@ Fetch these when `vanilla/` lacks an answer. They describe the last CK2 patch an
 - [EMF](https://github.com/EMFTeam/EMF): large open-source CK2 mod with working examples
 - [ck2utils](https://github.com/zijistark/ck2utils): CK2 parsing and map tools (GPLv2)
 - [cwtools-ck2-config](https://github.com/cwtools/cwtools-ck2-config): CK2 rule files, vendored as the `.cwtools` submodule
-- [CWTools.CLI](https://www.nuget.org/packages/CWTools.CLI): command-line validator (.NET 9 tool, 0.6.0-alpha)
+- [CWTools.CLI](https://www.nuget.org/packages/CWTools.CLI): command-line validator (0.6.0-alpha, targets .NET 9; runs on .NET 10 with `DOTNET_ROLL_FORWARD=Major`)
 - [CWTools for VS Code](https://github.com/cwtools/cwtools-vscode): editor validation; CK2 support is listed as partial
