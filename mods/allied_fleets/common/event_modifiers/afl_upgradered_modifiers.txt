@@ -1,0 +1,7 @@
+# Throwaway, never merged: the base half of the save-upgrade red run (#13, step 4). This version
+# gives independent rulers a permanent modifier; the head version drops it, so its save holds a
+# modifier the new version no longer defines.
+afl_upgradered_modifier = {
+	monthly_character_prestige = 0.10
+	icon = 38
+}
