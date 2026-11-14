@@ -131,7 +131,11 @@ its steps files or `tools/install.sh`, and by hand. It picks mods the way the sm
 1. Vanilla: a new 1066 game (`tools/campaign/new_game.txt`: launch options `-startgame
    -start_date=1066.9.15` open the character selection, skipping the menus), the console command
    `observe` so no character waits for input, the fastest speed, run to the first yearly autosave
-   (1067.1.1). That save is kept, and the game runs on to the next one (1068.1.1).
+   (1067.1.1). That save is kept, and the game runs on to the next one (1068.1.1). With slow menus
+   the 1067.1.1 autosave can come while the steps still run (it counts) or be passed: then the
+   first save after it is kept, a later run logs `vanilla's start save is dated ...`, and every run
+   counts its year from that save's date. (Before this, `main`'s run 43530660714 kept 1068.1.1 and
+   its report still said 1067.1.1.)
 2. Each mod: the kept save is put back as the only save, and the game boots with the mod straight
    into it (`tools/campaign/continue.txt`: `-startgame -start_save=<save>`); it runs to 1068.1.1. So each
    mod plays the same year vanilla did, from a save made without it, which also checks that an
