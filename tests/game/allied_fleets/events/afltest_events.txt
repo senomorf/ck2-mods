@@ -141,6 +141,7 @@ character_event = {
 			limit = {
 				is_landed = yes
 				war = yes
+				wealth = 0 # out of debt, so the 100 below brings it to the 50 the decision needs
 				any_realm_province = { port = yes }
 				NOT = { has_character_flag = afl_test_requester }
 				NOT = { has_character_flag = afl_request_pending }
