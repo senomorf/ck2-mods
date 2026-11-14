@@ -163,12 +163,17 @@ the start of every option, `CK2TEST took <decision>` in every decision's `effect
 the game date (`EVENT [1067.1.2]:CK2TEST fired afl.1 root=<id>`). The copy also gets the files
 under `tests/game/<mod>/`, laid out like the mod (`events/`, `common/on_actions/`). Those are test
 events: they set up a situation, fire the mod's events, and log `CK2TEST pass <check>` or `CK2TEST
-fail <check>`, then `CK2TEST done`. The `log` effect writes to `game.log` under `-debugscripts`
+fail <check>`, then `CK2TEST done`. A check's name is the text before the first `: `, so a failure
+can add values after it (`CK2TEST fail gold moves: [Root.afltest_paid.GetValue]`). A check that a
+test file names but that never reports fails the run (#38, step 2). `tests/game/<mod>/log_checks.txt`
+adds checks on the counts: `count fired afl.2 == count chose afl.1 EVTOPTA_afl_1`, `count chose
+afl.1 EVTOPTB_afl_1 >= 1`, or `count line <text> >= 1` for the mod's own log lines (format in
+`tools/harness.py`). The `log` effect writes to `game.log` under `-debugscripts`
 (`vanilla/ChangeLog.txt`). `tools/harness.py report` turns those lines into `harness.txt`: how
 often each event fired and each option was chosen, for how many characters, from what date; each
 decision and scripted effect; and each check. A failed check fails the run. For a mod with tests,
-so does a missing `done`, an event that never fired, an option never chosen or a scripted effect
-that never ran. Decisions are only counted, since no script can take a decision. A mod without
+so does a missing `done`, an event that never fired, an option never chosen, a scripted effect
+that never ran, a check that never reported or a failed log check. Decisions are only counted, since no script can take a decision. A mod without
 tests only gets its traces counted. `on_startup` starts the tests: it fires for every
 character when a save loads (`.cwtools/on_actions.cwt`), so test events guard with a global flag.
 
