@@ -155,14 +155,21 @@ its steps files or `tools/install.sh`, and by hand. It picks mods the way the sm
    `error.log` or any other log. Behaviour needs in-game tests (below).
 
 In each mod's run the mod is a copy made by `tools/harness.py install`, not install.sh's link. The
-copy gets a `log = "CK2TEST fired <id>"` line at the start of every event's `immediate` block (one
-is added where an event has none), and the files under `tests/game/<mod>/`, laid out like the mod
-(`events/`, `common/on_actions/`). Those are test events: they set up a situation, fire the mod's
-events, and log `CK2TEST pass <check>` or `CK2TEST fail <check>`, then `CK2TEST done`. The `log`
-effect writes to `game.log` under `-debugscripts` (`vanilla/ChangeLog.txt`). `tools/harness.py
-report` turns those lines into `harness.txt`: how often each event fired, and each check. A failed
-check, or for a mod with tests, a missing `done` or an event that never fired, fails the run. A mod
-without tests only gets its events counted. `on_startup` starts the tests: it fires for every
+copy gets trace lines (#38, step 1): `CK2TEST fired <id> root=<character id>` at the start of every
+event's `immediate` block (one is added where an event has none), `CK2TEST chose <id> <option>` at
+the start of every option, `CK2TEST took <decision>` in every decision's `effect`, and `CK2TEST ran
+<effect>` in every scripted effect. `root=` and `from=` come from `[Root.GetID]` and
+`[From.GetID]`, and are written only where that scope is a character. Each `game.log` line carries
+the game date (`EVENT [1067.1.2]:CK2TEST fired afl.1 root=<id>`). The copy also gets the files
+under `tests/game/<mod>/`, laid out like the mod (`events/`, `common/on_actions/`). Those are test
+events: they set up a situation, fire the mod's events, and log `CK2TEST pass <check>` or `CK2TEST
+fail <check>`, then `CK2TEST done`. The `log` effect writes to `game.log` under `-debugscripts`
+(`vanilla/ChangeLog.txt`). `tools/harness.py report` turns those lines into `harness.txt`: how
+often each event fired and each option was chosen, for how many characters, from what date; each
+decision and scripted effect; and each check. A failed check fails the run. For a mod with tests,
+so does a missing `done`, an event that never fired, an option never chosen or a scripted effect
+that never ran. Decisions are only counted, since no script can take a decision. A mod without
+tests only gets its traces counted. `on_startup` starts the tests: it fires for every
 character when a save loads (`.cwtools/on_actions.cwt`), so test events guard with a global flag.
 
 `report.txt` also gives the mod's speed: the seconds its year took against vanilla's year, as a
