@@ -44,6 +44,7 @@ character_event = {
 				any_realm_province = { port = yes }
 			}
 			set_character_flag = afl_test_requester
+			set_character_flag = afl_test_awaiting_check
 			character_event = { id = afltest.3 days = 10 }
 			random_independent_ruler = {
 				limit = {
@@ -73,6 +74,7 @@ character_event = {
 	is_triggered_only = yes
 
 	immediate = {
+		clr_character_flag = afl_test_awaiting_check
 		if = {
 			limit = { has_character_flag = afl_request_pending }
 			log = "CK2TEST fail afl.1 answers the request: afl_request_pending still set ten days later"
@@ -85,6 +87,24 @@ character_event = {
 			limit = { has_earmarked_regiments = afl_lent_ships }
 			log = "CK2TEST pass an accepted request leaves the requester the lent fleet"
 		}
+	}
+}
+
+# afltest.5 (on_death): a requester who dies before afltest.3 gets no check, since a dead
+# character's events don't fire [Inference: #45's first run had 19 of 20 checks; the request with
+# none was from King Maredudd II of Deheubarth on 1067.2.7]. This logs who, so a run shows it. on_death: ROOT is the dying character,
+# who still has flags (.cwtools/on_actions.cwt; vanilla/common/on_actions/00_on_actions.txt).
+character_event = {
+	id = afltest.5
+	hide_window = yes
+	is_triggered_only = yes
+
+	trigger = {
+		has_character_flag = afl_test_awaiting_check
+	}
+
+	immediate = {
+		log = "afltest: requester [Root.GetBestName] ([Root.GetID]) died before its ten-day check"
 	}
 }
 
