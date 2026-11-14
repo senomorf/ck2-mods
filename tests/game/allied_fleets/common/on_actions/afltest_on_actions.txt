@@ -5,3 +5,10 @@ on_startup = {
 		afltest.1
 	}
 }
+
+# A requester who dies before its ten-day check (afltest.5).
+on_death = {
+	events = {
+		afltest.5
+	}
+}
