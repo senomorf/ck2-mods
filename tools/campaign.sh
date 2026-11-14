@@ -184,6 +184,28 @@ shot() {
     || echo "campaign: screenshot $1 failed" >&2
 }
 fail() { result=$1; shot failed; }
+# cpu_now: the game's CPU seconds so far, user and system, all its threads (unshare execs the game, so
+# $pid is the game). Nothing when the game is gone.
+cpu_now() {
+  local s f
+  s=$(cat "/proc/$pid/stat" 2>/dev/null) || return 0
+  read -ra f <<< "${s##*) }"   # fields from the 3rd on: utime is the 14th, stime the 15th
+  echo $(((f[11] + f[12]) / $(getconf CLK_TCK)))
+}
+# throttled: seconds this job's cgroup has been held back by its CPU limit (cpu.max), or nothing.
+throttled() { awk '$1 == "throttled_usec" { printf "%d\n", $2 / 1000000 }' /sys/fs/cgroup/cpu.stat 2>/dev/null || true; }
+# year_begin, then year_end: the game's CPU seconds for a year of play ($ycpu, empty if unknown) and a
+# log line on what the job saw of its host meanwhile (#40: the same year took 118 s in one job and
+# 213 s in another).
+year_begin() { yc0=$(cpu_now); yth0=$(throttled); }
+year_end() {
+  local c th
+  c=$(cpu_now); th=$(throttled); ycpu=
+  [ -z "$c" ] || [ -z "$yc0" ] || ycpu=$((c - yc0))
+  log "  year: game CPU ${ycpu:-?}s; host: load $(cut -d' ' -f1-3 /proc/loadavg)," \
+    "MemAvailable $(awk '/^MemAvailable/ { print int($2 / 1024) }' /proc/meminfo) MiB," \
+    "cpu.max $(cat /sys/fs/cgroup/cpu.max 2>/dev/null || echo none), throttled $([ -n "$th" ] && [ -n "$yth0" ] && echo "$((th - yth0))s" || echo "?")"
+}
 # region X Y W H: a hash of those pixels on the screen and how many are red, or nothing.
 region() {
   xwd -root -display "$DISPLAY" 2>/dev/null | xwdtopnm 2>/dev/null | python3 -I -c '
@@ -396,7 +418,7 @@ if [ -n "$cache" ] && [ -f "$cache/vanilla/start.ck2" ] && [ -f "$cache/vanilla/
   cp -p "$cache/vanilla/start.ck2" "$work/"
   cp "$cache/vanilla/error.norm" "$dest/"
   cp "$cache/vanilla/steps.log" "$dest/cached-steps.log" 2>/dev/null || true
-  cp "$cache/vanilla/year-seconds" "$dest/" 2>/dev/null || true
+  cp "$cache/vanilla/year-seconds" "$cache/vanilla/year-cpu" "$dest/" 2>/dev/null || true
   log "vanilla: restored from the cache ($(cat "$cache/vanilla/made-by" 2>/dev/null || echo unknown run)), not run"
 else
   rm -rf "$saves"
@@ -407,12 +429,15 @@ else
     # run's, written while the steps still ran.
     if wait_save "$start_date" "$limit" any; then
       cp -p "$save" "$work/start.ck2"
+      year_begin
       dates
       log "  kept $(basename "$save") ($first) as the start for the mod runs"
       # The year from one save's last write to the other's: with `any` the start save may be older
       # than this call.
       if wait_save "$end" "$limit"; then
         echo $(($(stat -c %Y "$save") - $(stat -c %Y "$work/start.ck2"))) > "$dest/year-seconds"
+        # CPU from when each save was seen, up to 13 s after it was written.
+        year_end; [ -z "$ycpu" ] || echo "$ycpu" > "$dest/year-cpu"
       else
         fail "vanilla did not reach $end"
       fi
@@ -430,7 +455,7 @@ else
   if [ -n "$cache" ]; then
     rm -rf "$cache/vanilla"; mkdir -p "$cache/vanilla"
     cp -p "$work/start.ck2" "$out/_vanilla/error.norm" "$out/_vanilla/steps.log" "$cache/vanilla/"
-    cp "$out/_vanilla/year-seconds" "$cache/vanilla/" 2>/dev/null || true
+    cp "$out/_vanilla/year-seconds" "$out/_vanilla/year-cpu" "$cache/vanilla/" 2>/dev/null || true
     echo "run ${GITHUB_RUN_ID:-local} on $(date -u +%Y-%m-%d)" > "$cache/vanilla/made-by"
   fi
 fi
@@ -442,14 +467,14 @@ fi
 # 184 s (0.86) on #31's: the job can't see what else the host runs.
 control_year() {
   local keep=$result
-  cy=
+  cy='' ccpu=''
   rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work/start.ck2" "$saves/"
   mapfile -t args < <(launch_args "$steps_dir/continue.txt")
   start _vanilla.control "${args[@]}"
   log "vanilla again, from its start save, to time a year the way the mod runs are"
   if run_steps "$steps_dir/continue.txt"; then
-    t0=$SECONDS
-    if wait_save "$end" "$limit"; then cy=$((SECONDS - t0)); fi
+    t0=$SECONDS; year_begin
+    if wait_save "$end" "$limit"; then cy=$((SECONDS - t0)); year_end; ccpu=$ycpu; fi
   fi
   stop
   result=$keep
@@ -506,8 +531,12 @@ for m in "${mods[@]}"; do
   mapfile -t args < <(launch_args "$steps_dir/continue.txt")
   start "$m" "-mod=mod/$m.mod" "${args[@]}"
   if run_steps "$steps_dir/continue.txt"; then
-    t0=$SECONDS
-    if wait_save "$to" "$limit"; then cp -p "$save" "$work/last.ck2"; year=$((SECONDS - t0)); else fail "did not reach $to"; fi
+    t0=$SECONDS; year_begin
+    if wait_save "$to" "$limit"; then
+      cp -p "$save" "$work/last.ck2"; year=$((SECONDS - t0)); year_end; mcpu=$ycpu
+    else
+      fail "did not reach $to"
+    fi
   fi
   stop
   rm -rf "${ud:?}/mod/$m" "$ud/mod/$m.mod"
@@ -518,17 +547,24 @@ for m in "${mods[@]}"; do
   # Speed: this year's seconds against vanilla's (the 1067 year, from the game running to the next
   # yearly save). Above CAMPAIGN_SLOW_RATIO, vanilla plays the year again from the same start save
   # (control_year), timed like this run, and only that ratio warns. It never fails the run.
+  # The game's CPU seconds for each year are reported next to the wall seconds, not yet gated on (#40).
   vy=$(cat "$out/_vanilla/year-seconds" 2>/dev/null || true)
+  vc=$(cat "$out/_vanilla/year-cpu" 2>/dev/null || true)
   slow=${CAMPAIGN_SLOW_RATIO:-1.5}
   if [ -n "${year:-}" ] && [ -n "$vy" ] && [ "$vy" -gt 0 ]; then
     ratio=$(awk -v a="$year" -v b="$vy" 'BEGIN { printf "%.2f", a / b }')
     speed="a year took ${year}s, vanilla's ${vy}s: ratio $ratio"
+    if [ -n "${mcpu:-}" ] && [ -n "$vc" ] && [ "$vc" -gt 0 ]; then
+      speed="$speed; game CPU ${mcpu}s, vanilla's ${vc}s: ratio $(awk -v a="$mcpu" -v b="$vc" 'BEGIN { printf "%.2f", a / b }')"
+    fi
     [ ! -f "$out/_vanilla/cached-steps.log" ] || speed="$speed (vanilla's from the cache, timed in another job)"
     if awk -v r="$ratio" -v t="$slow" 'BEGIN { exit !(r > t) }'; then
       control_year; dest="$out/$m"
       if [ -n "$cy" ] && [ "$cy" -gt 0 ]; then
         ratio=$(awk -v a="$year" -v b="$cy" 'BEGIN { printf "%.2f", a / b }')
         speed="$speed; vanilla again from the same save in this job: ${cy}s, ratio $ratio"
+        [ -z "$ccpu" ] || [ -z "${mcpu:-}" ] || [ "$ccpu" -le 0 ] ||
+          speed="$speed, game CPU ${ccpu}s, ratio $(awk -v a="$mcpu" -v b="$ccpu" 'BEGIN { printf "%.2f", a / b }')"
       else
         speed="$speed; vanilla's second year failed (see _vanilla.control), so this ratio stands"
       fi
@@ -540,7 +576,7 @@ for m in "${mods[@]}"; do
   else
     speed="not measured (no year from this run or vanilla's)"
   fi
-  year=
+  year='' mcpu=''
   ss=0
   {
     echo "Save checks: $m"
