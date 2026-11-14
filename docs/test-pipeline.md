@@ -254,6 +254,6 @@ agent sessions acting for them.
 
 ## Game files in cloud sessions
 
-Script files only (no binaries), CK2 3.3.3, are cached in the Claude project's shared files and
+Script files only (no binaries), CK2 3.3.5.1, are cached in the Claude project's shared files and
 unpacked into `vanilla/` by the session hook. They are enough for lint, cross-references and CWTools, not for running the game.
 See the `game-files` skill.

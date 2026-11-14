@@ -5,7 +5,7 @@ Usage: tools/cwtools_check.py [--strict] [mod_folder ...]   (default: every mod 
 
 CWTools checks what tools/lint.py cannot: unknown effects and triggers, wrong
 scopes, undefined traits/modifiers/flags. Its CK2 rules date from 2019 and it
-reports ~28,000 errors on vanilla 3.3.3 itself, so its findings are warnings:
+reports ~28,000 errors on vanilla 3.3.5.1 itself, so its findings are warnings:
 check each one against vanilla/ before acting on it. Patterns known to be
 false positives are listed, with the vanilla file that disproves them, in
 tools/cwtools_ignore.txt.
