@@ -9,6 +9,9 @@
 # Flow:
 #  1. vanilla: start a new game through the menus (tools/campaign/new_game.txt), run it at full
 #     speed to the first yearly autosave (CAMPAIGN_START), keep that save, run on to CAMPAIGN_END.
+#     When the menus are slow, the CAMPAIGN_START autosave can be written while the steps still
+#     run, or be passed: the first save dated CAMPAIGN_START or later is kept either way, and every
+#     run counts its years from that save's date (both dates move by the same number of years).
 #  2. each mod: put that save back as the only one, boot with the mod straight into it
 #     (tools/campaign/continue.txt), run to CAMPAIGN_END. So each mod plays the same year as
 #     vanilla did, from a save made without it: this also checks that existing saves load.
@@ -143,6 +146,7 @@ SETTINGS
 
 # Y.M.D -> a number that sorts like the date.
 datenum() { local y m d; IFS=. read -r y m d <<< "$1"; echo $((10#$y * 10000 + 10#$m * 100 + 10#$d)); }
+next_year() { local y m d; IFS=. read -r y m d <<< "$1"; echo "$((10#$y + 1)).$m.$d"; }
 # newest_save: "MTIME PATH" of the newest save, MTIME in whole seconds.
 newest_save() { find "$saves" -name '*.ck2' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n 1 | sed -E 's/^([0-9]+)[.0-9]* /\1 /'; }
 # save_date FILE: the game date in a save, or nothing. Probe run 12 (2026-11-13) wrote two
@@ -202,13 +206,14 @@ print(hashlib.md5(rows).hexdigest()[:12])
 ' "$@" 2>/dev/null || true
 }
 
-# wait_save DATE SECONDS: wait for a save written after this call whose date is DATE or later, or
-# whose date can't be read (then the first such save counts, with a warning); keep its path in
-# $save. 1 when none comes. Saves written before the call (the mod runs' starting save) don't count.
+# wait_save DATE SECONDS [any]: wait for a save written after this call whose date is DATE or
+# later, or whose date can't be read (then the first such save counts, with a warning); keep its
+# path in $save. 1 when none comes. Saves written before the call (the mod runs' starting save)
+# don't count, unless the third word is `any`: then the newest save already there counts too.
 save=
 wait_save() {
   local want=$1 secs=$2 t0=$SECONDS since mt f got size
-  since=$(date +%s)
+  since=$(date +%s); [ "${3:-}" != any ] || since=0
   while :; do
     read -r mt f <<< "$(newest_save)" || true
     if [ -n "${f:-}" ] && [ "$mt" -gt "$since" ]; then
@@ -368,6 +373,13 @@ if [ -n "$probe" ]; then
   exit
 fi
 
+# dates: $first, the date of vanilla's kept save ($work/start.ck2), and $end, CAMPAIGN_END moved by
+# as many years as $first is past CAMPAIGN_START, so that each run plays the same span.
+dates() {
+  first=$(save_date "$work/start.ck2"); first=${first:-$start_date}
+  end=$((10#${end_date%%.*} + 10#${first%%.*} - 10#${start_date%%.*})).${end_date#*.}
+}
+
 # 1. vanilla, from a new game, or from CAMPAIGN_CACHE when an earlier run left it there. The game
 # never changes (3.3.5.1 is the last version), so vanilla's run depends only on this script and its
 # steps files, which the workflow's cache key hashes.
@@ -384,11 +396,19 @@ else
   mapfile -t args < <(launch_args "$steps_dir/new_game.txt")
   start _vanilla "${args[@]}"
   if run_steps "$steps_dir/new_game.txt"; then
-    if wait_save "$start_date" "$limit"; then
+    # `any`: "save games" was emptied before the game started, so a save already there is this
+    # run's, written while the steps still ran.
+    if wait_save "$start_date" "$limit" any; then
       cp -p "$save" "$work/start.ck2"
-      log "  kept $(basename "$save") as the start for the mod runs"
-      t0=$SECONDS
-      if wait_save "$end_date" "$limit"; then echo $((SECONDS - t0)) > "$dest/year-seconds"; else fail "vanilla did not reach $end_date"; fi
+      dates
+      log "  kept $(basename "$save") ($first) as the start for the mod runs"
+      # The year from one save's last write to the other's: with `any` the start save may be older
+      # than this call.
+      if wait_save "$end" "$limit"; then
+        echo $(($(stat -c %Y "$save") - $(stat -c %Y "$work/start.ck2"))) > "$dest/year-seconds"
+      else
+        fail "vanilla did not reach $end"
+      fi
     else
       fail "vanilla did not reach $start_date"
     fi
@@ -409,12 +429,13 @@ else
 fi
 
 # 2. each mod, from vanilla's save
+dates
+[ "$first" = "$start_date" ] || log "vanilla's start save is dated $first, not $start_date: the runs go to $end instead of $end_date"
 failed=()
-next_year() { local y m d; IFS=. read -r y m d <<< "$1"; echo "$((10#$y + 1)).$m.$d"; }
 for m in "${mods[@]}"; do
   prefix=$(tr -d '[:space:]' < "$repo/mods/$m/PREFIX" 2>/dev/null || true)
   rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work"/*.ck2 "$saves/"
-  from="vanilla's $start_date save" to=$end_date loaded=
+  from="vanilla's $first save" to=$end loaded=
   # 2a. a mod that CAMPAIGN_BASE has and this version changes: play the year with the base version
   # first, so this version loads a save that holds the old version's state.
   if [ -n "${CAMPAIGN_BASE:-}" ] && git -C "$repo" cat-file -e "$CAMPAIGN_BASE:mods/$m.mod" 2>/dev/null &&
@@ -433,22 +454,22 @@ for m in "${mods[@]}"; do
       mapfile -t args < <(launch_args "$steps_dir/continue.txt")
       start "$m.base" "-mod=mod/$m.mod" "${args[@]}"
       log "the version in ${CAMPAIGN_BASE:0:12}, to make a save with its state"
-      if run_steps "$steps_dir/continue.txt" && wait_save "$end_date" "$limit"; then
+      if run_steps "$steps_dir/continue.txt" && wait_save "$end" "$limit"; then
         cp -p "$save" "$work/upgrade/"
         if [ -n "$based" ]; then mkdir -p "$cache/base"; cp -p "$save" "$based"; fi
       else
-        [ "$result" != ok ] || fail "did not reach $end_date"
+        [ "$result" != ok ] || fail "did not reach $end"
       fi
       stop
       rm -rf "${ud:?}/mod/$m" "$ud/mod/$m.mod"
     fi
     if compgen -G "$work/upgrade/*.ck2" >/dev/null; then
       rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work"/upgrade/*.ck2 "$saves/"
-      from="the ${CAMPAIGN_BASE:0:12} version's $end_date save" to=$(next_year "$end_date")
+      from="the ${CAMPAIGN_BASE:0:12} version's $end save" to=$(next_year "$end")
       loaded=$(compgen -G "$work/upgrade/*.ck2" | head -n 1)
     else
       log "  the base version made no save; this version loads vanilla's save instead"
-      from="vanilla's $start_date save (the base version's run failed: see $m.base)"
+      from="vanilla's $first save (the base version's run failed: see $m.base)"
     fi
   fi
   # 2b. this version. A copy, not install.sh's link: tools/harness.py marks each event and adds
