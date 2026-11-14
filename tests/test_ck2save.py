@@ -34,6 +34,22 @@ SAVE = b'''CK2txt
 \t\t2=
 \t\t{
 \t\t\tbn="Bob"
+\t\t\tdmn=
+\t\t\t{
+\t\t\t\tnavy=
+\t\t\t\t{
+\t\t\t\t\tsub_unit=
+\t\t\t\t\t{
+\t\t\t\t\t\ttroops={ ga=20.000 }
+\t\t\t\t\t\tearmark="zz_lent"
+\t\t\t\t\t\tdisband_on_peace=yes
+\t\t\t\t\t}
+\t\t\t\t\tsub_unit=
+\t\t\t\t\t{
+\t\t\t\t\t\ttroops={ ga=12.000 }
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t}
 \t\t}
 \t}
 \tchecksum="abc"
@@ -52,6 +68,24 @@ class Ck2SaveTest(unittest.TestCase):
         self.assertEqual(len(ck2save.get(self.block, "character/*")), 2)
         self.assertEqual(ck2save.get(self.block, "character/1/nums/*"), ["1", "2", "3"])
         self.assertEqual(ck2save.get(self.block, "character/*/flags/afl_request_pending"), ["1067.1.2"])
+
+    def test_filters_and_every(self) -> None:
+        lent = "character/*/dmn/navy/sub_unit[earmark=zz_lent]"
+        self.assertEqual(len(ck2save.get(self.block, lent)), 1)
+        self.assertEqual(len(ck2save.get(self.block, "character/*/dmn/navy/sub_unit")), 2)
+        out, failed = ck2save.run_checks(self.block, [
+            f"every {lent}/troops/ga == 20",
+            f"every {lent}/disband_on_peace == yes",
+            "every character/*/dmn/navy/sub_unit/troops/ga >= 20",
+            "every character/*/nothing == 1",
+            "every character/*/bn > Bob",
+        ])
+        self.assertEqual(out[0], f"CK2SAVE pass every {lent}/troops/ga == 20 (1 values)")
+        self.assertTrue(out[1].startswith("CK2SAVE pass"), out[1])
+        self.assertIn("2 values, 1 not: 12.000", out[2])
+        self.assertIn("(no values at the path)", out[3])
+        self.assertTrue(out[4].startswith("CK2SAVE fail"), out[4])  # names don't order
+        self.assertEqual(failed, 3)
 
     def test_prefixed_names(self) -> None:
         self.assertEqual(set(ck2save.prefixed(self.block, ["afl"])),
