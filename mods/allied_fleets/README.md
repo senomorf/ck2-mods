@@ -19,31 +19,31 @@ Option C of the design doc: one contract, with war-loan terms for allies and war
 - **War loan (step 1):** the two are allied, or on the same side of a war (crusade partners are temporary war allies, whom `is_allied_with` misses).
 - **Charter (step 2):** anyone not at war with the lender.
 - One contract per ruler at a time, as borrower or as lender. Nobody lends and borrows at once, so two allies can't trade fleets to avoid paying for their own.
-- No lending while the lender's own fleet is raised, so the same ships can't serve twice. This needs a trigger that sees a raised fleet; to be tested.
+- No lending while the lender's own fleet is raised, so the same ships can't serve twice. This needs a trigger that sees a raised fleet: in probes neither `any_army` nor `has_raised_levies` saw a spawned fleet, and whether `has_raised_levies` sees a raised one is still to test. If nothing does, this rule goes.
 
 ### What is lent
 
 - **A share of the lender's fleet:** a quarter or a half (owner's choice, 2026-11-14). The borrower's fleet is spawned with `match_character` = the lender and `match_mult` = the share. No script can count ships, so a share is the only size that keeps the lender's loss equal to what it lends.
 - **Where it appears:** a war loan appears at once, near the borrower; a charter, after assembly, in the lender's port.
-- **Ships away:** every port in the lender's realm, vassals' ports included, carries a "Ships away" province modifier (negative `galleys_perc`) while the contract runs. Its strength is calibrated per share on the test box, because percentages add to the lender's other bonuses: −50% cut Venice's fleet by 42% in a probe.
+- **Ships away:** every port in the lender's realm, vassals' ports included, carries a "Ships away" province modifier (negative `galleys_perc`) while the contract runs. Percentages add to the province's other bonuses: in probes a holding's galleys came to its base times (1.2 plus the modifiers), so −50% cut Venice's fleet by 42% and −60% cut Zadar's by 50%. [Inference] While that 1.2 holds, a quarter needs −30% and a half −60%. A flat `galleys = -10` took 10 off each holding before the 1.2 and emptied the small ones, and `galleys_max_levy` is not a modifier the game accepts, so a percentage it is.
 - **Vassals mind:** vassals whose ports carry it get an opinion penalty while it lasts. Their ships serve their liege, not the liege's customers.
 - **The lent fleet keeps its size.** If the lender loses ports or shipyards, its home fleet takes the loss.
 
 ### Payment
 
-- **Crew wages:** the fleet's normal upkeep, charged by the game to the borrower, as for its own ships. This relies on `spawn_fleet` taking `maintenance_multiplier` (vanilla uses it only on `spawn_unit`); to be tested.
+- **Crew wages:** the fleet's normal upkeep, charged by the game to the borrower, as for its own ships. `spawn_fleet` takes `maintenance_multiplier`: in a probe, 50 galleys spawned with `maintenance_multiplier = 1` cost their owner 15.4 gold a month (about 0.3 a galley), and the default spawn cost nothing. A quarter of Venice's 98 galleys would cost the borrower about 7.5 gold a month; Venice itself gained about 12.7 a month in that probe.
 - **Hire fee:** a monthly payment to the lender, small for war partners and larger for charters. Or the whole term's fee up front, a month or two cheaper.
 - The first month is paid on signing. One missed payment warns both rulers; a second sends the ships home.
-- Fee levels and term lengths are set after the upkeep probe.
+- Fee levels and term lengths: proposed in the PR that builds step 1, from the costs above.
 
 ### The contract
 
-- **The monthly check:** a monthly event on the borrower carries the lender and the lender's main title as event targets. Each month it renews "Ships away" on the lender's current ports, takes the fee, and checks whether the contract ends.
-- **Reloads:** modifiers with their days left, flags, earmarks and delayed events with their targets are all kept in the save (seen in a 1067 save; to be tested across a reload).
-- **Ports and shipyards change:** a new shipyard is cut by the percentage from the day it is built, and a new port at the next check. A lost port's modifier is removed at the check, or lapses within 45 days.
+- **The monthly check:** a monthly event on the borrower carries the lender and the lender's main title as event targets. Each month it renews "Ships away" on the lender's current ports, takes the fee, and checks whether the contract ends. Renewing means removing the modifier and adding it again: adding one a province already has keeps the first one's expiry (a probe added it for 100 days, then 200, and the save kept the 100).
+- **Reloads:** modifiers with their expiry dates, flags, earmarks and delayed events with their targets are all kept in the save. A probe saved, reloaded, and its delayed event fired on its day with both its character and title targets.
+- **Ports and shipyards change:** a new shipyard is cut by the percentage from the day it is built, and a new port at the next check. A lost port's modifier is removed at the check, or lapses after its 45 days; the game removed an expired modifier between 14 and 42 days after its date.
 - **A ruler dies:** after the lender's death or a new doge, the contract stays with the main title, and the new holder may honour it or recall the ships. After the borrower's death, its heir keeps the fleet and the contract to the term. A fleet that disbands with troops aboard may lose them [Unverified].
 - **It ends** at the term, at peace for a war loan, on recall, after a second missed payment, or if the two go to war with each other. Then the fleet is disbanded (`disband_event_forces`) and "Ships away" is removed.
-- **If the monthly event ever stopped,** "Ships away" would lapse by itself. The in-game tests check the chain on every run.
+- **If the monthly event ever stopped,** "Ships away" would lapse by itself, a few weeks after its 45 days. The in-game tests check the chain on every run.
 
 ### Later
 
