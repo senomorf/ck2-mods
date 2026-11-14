@@ -186,7 +186,10 @@ against 134 s on #24's. The two must be measured alike:
 - **Same method.** Vanilla's own year runs in the game it started and each mod's from a freshly
   loaded save; timed that way, the ratio swung from 0.86 (#31's run) to 2.79 (#34's). So after its
   new game, vanilla loads its start save the way each mod does and plays the year again, and that
-  is the figure the mods are compared with.
+  is the figure the mods are compared with. A loaded save's year is timed from the click that
+  unpaused the game to the next yearly save, so the steps that raise the speed count too: timed
+  from the end of the steps, on the faster host the steps covered much of the year, and one mod's
+  year read 13 s in one job and 24 s in another.
 - **Same machine.** The `ck2` runners sit on different hosts: since 2026-11-14 a year took 32 to 43 s
   on one and 213 to 284 s on the other (#40). The workflow keys the campaign cache on a signature
   of the host's hardware (CPU count and model, memory), so vanilla's cached figure comes from the
