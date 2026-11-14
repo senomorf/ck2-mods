@@ -1,0 +1,7 @@
+# Starts the campaign test's game-day clock on load (events/ck2tick_events.txt, #40).
+# Several files may add to one on_action: vanilla/common/on_actions/_on_actions.info.
+on_startup = {
+	events = {
+		ck2tick.1
+	}
+}

@@ -1,0 +1,68 @@
+namespace = ck2tick
+
+# The campaign test's game-day clock (#40). tools/campaign.sh adds these files to each mod's copy
+# and loads them as a mod of their own in vanilla's timed run. Every 30 game days a hidden event
+# logs `CK2TEST tick`, and the script notes the wall time each line reaches game.log, so a run's
+# speed is measured in seconds per game day, over dates the game itself sets.
+# Two chains run, each on a ruler picked afresh for every 30 days, so one ruler's death does not
+# stop the clock. On the same day both log, and the script keeps the first line of each date.
+# Constructs, all in this repo's tests or vanilla 3.3.5.1: on_startup (fires for every character
+# on load, tests/game/allied_fleets), set_global_flag, random_independent_ruler, is_landed,
+# age (events/religious_events.txt), set_character_flag, clr_character_flag, log.
+
+# ck2tick.1: the first character on_startup reaches starts both chains, once.
+character_event = {
+	id = ck2tick.1
+	hide_window = yes
+	is_triggered_only = yes
+
+	trigger = {
+		NOT = { has_global_flag = ck2tick_started }
+	}
+
+	immediate = {
+		set_global_flag = ck2tick_started
+		log = "CK2TEST tick"
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				age = 16
+				NOT = { age = 45 }
+			}
+			set_character_flag = ck2tick_carrier
+			character_event = { id = ck2tick.2 days = 30 }
+		}
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				age = 16
+				NOT = { age = 45 }
+				NOT = { has_character_flag = ck2tick_carrier }
+			}
+			set_character_flag = ck2tick_carrier
+			character_event = { id = ck2tick.2 days = 30 }
+		}
+	}
+}
+
+# ck2tick.2: one tick, then the next one 30 days on, on another ruler.
+character_event = {
+	id = ck2tick.2
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		log = "CK2TEST tick"
+		clr_character_flag = ck2tick_carrier
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				age = 16
+				NOT = { age = 45 }
+				NOT = { has_character_flag = ck2tick_carrier }
+			}
+			set_character_flag = ck2tick_carrier
+			character_event = { id = ck2tick.2 days = 30 }
+		}
+	}
+}

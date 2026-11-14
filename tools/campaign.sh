@@ -9,8 +9,9 @@
 # Flow:
 #  1. vanilla: start a new game through the menus (tools/campaign/new_game.txt), run it at full
 #     speed to the first yearly autosave (CAMPAIGN_START), keep that save, run on to CAMPAIGN_END.
-#     Then load the kept save the way each mod does and time that year: the figure each mod's
-#     speed is compared with. With CAMPAIGN_CACHE, all of this is kept for later jobs.
+#     Then load the kept save the way each mod does, with the game-day clock (tools/campaign/ticks),
+#     and time that year's game days: the figure each mod's speed is compared with. With
+#     CAMPAIGN_CACHE, all of this is kept for later jobs.
 #     When the menus are slow, the CAMPAIGN_START autosave can be written while the steps still
 #     run, or be passed: the first save dated CAMPAIGN_START or later is kept either way, and every
 #     run counts its years from that save's date (both dates move by the same number of years).
@@ -22,7 +23,7 @@
 #     a save made with the old version must load with the new one.
 #     The mod is installed as a copy by tools/harness.py, which logs each of its events, event
 #     options, decision effects and scripted effects as they run, and adds the mod's in-game
-#     tests from tests/game/<mod>/, if any.
+#     tests from tests/game/<mod>/, if any; then the game-day clock goes in, untraced.
 #  3. report the mod run's error.log lines that vanilla's run does not have. Lines that name the
 #     mod (its prefix, folder or one of its file names) fail the run; the rest are listed as
 #     warnings, since the game's own runtime errors differ from run to run. Then the harness's
@@ -67,8 +68,8 @@
 #                                  error lines and year, and base versions' saves; reused when there
 #      CAMPAIGN_BASE               a commit with the previous version of the mods (the pull
 #                                  request's base); unset, each mod loads vanilla's save
-#      CAMPAIGN_SLOW_RATIO         warn when a mod's year takes this many times vanilla's (default 1.5);
-#                                  above it, vanilla first plays the year again in the same job
+#      CAMPAIGN_SLOW_RATIO         warn when a mod's game days take this many times vanilla's (default
+#                                  1.5); above it, vanilla first plays the year again in the same job
 #      CAMPAIGN_PROBE_SAVE         --steps only: a save to put in "save games" first
 #      CAMPAIGN_PROBE_MOD          --steps only: a mod folder to run with (the harness copy)
 #      CAMPAIGN_PROBE_TESTS        --steps only: `no` leaves the mod's test events out of that copy
@@ -178,6 +179,42 @@ PY
 }
 # save_head FILE: the first bytes of a save, escaped, for the log.
 save_head() { python3 -I -c 'import sys; print(repr(open(sys.argv[1], "rb").read(160)))' "$1" 2>/dev/null || true; }
+
+# The game-day clock (#40): tools/campaign/ticks, added to each mod's copy and loaded as a mod of its
+# own in vanilla's timed runs, logs `CK2TEST tick` every 30 game days. watch_ticks notes the wall time
+# each tick line reaches game.log, in $dest/ticks.txt ("<epoch seconds> <game date>"); it ends with
+# the game. tick_rate turns that into milliseconds per game day.
+ticks=$steps_dir/ticks
+watch_ticks() {
+  local l
+  tail -n +1 -F -s 0.2 --pid="$pid" "$ud/logs/game.log" 2>/dev/null | while IFS= read -r l; do
+    if [[ $l =~ EVENT\ \[([0-9.]+)\]:CK2TEST\ tick ]]; then printf '%s %s\n' "$EPOCHREALTIME" "${BASH_REMATCH[1]}"; fi
+  done > "$dest/ticks.txt"
+}
+# tick_rate FILE TO: "MS DAYS", the milliseconds per game day from the first tick dated 1 July or later
+# in the year before TO to the last tick before TO, and the days between them; nothing with fewer
+# than two such ticks. The window starts half a year in, when continue.txt's steps are long done and
+# the game runs at full speed on every host, and both its ends are dates the game sets, so neither
+# the steps nor the unpause click move it. The game has no leap years.
+tick_rate() {
+  python3 -I - "$@" <<'PY' 2>/dev/null || true
+import sys
+start = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+def day(d):
+    y, m, dd = (int(x) for x in d.split("."))
+    return y * 365 + start[m - 1] + dd - 1
+hi = day(sys.argv[2])
+lo = day(f"{int(sys.argv[2].split('.')[0]) - 1}.7.1")
+first = {}
+for line in open(sys.argv[1]):
+    t, d = line.split()
+    first.setdefault(day(d), float(t))  # both chains log on the same day: keep the first line
+pts = sorted((k, v) for k, v in first.items() if lo <= k < hi)
+if len(pts) >= 2:
+    (d0, t0), (d1, t1) = pts[0], pts[-1]
+    print(round(1000 * (t1 - t0) / (d1 - d0)), d1 - d0)
+PY
+}
 # Lines compared without their leading [file:line]: tags, which move between game builds.
 norm() { sed -E 's/\r$//; s/^(\[[^]]*\])+[[:space:]]*:?[[:space:]]*//; s/[[:space:]]+$//' "$@" | grep -v '^$' || true; }
 
@@ -388,6 +425,7 @@ start() {
   (cd "$game" && LD_LIBRARY_PATH="$game${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" exec unshare -rn ./ck2 -skiplauncher -debugscripts "$@") \
     > "$dest/stdout.log" 2>&1 &
   pid=$!
+  watch_ticks &
   log "started ck2 -skiplauncher -debugscripts $*"
 }
 # stop: end the game, keep its logs and the newest save's date.
@@ -435,16 +473,20 @@ dates() {
 # 184 s (0.86) on #31's: the job can't see what else the host runs.
 control_year() {
   local keep=$result
-  cy='' ccpu=''
+  cy='' ccpu='' cday=''
   rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work/start.ck2" "$saves/"
+  rm -rf "${ud:?}/mod/ck2tick"; cp -r "$ticks" "$ud/mod/ck2tick"; cp "$steps_dir/ck2tick.mod" "$ud/mod/"
   mapfile -t args < <(launch_args "$steps_dir/continue.txt")
-  start _vanilla.control "${args[@]}"
-  log "vanilla again, from its start save, to time a year the way the mod runs are"
+  start _vanilla.control "-mod=mod/ck2tick.mod" "${args[@]}"
+  log "vanilla again, from its start save, to time a year the way the mod runs are (with the game-day clock)"
   if run_steps "$steps_dir/continue.txt"; then
     year_start
     if wait_save "$end" "$limit"; then cy=$((SECONDS - t0)); year_end; ccpu=$ycpu; fi
   fi
   stop
+  read -r cday _ <<< "$(tick_rate "$dest/ticks.txt" "$end")" || true
+  log "  game days: ${cday:-?} ms each (ticks: $(grep -c . "$dest/ticks.txt" 2>/dev/null || echo 0))"
+  rm -rf "${ud:?}/mod/ck2tick" "$ud/mod/ck2tick.mod"
   result=$keep
 }
 
@@ -457,7 +499,7 @@ if [ -n "$cache" ] && [ -f "$cache/vanilla/start.ck2" ] && [ -f "$cache/vanilla/
   cp -p "$cache/vanilla/start.ck2" "$work/"
   cp "$cache/vanilla/error.norm" "$dest/"
   cp "$cache/vanilla/steps.log" "$dest/cached-steps.log" 2>/dev/null || true
-  cp "$cache/vanilla/year-seconds" "$cache/vanilla/year-cpu" "$dest/" 2>/dev/null || true
+  cp "$cache/vanilla/year-seconds" "$cache/vanilla/year-cpu" "$cache/vanilla/day-ms" "$dest/" 2>/dev/null || true
   log "vanilla: restored from the cache ($(cat "$cache/vanilla/made-by" 2>/dev/null || echo unknown run)), not run"
 else
   rm -rf "$saves"
@@ -500,10 +542,11 @@ else
     echo "$cy" > "$out/_vanilla/year-seconds"
     if [ -n "$ccpu" ]; then echo "$ccpu" > "$out/_vanilla/year-cpu"; else rm -f "$out/_vanilla/year-cpu"; fi
   fi
+  if [ -n "$cday" ]; then echo "$cday" > "$out/_vanilla/day-ms"; fi
   if [ -n "$cache" ]; then
     rm -rf "$cache/vanilla"; mkdir -p "$cache/vanilla"
     cp -p "$work/start.ck2" "$out/_vanilla/error.norm" "$out/_vanilla/steps.log" "$cache/vanilla/"
-    cp "$out/_vanilla/year-seconds" "$out/_vanilla/year-cpu" "$cache/vanilla/" 2>/dev/null || true
+    cp "$out/_vanilla/year-seconds" "$out/_vanilla/year-cpu" "$out/_vanilla/day-ms" "$cache/vanilla/" 2>/dev/null || true
     echo "run ${GITHUB_RUN_ID:-local} on $(date -u +%Y-%m-%d)" > "$cache/vanilla/made-by"
   fi
 fi
@@ -555,6 +598,7 @@ for m in "${mods[@]}"; do
   # 2b. this version. A copy, not install.sh's link: tools/harness.py marks each event and adds
   # tests/game/$m.
   python3 "$repo/tools/harness.py" install "$m" "$ud/mod/$m"
+  cp -r "$ticks"/. "$ud/mod/$m/"   # the game-day clock; the harness neither traces nor counts it
   cp "$repo/mods/$m.mod" "$ud/mod/"
   mapfile -t args < <(launch_args "$steps_dir/continue.txt")
   start "$m" "-mod=mod/$m.mod" "${args[@]}"
@@ -572,41 +616,41 @@ for m in "${mods[@]}"; do
   hs=0; python3 "$repo/tools/harness.py" report "$m" "$dest/game.log" > "$dest/harness.txt" || hs=$?
   # The save's state: checks from tests/game/$m/save_checks.txt on the last save, and names the
   # base version's save holds that this version dropped (#20: the game logs nothing for those).
-  # Speed: this year's seconds against vanilla's, both from the start save to the next yearly save on
-  # this host (the workflow keys the cache on the host). Above CAMPAIGN_SLOW_RATIO, when vanilla's
-  # figure came from another job's cache, vanilla plays the year again in this job (control_year), and
-  # only that ratio warns. It never fails the run. The game's CPU seconds are reported next to the
-  # wall seconds, not gated on (#40).
+  # Speed (#40): milliseconds per game day over the year's second half (tick_rate), against vanilla's
+  # measured the same way from the same save on this host (the workflow keys the cache on the host).
+  # Above CAMPAIGN_SLOW_RATIO, when vanilla's figure came from another job's cache, vanilla plays the
+  # year again in this job (control_year), and only that ratio warns. It never fails the run. The
+  # year's wall and CPU seconds are reported for information only: they include continue.txt's steps
+  # at lower speeds, which on the faster host hid a mod that touched every character 15 times a day.
+  read -r mday mdays _ <<< "$(tick_rate "$dest/ticks.txt" "$to")" || true
+  vd=$(cat "$out/_vanilla/day-ms" 2>/dev/null || true)
   vy=$(cat "$out/_vanilla/year-seconds" 2>/dev/null || true)
   vc=$(cat "$out/_vanilla/year-cpu" 2>/dev/null || true)
   slow=${CAMPAIGN_SLOW_RATIO:-1.5}
-  if [ -n "${year:-}" ] && [ -n "$vy" ] && [ "$vy" -gt 0 ]; then
-    ratio=$(awk -v a="$year" -v b="$vy" 'BEGIN { printf "%.2f", a / b }')
-    speed="a year took ${year}s, vanilla's ${vy}s: ratio $ratio"
-    if [ -n "${mcpu:-}" ] && [ -n "$vc" ] && [ "$vc" -gt 0 ]; then
-      speed="$speed; game CPU ${mcpu}s, vanilla's ${vc}s: ratio $(awk -v a="$mcpu" -v b="$vc" 'BEGIN { printf "%.2f", a / b }')"
-    fi
+  info="the year took ${year:-?}s (vanilla's ${vy:-?}s), game CPU ${mcpu:-?}s (vanilla's ${vc:-?}s)"
+  if [ -n "${mday:-}" ] && [ -n "$vd" ] && [ "$vd" -gt 0 ]; then
+    ratio=$(awk -v a="$mday" -v b="$vd" 'BEGIN { printf "%.2f", a / b }')
+    speed="a game day took ${mday} ms over ${mdays} days, vanilla's ${vd} ms: ratio $ratio"
     [ ! -f "$out/_vanilla/cached-steps.log" ] || speed="$speed (vanilla's from the cache: another job on this host)"
-    cy=''
+    cday=''
     if [ -f "$out/_vanilla/cached-steps.log" ] && awk -v r="$ratio" -v t="$slow" 'BEGIN { exit !(r > t) }'; then
       control_year; dest="$out/$m"
-      if [ -n "$cy" ] && [ "$cy" -gt 0 ]; then
-        ratio=$(awk -v a="$year" -v b="$cy" 'BEGIN { printf "%.2f", a / b }')
-        speed="$speed; vanilla again from the same save in this job: ${cy}s, ratio $ratio"
-        [ -z "$ccpu" ] || [ -z "${mcpu:-}" ] || [ "$ccpu" -le 0 ] ||
-          speed="$speed, game CPU ${ccpu}s, ratio $(awk -v a="$mcpu" -v b="$ccpu" 'BEGIN { printf "%.2f", a / b }')"
+      if [ -n "$cday" ] && [ "$cday" -gt 0 ]; then
+        ratio=$(awk -v a="$mday" -v b="$cday" 'BEGIN { printf "%.2f", a / b }')
+        speed="$speed; vanilla again from the same save in this job: ${cday} ms, ratio $ratio"
       else
-        speed="$speed; vanilla's second year failed (see _vanilla.control), so this ratio stands"
+        speed="$speed; vanilla's second run measured no game days (see _vanilla.control), so this ratio stands"
       fi
     fi
     if awk -v r="$ratio" -v t="$slow" 'BEGIN { exit !(r > t) }'; then
       speed="$speed; warning: slower than $slow times vanilla"
-      echo "::warning title=campaign speed::$m: a year took $ratio times vanilla's (${year}s against ${cy:-$vy}s)"
+      echo "::warning title=campaign speed::$m: a game day took $ratio times vanilla's (${mday} ms against ${cday:-$vd} ms)"
     fi
   else
-    speed="not measured (no year from this run or vanilla's)"
+    speed="not measured (no game days from this run or vanilla's)"
   fi
-  year='' mcpu=''
+  speed="$speed; $info"
+  year='' mcpu='' mday='' mdays=''
   ss=0
   {
     echo "Save checks: $m"

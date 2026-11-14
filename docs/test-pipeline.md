@@ -177,19 +177,25 @@ that never ran, a check that never reported or a failed log check. Decisions are
 tests only gets its traces counted. `on_startup` starts the tests: it fires for every
 character when a save loads (`.cwtools/on_actions.cwt`), so test events guard with a global flag.
 
-`report.txt` also gives the mod's speed: the seconds its year took against vanilla's year, as a
+`report.txt` also gives the mod's speed: the milliseconds a game day took against vanilla's, as a
 ratio, with a warning annotation above 1.5 (`CAMPAIGN_SLOW_RATIO`). It never fails the run, since
-both years share the host with whatever else runs there: the live test box and the runner are on
-the same machine, and on #27's run, with box runs going at the same time, vanilla's year took 545 s
+both share the host with whatever else runs there: the live test box and the runner are on the
+same machine, and on #27's run, with box runs going at the same time, vanilla's year took 545 s
 against 134 s on #24's. The two must be measured alike:
 
+- **Same stretch of game time.** A game-day clock (`tools/campaign/ticks`, hidden events that log
+  `CK2TEST tick` every 30 game days) goes into each mod's copy, after the harness's tracing, and
+  vanilla's timed run loads it as a mod of its own. `campaign.sh` notes the wall time each tick line
+  reaches `game.log` (`ticks.txt` in the run's report folder) and divides the seconds from the
+  first tick on or after 1 July to the last one before the year's end by the game days between
+  them. Both ends are dates the game sets, half a year after the load, when the game runs at full
+  speed on every host. Timing whole years didn't work: on the faster host a year at full speed
+  takes 23 to 29 s, and about 45 s more go to the steps after the unpause click at lower speeds,
+  so a mod that touched every character 15 times a day read 0.86 (#40).
 - **Same method.** Vanilla's own year runs in the game it started and each mod's from a freshly
   loaded save; timed that way, the ratio swung from 0.86 (#31's run) to 2.79 (#34's). So after its
-  new game, vanilla loads its start save the way each mod does and plays the year again, and that
-  is the figure the mods are compared with. A loaded save's year is timed from the click that
-  unpaused the game to the next yearly save, so the steps that raise the speed count too: timed
-  from the end of the steps, on the faster host the steps covered much of the year, and one mod's
-  year read 13 s in one job and 24 s in another.
+  new game, vanilla loads its start save the way each mod does and plays the year again, with the
+  clock, and that is the figure the mods are compared with.
 - **Same machine.** The `ck2` runners sit on different hosts: since 2026-11-14 a year took 32 to 43 s
   on one and 213 to 284 s on the other (#40). The workflow keys the campaign cache on a signature
   of the host's hardware (CPU count and model, memory), so vanilla's cached figure comes from the
@@ -197,7 +203,7 @@ against 134 s on #24's. The two must be measured alike:
 - **Same job, when in doubt.** Above the threshold, if vanilla's figure came from the cache, vanilla
   plays the year again in this job, and only that ratio warns. `report.txt` gives both.
 
-Next to each wall-clock figure `report.txt` gives the game's CPU seconds for the year (user and
+For information, `report.txt` also gives the year's wall seconds and the game's CPU seconds for it (user and
 system, all its threads, from `/proc`), and `steps.log` has a line per year with the host's load
 average, available memory, the job's cgroup CPU limit and how long that limit held the job back.
 They are not gated on.
@@ -307,7 +313,7 @@ Limits, so this is not in CI yet:
 The runner keeps nothing between jobs, so the workflow keeps `.campaign-cache/` in `actions/cache`
 (`CAMPAIGN_CACHE`), keyed on the host's signature and the hash of `tools/campaign.sh` and
 `tools/campaign/**`: vanilla's 1067.1.1 save, its normalised `error.log` lines and its year's
-duration (wall and CPU seconds, from the start save), and each base version's
+duration (milliseconds per game day, and wall and CPU seconds, from the start save), and each base version's
 save under the hash of that version's files. The game never changes (3.3.5.1 is final), so a run
 with a warm cache skips vanilla, and skips a base version it has seen. The cache is saved even when
 a mod fails, and a change to the script or its steps files starts a new one.
