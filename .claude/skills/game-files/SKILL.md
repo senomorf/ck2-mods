@@ -14,7 +14,7 @@ The session hook unpacks the cached copy automatically. Do this only when `vanil
 
 ## 2. Ask the user for a zip (preferred)
 
-The user prefers uploading over Steam logins (2026-11-12). Ask them to zip these folders from the CK2 install folder (Steam > Crusader Kings II > Manage > Browse local files): `common`, `decisions`, `events`, `history`, `interface`, `localisation`, plus `map/*.txt|csv|map` if handy. The 3.3.3 zip was 17 MB. Copy the upload to `/mnt/project-files/ck2-vanilla/ck2-game-files.zip`, write `ck2-game-files.json` beside it (files, sha256, game version), and unpack with `tools/fetch_vanilla.sh`.
+The user prefers uploading over Steam logins (2026-11-12). Ask them to zip these folders from the CK2 install folder (Steam > Crusader Kings II > Manage > Browse local files): `common`, `decisions`, `events`, `history`, `interface`, `localisation`, plus `map/*.txt|csv|map` if handy. The 3.3.5.1 zip was 17 MB. Take the version from the main menu's bottom-left label (`3.3.5.1 (SOHY)`), not `ChangeLog.txt`, which stops at 3.3.3. Copy the upload to `/mnt/project-files/ck2-vanilla/ck2-game-files.zip`, write `ck2-game-files.json` beside it (files, sha256, game version), and unpack with `tools/fetch_vanilla.sh`.
 
 ## 3. Download from Steam (fallback, needs the user)
 
