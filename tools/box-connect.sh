@@ -28,6 +28,16 @@ nb() { "$dir/netbird" "$@" --daemon-addr "$sock"; }
 # before the banner. Measured that day on one identity: 0 of 5 unpinned, 3 of 3 pinned.
 # CK2_BOX_HOME_RELAYS="" unpins.
 relays=${CK2_BOX_HOME_RELAYS-rels://streamline-de-fra1-0.relay.netbird.io:443,rels://streamline-de-fra1-1.relay.netbird.io:443}
+# A name that stops resolving (NetBird retires instances) is dropped; with none left, unpinned.
+if [ -n "$relays" ]; then
+	IFS=, read -ra want <<<"$relays"
+	ok=()
+	for r in "${want[@]}"; do
+		h=${r#*://}; h=${h%%:*}
+		if getent hosts "$h" >/dev/null; then ok+=("$r"); else echo "box-connect: relay $h does not resolve; dropped" >&2; fi
+	done
+	relays=$(IFS=,; echo "${ok[*]}")
+fi
 # A daemon started with other relays (an earlier version of this script) is restarted with these.
 if nb status >/dev/null 2>&1 && [ "$(cat "$dir/relays" 2>/dev/null)" != "$relays" ]; then
 	pkill -f -- "service run --config $dir/config.json" || true
