@@ -156,6 +156,12 @@ check, or for a mod with tests, a missing `done` or an event that never fired, f
 without tests only gets its events counted. `on_startup` starts the tests: it fires for every
 character when a save loads (`.cwtools/on_actions.cwt`), so test events guard with a global flag.
 
+`report.txt` also gives the mod's speed: the seconds its year took against vanilla's year, as a
+ratio, with a warning annotation above 1.5 (`CAMPAIGN_SLOW_RATIO`). It never fails the run, since
+both years share the host with whatever else runs there: the live test box and the runner are on
+the same machine, and on #27's run, with box runs going at the same time, vanilla's year took 545 s
+against 134 s on #24's. Trust a ratio from a run that had the runner to itself.
+
 After the year, `tools/ck2save.py` reads the run's last autosave (plain Clausewitz text, since the
 script sets `compress_autosaves=no`) into `save-checks.txt`:
 

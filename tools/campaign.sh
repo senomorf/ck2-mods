@@ -58,6 +58,7 @@
 #                                  error lines and year, and base versions' saves; reused when there
 #      CAMPAIGN_BASE               a commit with the previous version of the mods (the pull
 #                                  request's base); unset, each mod loads vanilla's save
+#      CAMPAIGN_SLOW_RATIO         warn when a mod's year takes this many times vanilla's (default 1.5)
 #      CAMPAIGN_PROBE_SAVE         --steps only: a save to put in "save games" first
 #      CAMPAIGN_PROBE_MOD          --steps only: a mod folder to run with (the harness copy)
 #      CAMPAIGN_PROBE_EFFECTS      --steps only: a file of effects, copied to ck2test_effects.txt in
@@ -457,7 +458,8 @@ for m in "${mods[@]}"; do
   mapfile -t args < <(launch_args "$steps_dir/continue.txt")
   start "$m" "-mod=mod/$m.mod" "${args[@]}"
   if run_steps "$steps_dir/continue.txt"; then
-    if wait_save "$to" "$limit"; then cp -p "$save" "$work/last.ck2"; else fail "did not reach $to"; fi
+    t0=$SECONDS
+    if wait_save "$to" "$limit"; then cp -p "$save" "$work/last.ck2"; year=$((SECONDS - t0)); else fail "did not reach $to"; fi
   fi
   stop
   rm -rf "${ud:?}/mod/$m" "$ud/mod/$m.mod"
@@ -465,6 +467,23 @@ for m in "${mods[@]}"; do
   hs=0; python3 "$repo/tools/harness.py" report "$m" "$dest/game.log" > "$dest/harness.txt" || hs=$?
   # The save's state: checks from tests/game/$m/save_checks.txt on the last save, and names the
   # base version's save holds that this version dropped (#20: the game logs nothing for those).
+  # Speed: this year's seconds against vanilla's (the 1067 year, timed the same way: from the game
+  # running to the next yearly save; this run's clock starts a few in-game days later, after its
+  # steps). Both share the runner with whatever else runs on its host, so a ratio needs a quiet
+  # runner to mean much; it warns, never fails.
+  vy=$(cat "$out/_vanilla/year-seconds" 2>/dev/null || true)
+  if [ -n "${year:-}" ] && [ -n "$vy" ] && [ "$vy" -gt 0 ]; then
+    ratio=$(awk -v a="$year" -v b="$vy" 'BEGIN { printf "%.2f", a / b }')
+    speed="a year took ${year}s, vanilla's ${vy}s: ratio $ratio"
+    [ ! -f "$out/_vanilla/cached-steps.log" ] || speed="$speed (vanilla's from the cache, timed in another job)"
+    if awk -v r="$ratio" -v t="${CAMPAIGN_SLOW_RATIO:-1.5}" 'BEGIN { exit !(r > t) }'; then
+      speed="$speed; warning: slower than ${CAMPAIGN_SLOW_RATIO:-1.5} times vanilla"
+      echo "::warning title=campaign speed::$m: a year took $ratio times vanilla's (${year}s against ${vy}s)"
+    fi
+  else
+    speed="not measured (no year from this run or vanilla's)"
+  fi
+  year=
   ss=0
   {
     echo "Save checks: $m"
@@ -506,6 +525,7 @@ for m in "${mods[@]}"; do
     echo "CK2 campaign test: $m"
     echo "result: $result ($from loaded with this version, run to $to)"
     echo "mod named in logs: $seen"
+    echo "speed: $speed"
     echo "new error.log lines that name the mod: $nm"
     cat "$dest/mod-errors.txt"
     echo "other new error.log lines (warnings; the game's own runtime errors vary between runs): $no"
