@@ -49,7 +49,9 @@
 #                           gains a line matching REGEX; fails the run after SECONDS
 #   clickchange X Y SECONDS RX RY RW RH
 #                           click X,Y until the RW x RH pixels at RX,RY differ between two looks
-#                           5 s apart (the date, once the game runs); fails the run after SECONDS
+#                           5 s apart and again over the next 5 s, and neither of the last two
+#                           looks has a red pixel (the date and speed sign, once the game runs:
+#                           the sign is red while paused); fails the run after SECONDS
 #   launch ARGS...          not a step: extra arguments for the game, read before it starts.
 #                           %SAVE% stands for the name of the newest save in "save games"
 #
@@ -182,29 +184,21 @@ shot() {
     || echo "campaign: screenshot $1 failed" >&2
 }
 fail() { result=$1; shot failed; }
-# region X Y W H: a hash of those pixels on the screen, or nothing.
+# region X Y W H: a hash of those pixels on the screen and how many are red, or nothing.
 region() {
   xwd -root -display "$DISPLAY" 2>/dev/null | xwdtopnm 2>/dev/null | python3 -I -c '
-import hashlib, sys
+import hashlib, re, sys
 x, y, cw, ch = map(int, sys.argv[1:5])
 d = sys.stdin.buffer.read()
-f, i = [], 0
-while len(f) < 4:
-    while d[i:i + 1].isspace():
-        i += 1
-    if d[i:i + 1] == b"#":
-        i = d.index(b"\n", i) + 1
-        continue
-    j = i
-    while not d[j:j + 1].isspace():
-        j += 1
-    f.append(d[i:j])
-    i = j
-w, px = int(f[1]), d[i + 1:]
-if f[0] != b"P6" or f[3] != b"255":
+m = re.match(rb"P6\s+(?:#[^\n]*\n\s*)*(\d+)\s+(\d+)\s+255\s", d)
+if not m:
     sys.exit(1)
+w, px = int(m[1]), d[m.end():]
 rows = b"".join(px[((y + r) * w + x) * 3:((y + r) * w + x + cw) * 3] for r in range(ch))
-print(hashlib.md5(rows).hexdigest()[:12])
+if len(rows) != cw * ch * 3:
+    sys.exit(1)
+reds = sum(1 for k in range(0, len(rows), 3) if rows[k] > 150 and rows[k + 1] < 100 and rows[k + 2] < 100)
+print(hashlib.md5(rows).hexdigest()[:12], reds)
 ' "$@" 2>/dev/null || true
 }
 
@@ -254,7 +248,7 @@ launch_args() {
 
 # run_steps FILE: follow a steps file; sets $result on a failure and returns 1.
 run_steps() {
-  local line cmd rest x y secs re t0 wid keys c0 file tries here rx ry rw rh h0 h1
+  local line cmd rest x y secs re t0 wid keys c0 file tries here rx ry rw rh h0 h1 h2
   here=$(dirname "$1")
   while IFS= read -r line || [ -n "$line" ]; do
     line=${line%%#*}; read -r cmd rest <<< "$line" || true
@@ -303,18 +297,29 @@ run_steps() {
       clickchange)
         # A click on a screen that is still loading is lost: PR #27's run 43531833583 clicked the
         # date 10 s after "Launching SINGLEPLAYER-game", before the map had finished drawing, and
-        # the game stayed paused for 25 minutes. Both looks are taken with the pointer away.
+        # the game stayed paused for 25 minutes. The region must change twice in a row, 5 s apart:
+        # one change can be the screen finishing its first draw, and on a box run (2026-11-14) a
+        # single change 11 s after launch passed while the game stayed paused at 1067.1.1. A running
+        # date keeps changing. All looks are taken with the pointer away, and each is logged: on a
+        # later box run, two changes after one click passed while the date's pixels stayed the same
+        # in every screenshot, so the region also takes in the speed sign, which is red only while
+        # paused (screenshots of a paused and a running game, 2026-11-14), and a failed look is not
+        # a change.
         read -r x y secs rx ry rw rh <<< "$rest"
         t0=$SECONDS tries=0
         while :; do
           if [ $((SECONDS - t0)) -ge "$secs" ] || ! kill -0 "$pid" 2>/dev/null; then
-            log "  nothing changed in ${secs}s ($tries clicks)"; fail "timed out at step $n"; return 1
+            log "  nothing kept changing in ${secs}s ($tries clicks)"; fail "timed out at step $n"; return 1
           fi
           xdotool mousemove "$x" "$y" sleep 2 click 1 sleep 1 mousemove 640 600; tries=$((tries + 1))
           sleep 2; h0=$(region "$rx" "$ry" "$rw" "$rh"); sleep 5; h1=$(region "$rx" "$ry" "$rw" "$rh")
-          [ -z "$h0" ] || [ "$h0" = "$h1" ] || break
+          sleep 5; h2=$(region "$rx" "$ry" "$rw" "$rh")
+          log "  looks (hash red): ${h0:-none} / ${h1:-none} / ${h2:-none}"
+          # A failed look is empty and is no change; a red pixel is the pause sign.
+          [ -n "$h0" ] && [ -n "$h1" ] && [ -n "$h2" ] && [ "$h0" != "$h1" ] && [ "$h1" != "$h2" ] \
+            && [ "${h1#* }" = 0 ] && [ "${h2#* }" = 0 ] && break
         done
-        log "  changed after $((SECONDS - t0))s ($tries clicks)"
+        log "  kept changing after $((SECONDS - t0))s ($tries clicks)"
         ;;
       repeat)
         read -r secs re <<< "$rest"; file=${re##* }; re=${re% *}

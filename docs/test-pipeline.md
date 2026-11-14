@@ -231,9 +231,16 @@ on instead of timers: `clickuntil` clicks until a line appears (the lobby's rand
 until "set as primary local", Game Rules' Start Game until "Launching SINGLEPLAYER-game"), and
 `repeat` follows a short steps file until one does (closing the start splash and typing `observe`
 until "unset as primary local"). Unpausing has no log line, so `clickchange` clicks the date until
-its pixels change between two screenshots 5 s apart: a click while the loaded map was still drawing
-was lost on PR #27's [run 43531833583](https://github.com/senomorf/ck2-mods/actions/runs/43531833583),
-and the game sat paused until the timeout. The fixed waits left are margins of a few seconds. On the live test
+its pixels change between two screenshots 5 s apart, and again over the next 5 s: a click while the
+loaded map was still drawing was lost on PR #27's
+[run 43531833583](https://github.com/senomorf/ck2-mods/actions/runs/43531833583), and the game sat
+paused until the timeout. One change was not enough: on a box run (2026-11-14) the region changed
+once 11 s after launch, likely the top bar's first draw, while the game stayed paused at 1067.1.1
+for 25 minutes. A running date keeps changing. Two changes were not enough either: on a later box
+run they passed after one click while the date's pixels were the same in every screenshot of the
+run, and the game again sat paused. So the region also takes in the speed sign, which is red while
+paused and has no red while running, and the last two looks must have no red pixel. A failed
+screenshot is not a change. Each look's hash and red count go to `steps.log`. The fixed waits left are margins of a few seconds. On the live test
 box (2026-11-13) a new game was running at full speed 123 s after launch, against 381 s on #15's
 run through the menus. The artifact
 `campaign-linux` holds them with `steps.log`, the logs and `report.txt` per run. What the steps

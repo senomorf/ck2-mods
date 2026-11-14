@@ -8,9 +8,10 @@ launch -startgame -start_save=%SAVE%
 until 300 Launching SINGLEPLAYER-game
 wait 10
 shot loaded
-# The date: a click unpauses. Clicked again until the date's pixels (1016,43, 170x16, left of the
-# pause sign) change, since a click while the map still loads is lost (run 43531833583).
-clickchange 1100 50 180 1016 43 170 16
+# The date: a click unpauses. Clicked again until the pixels of the date and the speed sign
+# (1016,43, 204x16) keep changing with no red in them (the sign is red while paused), since a click
+# while the map still loads is lost (run 43531833583).
+clickchange 1100 50 180 1016 43 204 16
 click 1240 50       # "+" speed, four times
 wait 2
 click 1240 50

@@ -24,7 +24,7 @@ clickuntil 937 601 120 Launching SINGLEPLAYER-game   # Game Rules: "Start Game" 
 wait 15
 repeat 300 unset as primary local new_game_observe.txt
 shot ingame
-clickchange 1100 50 180 1016 43 170 16   # the date: a click unpauses (run 12); see continue.txt
+clickchange 1100 50 180 1016 43 204 16   # the date: a click unpauses (run 12); see continue.txt
 click 1240 50       # "+" speed, four times to the fastest (run 12)
 wait 2
 click 1240 50
