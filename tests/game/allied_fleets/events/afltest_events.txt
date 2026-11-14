@@ -88,13 +88,285 @@ character_event = {
 	}
 }
 
-# afltest.4: the end.
+# afltest.4: the AI part is over; the scenario starts.
 character_event = {
 	id = afltest.4
 	hide_window = yes
 	is_triggered_only = yes
 
 	immediate = {
+		character_event = { id = afltest.10 }
+	}
+}
+
+# Scenario (#38, step 4): the feature's steps run one at a time on chosen rulers, without the
+# AI's random answer, and each result is checked. Constructs, besides those above: while with
+# count and limit (vanilla/events/game_rule_events.txt), export_to_variable value = wealth
+# (vanilla/common/scripted_effects/01_scripted_effects_duels.txt), set_variable and
+# subtract_variable with two which (same file), is_variable_equal
+# (.cwtools/variables_event_targets.cwt), global_ variables and [global_<name>.GetValue]
+# (vanilla/common/monarchs_journey/monarchs.txt, vanilla/localisation), any_war with
+# end_war = whitepeace (vanilla/events/HF_sway_events.txt).
+# event_target:afltest_r = a ruler at war (asks), afltest_a = another ruler (answers),
+# afltest_peace = a ruler at peace.
+
+# afltest.10: pick the rulers, check the decision's conditions, lend, refuse, then make peace.
+character_event = {
+	id = afltest.10
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				war = yes
+				any_realm_province = { port = yes }
+				NOT = { has_character_flag = afl_test_requester }
+				NOT = { has_character_flag = afl_request_pending }
+				NOT = { has_earmarked_regiments = afl_lent_ships }
+			}
+			save_event_target_as = afltest_r
+			set_character_flag = afl_test_requester
+			wealth = 100
+		}
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				war = no
+				NOT = { has_character_flag = afl_test_requester }
+				NOT = { has_character_flag = afl_request_pending }
+				NOT = { has_earmarked_regiments = afl_lent_ships }
+			}
+			save_event_target_as = afltest_peace
+			wealth = 100
+		}
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				war = no
+				NOT = { has_character_flag = afl_test_requester }
+			}
+			save_event_target_as = afltest_a
+		}
+		if = {
+			limit = {
+				OR = {
+					NOT = { event_target:afltest_r = { always = yes } }
+					NOT = { event_target:afltest_peace = { always = yes } }
+					NOT = { event_target:afltest_a = { always = yes } }
+				}
+			}
+			log = "CK2TEST fail scenario setup: no independent ruler at war with a port, or none at peace"
+		}
+		if = {
+			limit = {
+				event_target:afltest_r = { always = yes }
+				event_target:afltest_peace = { always = yes }
+				event_target:afltest_a = { always = yes }
+			}
+			log = "CK2TEST pass scenario setup"
+			log = "afltest: scenario requester [afltest_r.GetBestName] ([afltest_r.GetID]), ally [afltest_a.GetBestName] ([afltest_a.GetID]), at peace [afltest_peace.GetBestName] ([afltest_peace.GetID])"
+
+			# The decision's conditions, one at a time (afl_can_request_ships_trigger).
+			event_target:afltest_peace = {
+				if = {
+					limit = { afl_can_request_ships_trigger = yes }
+					log = "CK2TEST fail a ruler at peace may not request ships: [This.GetBestName] ([This.GetID]) may"
+				}
+				if = {
+					limit = { NOT = { afl_can_request_ships_trigger = yes } }
+					log = "CK2TEST pass a ruler at peace may not request ships"
+				}
+			}
+			event_target:afltest_r = {
+				if = {
+					limit = { afl_can_request_ships_trigger = yes }
+					log = "CK2TEST pass a ruler at war with 50 gold may request ships"
+				}
+				if = {
+					limit = { NOT = { afl_can_request_ships_trigger = yes } }
+					log = "CK2TEST fail a ruler at war with 50 gold may request ships: [This.GetBestName] ([This.GetID]) may not"
+				}
+				set_character_flag = afl_request_pending
+				if = {
+					limit = { afl_can_request_ships_trigger = yes }
+					log = "CK2TEST fail a pending request blocks another: [This.GetBestName] ([This.GetID]) may request"
+				}
+				if = {
+					limit = { NOT = { afl_can_request_ships_trigger = yes } }
+					log = "CK2TEST pass a pending request blocks another"
+				}
+				clr_character_flag = afl_request_pending
+				while = {
+					count = 400
+					limit = { wealth = 50 }
+					wealth = -25
+				}
+				if = {
+					limit = { wealth = 50 }
+					log = "CK2TEST fail a ruler under 50 gold may not request ships: setup could not spend the gold"
+				}
+				if = {
+					limit = {
+						NOT = { wealth = 50 }
+						afl_can_request_ships_trigger = yes
+					}
+					log = "CK2TEST fail a ruler under 50 gold may not request ships: [This.GetBestName] ([This.GetID]) may"
+				}
+				if = {
+					limit = {
+						NOT = { wealth = 50 }
+						NOT = { afl_can_request_ships_trigger = yes }
+					}
+					log = "CK2TEST pass a ruler under 50 gold may not request ships"
+				}
+				wealth = 100
+			}
+
+			# Lend: what afl_ask_for_ships_effect leaves for afl.1, then the accept option's effect.
+			event_target:afltest_r = {
+				save_event_target_as = afl_requester
+				set_character_flag = afl_request_pending
+				export_to_variable = { which = global_afltest_r_before value = wealth }
+			}
+			event_target:afltest_a = {
+				export_to_variable = { which = global_afltest_a_before value = wealth }
+				afl_lend_ships_effect = yes
+				export_to_variable = { which = global_afltest_got value = wealth }
+				subtract_variable = { which = global_afltest_got which = global_afltest_a_before }
+			}
+			event_target:afltest_r = {
+				export_to_variable = { which = global_afltest_r_after value = wealth }
+				set_variable = { which = global_afltest_paid which = global_afltest_r_before }
+				subtract_variable = { which = global_afltest_paid which = global_afltest_r_after }
+				if = {
+					limit = {
+						is_variable_equal = { which = global_afltest_paid value = 50 }
+						is_variable_equal = { which = global_afltest_got value = 50 }
+					}
+					log = "CK2TEST pass a lend moves 50 gold from the requester to the ally"
+				}
+				if = {
+					limit = {
+						OR = {
+							NOT = { is_variable_equal = { which = global_afltest_paid value = 50 } }
+							NOT = { is_variable_equal = { which = global_afltest_got value = 50 } }
+						}
+					}
+					log = "CK2TEST fail a lend moves 50 gold from the requester to the ally: requester paid [global_afltest_paid.GetValue], ally got [global_afltest_got.GetValue]"
+				}
+				if = {
+					limit = { has_earmarked_regiments = afl_lent_ships }
+					log = "CK2TEST pass a lend gives the requester the lent fleet"
+				}
+				if = {
+					limit = { NOT = { has_earmarked_regiments = afl_lent_ships } }
+					log = "CK2TEST fail a lend gives the requester the lent fleet: [This.GetBestName] ([This.GetID]) has none"
+				}
+				if = {
+					limit = { NOT = { has_character_flag = afl_request_pending } }
+					log = "CK2TEST pass a lend clears the pending request"
+				}
+				if = {
+					limit = { has_character_flag = afl_request_pending }
+					log = "CK2TEST fail a lend clears the pending request: the flag is still set"
+				}
+				if = {
+					limit = { NOT = { afl_can_request_ships_trigger = yes } }
+					log = "CK2TEST pass a ruler with a lent fleet may not request again"
+				}
+				if = {
+					limit = { afl_can_request_ships_trigger = yes }
+					log = "CK2TEST fail a ruler with a lent fleet may not request again: [This.GetBestName] ([This.GetID]) may"
+				}
+			}
+
+			# Refuse: the decline option's effect.
+			event_target:afltest_r = {
+				set_character_flag = afl_request_pending
+				export_to_variable = { which = global_afltest_r_before value = wealth }
+			}
+			event_target:afltest_a = {
+				export_to_variable = { which = global_afltest_a_before value = wealth }
+				afl_refuse_ships_effect = yes
+				export_to_variable = { which = global_afltest_got value = wealth }
+				subtract_variable = { which = global_afltest_got which = global_afltest_a_before }
+			}
+			event_target:afltest_r = {
+				export_to_variable = { which = global_afltest_r_after value = wealth }
+				set_variable = { which = global_afltest_paid which = global_afltest_r_before }
+				subtract_variable = { which = global_afltest_paid which = global_afltest_r_after }
+				if = {
+					limit = {
+						is_variable_equal = { which = global_afltest_paid value = 0 }
+						is_variable_equal = { which = global_afltest_got value = 0 }
+					}
+					log = "CK2TEST pass a refusal moves no gold"
+				}
+				if = {
+					limit = {
+						OR = {
+							NOT = { is_variable_equal = { which = global_afltest_paid value = 0 } }
+							NOT = { is_variable_equal = { which = global_afltest_got value = 0 } }
+						}
+					}
+					log = "CK2TEST fail a refusal moves no gold: requester paid [global_afltest_paid.GetValue], ally got [global_afltest_got.GetValue]"
+				}
+				if = {
+					limit = { NOT = { has_character_flag = afl_request_pending } }
+					log = "CK2TEST pass a refusal clears the pending request"
+				}
+				if = {
+					limit = { has_character_flag = afl_request_pending }
+					log = "CK2TEST fail a refusal clears the pending request: the flag is still set"
+				}
+
+				# Peace: the lent fleet has disband_on_peace = yes.
+				any_war = {
+					end_war = whitepeace
+				}
+				character_event = { id = afltest.11 days = 5 }
+			}
+		}
+		if = {
+			limit = {
+				OR = {
+					NOT = { event_target:afltest_r = { always = yes } }
+					NOT = { event_target:afltest_peace = { always = yes } }
+					NOT = { event_target:afltest_a = { always = yes } }
+				}
+			}
+			log = "CK2TEST done"
+		}
+	}
+}
+
+# afltest.11: five days after the requester's wars ended.
+character_event = {
+	id = afltest.11
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = {
+			limit = { war = yes }
+			log = "CK2TEST fail peace disbands the lent fleet: [Root.GetBestName] ([Root.GetID]) is at war again, or end_war missed a war"
+		}
+		if = {
+			limit = {
+				war = no
+				NOT = { has_earmarked_regiments = afl_lent_ships }
+			}
+			log = "CK2TEST pass peace disbands the lent fleet"
+		}
+		if = {
+			limit = {
+				war = no
+				has_earmarked_regiments = afl_lent_ships
+			}
+			log = "CK2TEST fail peace disbands the lent fleet: [Root.GetBestName] ([Root.GetID]) still has it five days later"
+		}
 		log = "CK2TEST done"
 	}
 }
