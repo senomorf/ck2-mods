@@ -3,9 +3,8 @@
 # then an `ssh ck2box` alias through its SOCKS listener. Run as root; idempotent, so a resumed
 # session can run it again. Needs CK2_BOX_NETBIRD_SETUP_KEY, CK2_BOX_SSH_KEY_B64 and
 # CK2_BOX_KNOWN_HOSTS in the environment; never print them.
-# From senomorf/homelab#2440 (the box's side, private). CK2_BOX_PROBE=0 skips the closing
-# `ssh ck2box box-status`, which the session start hook uses so that a session doesn't start the
-# box (it shares the CI runner's memory) before it needs it.
+# From senomorf/homelab#2440 (the box's side, private). It ends with `ssh ck2box box-status`, which
+# never starts the box; CK2_BOX_PROBE=0 skips it.
 set -euo pipefail
 NETBIRD_VERSION=0.82.1
 NETBIRD_SHA256=c8f10b89dfa01b8bcad5ec25b666a83e351be4e22eb784b822478b9326a35423
