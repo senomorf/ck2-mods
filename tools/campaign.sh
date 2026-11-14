@@ -200,6 +200,13 @@ throttled() { awk '$1 == "throttled_usec" { printf "%d\n", $2 / 1000000 }' /sys/
 # log line on what the job saw of its host meanwhile (#40: the same year took 118 s in one job and
 # 213 s in another).
 year_begin() { yc0=$(cpu_now); yth0=$(throttled); }
+# year_start: after continue.txt, a loaded save's year runs from the click that unpaused the game
+# ($unpaused), so the seconds the steps take after it at slower speeds count too. Measured from the
+# end of the steps instead, on a host where a year takes 23 s the steps covered much of the year, and
+# the same mod's year read 13 s in one job and 24 s in another (#40). Sets $t0.
+year_start() {
+  if [ -n "$unpaused" ]; then t0=$unpaused; else t0=$SECONDS; year_begin; fi
+}
 year_end() {
   local c th
   c=$(cpu_now); th=$(throttled); ycpu=
@@ -271,9 +278,13 @@ launch_args() {
 }
 
 # run_steps FILE: follow a steps file; sets $result on a failure and returns 1.
+# run_steps FILE: follow a steps file. A clickchange that sees the game run sets $unpaused (the
+# seconds count at the click that unpaused it) and starts year_begin's CPU count at that click.
+unpaused=''
 run_steps() {
-  local line cmd rest x y secs re t0 wid keys c0 file tries here rx ry rw rh h0 h1 h2
+  local line cmd rest x y secs re t0 wid keys c0 file tries here rx ry rw rh h0 h1 h2 tc cc thc
   here=$(dirname "$1")
+  unpaused=
   while IFS= read -r line || [ -n "$line" ]; do
     line=${line%%#*}; read -r cmd rest <<< "$line" || true
     [ -n "${cmd:-}" ] && [ "$cmd" != launch ] || continue
@@ -335,7 +346,8 @@ run_steps() {
           if [ $((SECONDS - t0)) -ge "$secs" ] || ! kill -0 "$pid" 2>/dev/null; then
             log "  nothing kept changing in ${secs}s ($tries clicks)"; fail "timed out at step $n"; return 1
           fi
-          xdotool mousemove "$x" "$y" sleep 2 click 1 sleep 1 mousemove 640 600; tries=$((tries + 1))
+          xdotool mousemove "$x" "$y" sleep 2; tc=$SECONDS cc=$(cpu_now) thc=$(throttled)
+          xdotool click 1 sleep 1 mousemove 640 600; tries=$((tries + 1))
           sleep 2; h0=$(region "$rx" "$ry" "$rw" "$rh"); sleep 5; h1=$(region "$rx" "$ry" "$rw" "$rh")
           sleep 5; h2=$(region "$rx" "$ry" "$rw" "$rh")
           log "  looks (hash red): ${h0:-none} / ${h1:-none} / ${h2:-none}"
@@ -344,6 +356,7 @@ run_steps() {
             && [ "${h1#* }" = 0 ] && [ "${h2#* }" = 0 ] && break
         done
         log "  kept changing after $((SECONDS - t0))s ($tries clicks)"
+        unpaused=$tc yc0=$cc yth0=$thc
         ;;
       repeat)
         read -r secs re <<< "$rest"; file=${re##* }; re=${re% *}
@@ -424,7 +437,7 @@ control_year() {
   start _vanilla.control "${args[@]}"
   log "vanilla again, from its start save, to time a year the way the mod runs are"
   if run_steps "$steps_dir/continue.txt"; then
-    t0=$SECONDS; year_begin
+    year_start
     if wait_save "$end" "$limit"; then cy=$((SECONDS - t0)); year_end; ccpu=$ycpu; fi
   fi
   stop
@@ -542,7 +555,7 @@ for m in "${mods[@]}"; do
   mapfile -t args < <(launch_args "$steps_dir/continue.txt")
   start "$m" "-mod=mod/$m.mod" "${args[@]}"
   if run_steps "$steps_dir/continue.txt"; then
-    t0=$SECONDS; year_begin
+    year_start
     if wait_save "$to" "$limit"; then
       cp -p "$save" "$work/last.ck2"; year=$((SECONDS - t0)); year_end; mcpu=$ycpu
     else
