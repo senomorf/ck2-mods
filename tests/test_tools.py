@@ -170,13 +170,39 @@ class HarnessTest(unittest.TestCase):
         )
         out, ids = harness.instrument(text)
         self.assertEqual(ids, ["zzt.1", "zzt.2", "zzt.3"])
-        self.assertIn('immediate = {\n\t\tlog = "CK2TEST fired zzt.1"', out)
+        self.assertIn('immediate = {\n\t\tlog = "CK2TEST fired zzt.1 root=[Root.GetID]"', out)
+        # A province event's ROOT is a province: no character id.
         self.assertIn('immediate = { log = "CK2TEST fired zzt.2" }', out)
+        self.assertIn('log = "CK2TEST chose zzt.2 OK" # tools/harness.py', out)
+        self.assertIn('log = "CK2TEST chose zzt.1 OK root=[Root.GetID]"', out)
         # zzt.3's only immediate is inside an option, so the event gets its own.
-        self.assertRegex(out, r'option = \{ name = OK immediate = \{ \} \}\n\timmediate = \{ log = "CK2TEST fired zzt.3" \}')
+        self.assertIn('\timmediate = { log = "CK2TEST fired zzt.3 root=[Root.GetID]" } # tools/harness.py', out)
+        self.assertIn('log = "CK2TEST chose zzt.3 OK root=[Root.GetID]" # tools/harness.py\n name = OK immediate = { } }', out)
         self.assertNotIn("zzt.0", ids)
-        self.assertEqual(out.count("CK2TEST"), 3)
+        self.assertEqual(out.count("CK2TEST"), 6)
         self.assertEqual(out.count("{") - out.count("}"), text.count("{") - text.count("}"))
+
+    def test_instrument_options_decisions_effects(self) -> None:
+        import harness
+
+        text = "character_event = { id = zzt.1 option = { } option = { name = A } option = { name = A } }\n"
+        out, _ = harness.instrument(text)
+        for label in ("option1", "A", "A#3"):
+            self.assertIn(f'"CK2TEST chose zzt.1 {label} root=[Root.GetID]"', out)
+        dec = (
+            "decisions = { zzt_a = { potential = { } effect = { wealth = 1 } } zzt_b = { allow = { } } }\n"
+            "targeted_decisions = { zzt_c = { effect = { } } }\n"
+            "title_decisions = { zzt_d = { effect = { } } }\n"
+        )
+        out, names = harness.instrument_decisions(dec)
+        self.assertEqual(names, ["zzt_a", "zzt_b", "zzt_c", "zzt_d"])
+        self.assertIn('"CK2TEST took zzt_a root=[Root.GetID]"', out)
+        self.assertIn('"CK2TEST took zzt_c root=[Root.GetID] from=[From.GetID]"', out)
+        self.assertIn('"CK2TEST took zzt_d from=[From.GetID]"', out)
+        self.assertEqual(out.count("CK2TEST"), 3)  # zzt_b has no effect block
+        out, names = harness.instrument_effects("zzt_one_effect = { wealth = 1 }\nzzt_two_effect = { }\n")
+        self.assertEqual(names, ["zzt_one_effect", "zzt_two_effect"])
+        self.assertIn('log = "CK2TEST ran zzt_one_effect"', out)
 
     def test_report(self) -> None:
         mod, tests = ROOT / "mods" / "zz_harnesstest", ROOT / "tests" / "game" / "zz_harnesstest"
@@ -184,27 +210,40 @@ class HarnessTest(unittest.TestCase):
             self.addCleanup(shutil.rmtree, d, ignore_errors=True)
         (mod / "events").mkdir(parents=True)
         (mod / "events" / "zzh_events.txt").write_text(
-            "namespace = zzh\ncharacter_event = { id = zzh.1 }\ncharacter_event = { id = zzh.2 }\n"
+            "namespace = zzh\ncharacter_event = { id = zzh.1 option = { name = A } option = { name = B } }\n"
+            "character_event = { id = zzh.2 }\n"
         )
+        (mod / "decisions").mkdir()
+        (mod / "decisions" / "zzh_decisions.txt").write_text("decisions = { zzh_d = { effect = { } } }\n")
+        (mod / "common" / "scripted_effects").mkdir(parents=True)
+        (mod / "common" / "scripted_effects" / "zzh_effects.txt").write_text("zzh_e = { }\n")
         with tempfile.TemporaryDirectory() as tmp:
             log = Path(tmp) / "game.log"
 
             def report(*lines: str) -> subprocess.CompletedProcess:
-                log.write_text("".join(f"[effectimplementation.cpp:1]: {line}\n" for line in lines))
+                log.write_text("".join(f"[effectimplementation.cpp:1]: EVENT [1067.1.2]:{line}\n" for line in lines))
                 return run("tools/harness.py", "report", "zz_harnesstest", str(log))
 
-            # No tests: events are only counted.
-            r = report("CK2TEST fired zzh.1")
+            # No tests: traces are only counted.
+            r = report("CK2TEST fired zzh.1 root=7", "CK2TEST chose zzh.1 A root=7")
             self.assertEqual(r.returncode, 0, r.stdout)
-            self.assertIn("events fired: 1 of 2", r.stdout)
+            self.assertIn("events fired: 1 of 2; options chosen: 1 of 2", r.stdout)
+            self.assertIn("zzh.1: 1 (1 character(s), first 1067.1.2)", r.stdout)
             tests.mkdir(parents=True)
             r = report("CK2TEST fired zzh.1", "CK2TEST pass a")
             self.assertEqual(r.returncode, 1, r.stdout)
             self.assertIn("never fired: zzh.2", r.stdout)
+            self.assertIn("never chosen: zzh.1 A, zzh.1 B", r.stdout)
+            self.assertIn("never ran: zzh_e", r.stdout)
             self.assertIn("did not log CK2TEST done", r.stdout)
-            done = ("CK2TEST fired zzh.1", "CK2TEST fired zzh.2", "CK2TEST pass a", "CK2TEST done")
+            done = (
+                "CK2TEST fired zzh.1 root=7", "CK2TEST chose zzh.1 A root=7", "CK2TEST chose zzh.1 B root=8",
+                "CK2TEST fired zzh.2 root=9", "CK2TEST ran zzh_e", "CK2TEST pass a", "CK2TEST done",
+            )
+            # The decision was never taken, and that is not a failure.
             r = report(*done)
             self.assertEqual(r.returncode, 0, r.stdout)
+            self.assertIn("zzh_d: 0", r.stdout)
             r = report(*done, "CK2TEST fail b")
             self.assertEqual(r.returncode, 1, r.stdout)
             self.assertIn("FAIL: b", r.stdout)
