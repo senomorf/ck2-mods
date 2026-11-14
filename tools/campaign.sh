@@ -40,6 +40,9 @@
 #   repeat SECONDS REGEX FILE
 #                           follow steps FILE (next to this one) again and again until game.log
 #                           gains a line matching REGEX; fails the run after SECONDS
+#   clickchange X Y SECONDS RX RY RW RH
+#                           click X,Y until the RW x RH pixels at RX,RY differ between two looks
+#                           5 s apart (the date, once the game runs); fails the run after SECONDS
 #   launch ARGS...          not a step: extra arguments for the game, read before it starts.
 #                           %SAVE% stands for the name of the newest save in "save games"
 #
@@ -165,6 +168,31 @@ shot() {
     || echo "campaign: screenshot $1 failed" >&2
 }
 fail() { result=$1; shot failed; }
+# region X Y W H: a hash of those pixels on the screen, or nothing.
+region() {
+  xwd -root -display "$DISPLAY" 2>/dev/null | xwdtopnm 2>/dev/null | python3 -I -c '
+import hashlib, sys
+x, y, cw, ch = map(int, sys.argv[1:5])
+d = sys.stdin.buffer.read()
+f, i = [], 0
+while len(f) < 4:
+    while d[i:i + 1].isspace():
+        i += 1
+    if d[i:i + 1] == b"#":
+        i = d.index(b"\n", i) + 1
+        continue
+    j = i
+    while not d[j:j + 1].isspace():
+        j += 1
+    f.append(d[i:j])
+    i = j
+w, px = int(f[1]), d[i + 1:]
+if f[0] != b"P6" or f[3] != b"255":
+    sys.exit(1)
+rows = b"".join(px[((y + r) * w + x) * 3:((y + r) * w + x + cw) * 3] for r in range(ch))
+print(hashlib.md5(rows).hexdigest()[:12])
+' "$@" 2>/dev/null || true
+}
 
 # wait_save DATE SECONDS: wait for a save written after this call whose date is DATE or later, or
 # whose date can't be read (then the first such save counts, with a warning); keep its path in
@@ -211,7 +239,7 @@ launch_args() {
 
 # run_steps FILE: follow a steps file; sets $result on a failure and returns 1.
 run_steps() {
-  local line cmd rest x y secs re t0 wid keys c0 file tries here
+  local line cmd rest x y secs re t0 wid keys c0 file tries here rx ry rw rh h0 h1
   here=$(dirname "$1")
   while IFS= read -r line || [ -n "$line" ]; do
     line=${line%%#*}; read -r cmd rest <<< "$line" || true
@@ -256,6 +284,22 @@ run_steps() {
           for _ in 1 2 3; do sleep 1; [ "$(matches "$re")" -le "$c0" ] || break; done
         done
         log "  matched after $((SECONDS - t0))s ($tries clicks)"
+        ;;
+      clickchange)
+        # A click on a screen that is still loading is lost: PR #27's run 43531833583 clicked the
+        # date 10 s after "Launching SINGLEPLAYER-game", before the map had finished drawing, and
+        # the game stayed paused for 25 minutes. Both looks are taken with the pointer away.
+        read -r x y secs rx ry rw rh <<< "$rest"
+        t0=$SECONDS tries=0
+        while :; do
+          if [ $((SECONDS - t0)) -ge "$secs" ] || ! kill -0 "$pid" 2>/dev/null; then
+            log "  nothing changed in ${secs}s ($tries clicks)"; fail "timed out at step $n"; return 1
+          fi
+          xdotool mousemove "$x" "$y" sleep 2 click 1 sleep 1 mousemove 640 600; tries=$((tries + 1))
+          sleep 2; h0=$(region "$rx" "$ry" "$rw" "$rh"); sleep 5; h1=$(region "$rx" "$ry" "$rw" "$rh")
+          [ -z "$h0" ] || [ "$h0" = "$h1" ] || break
+        done
+        log "  changed after $((SECONDS - t0))s ($tries clicks)"
         ;;
       repeat)
         read -r secs re <<< "$rest"; file=${re##* }; re=${re% *}
