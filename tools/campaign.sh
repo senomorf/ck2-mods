@@ -9,6 +9,8 @@
 # Flow:
 #  1. vanilla: start a new game through the menus (tools/campaign/new_game.txt), run it at full
 #     speed to the first yearly autosave (CAMPAIGN_START), keep that save, run on to CAMPAIGN_END.
+#     Then load the kept save the way each mod does and time that year: the figure each mod's
+#     speed is compared with. With CAMPAIGN_CACHE, all of this is kept for later jobs.
 #     When the menus are slow, the CAMPAIGN_START autosave can be written while the steps still
 #     run, or be passed: the first save dated CAMPAIGN_START or later is kept either way, and every
 #     run counts its years from that save's date (both dates move by the same number of years).
@@ -409,6 +411,26 @@ dates() {
   end=$((10#${end_date%%.*} + 10#${first%%.*} - 10#${start_date%%.*})).${end_date#*.}
 }
 
+# control_year: vanilla again, without a mod, loading vanilla's start save in this job and timed as
+# the mod runs are (from the end of continue.txt to the next yearly save); sets $cy, empty when it
+# fails. A mod's year starts from a freshly loaded save, while vanilla's own year runs in the game it
+# started, so on PR #34's run vanilla's year took 73 s and the mod's 204 s (2.79), against 214 s and
+# 184 s (0.86) on #31's: the job can't see what else the host runs.
+control_year() {
+  local keep=$result
+  cy='' ccpu=''
+  rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work/start.ck2" "$saves/"
+  mapfile -t args < <(launch_args "$steps_dir/continue.txt")
+  start _vanilla.control "${args[@]}"
+  log "vanilla again, from its start save, to time a year the way the mod runs are"
+  if run_steps "$steps_dir/continue.txt"; then
+    t0=$SECONDS; year_begin
+    if wait_save "$end" "$limit"; then cy=$((SECONDS - t0)); year_end; ccpu=$ycpu; fi
+  fi
+  stop
+  result=$keep
+}
+
 # 1. vanilla, from a new game, or from CAMPAIGN_CACHE when an earlier run left it there. The game
 # never changes (3.3.5.1 is the last version), so vanilla's run depends only on this script and its
 # steps files, which the workflow's cache key hashes.
@@ -452,6 +474,15 @@ else
     echo "campaign: vanilla run failed ($vanilla); see $out/_vanilla" >&2
     exit 1
   fi
+  # The year above ran in the game vanilla started; each mod's year runs from a freshly loaded save.
+  # Time vanilla once more the mods' way, so the figure the cache keeps compares like with like
+  # (#40). The workflow keys the cache on the host, so the figure also comes from the same machine.
+  control_year; dest="$out/_vanilla"
+  if [ -n "$cy" ] && [ "$cy" -gt 0 ]; then
+    log "vanilla's year from its start save: ${cy}s (in the game it started: $(cat "$out/_vanilla/year-seconds" 2>/dev/null || echo ?)s)"
+    echo "$cy" > "$out/_vanilla/year-seconds"
+    if [ -n "$ccpu" ]; then echo "$ccpu" > "$out/_vanilla/year-cpu"; else rm -f "$out/_vanilla/year-cpu"; fi
+  fi
   if [ -n "$cache" ]; then
     rm -rf "$cache/vanilla"; mkdir -p "$cache/vanilla"
     cp -p "$work/start.ck2" "$out/_vanilla/error.norm" "$out/_vanilla/steps.log" "$cache/vanilla/"
@@ -459,26 +490,6 @@ else
     echo "run ${GITHUB_RUN_ID:-local} on $(date -u +%Y-%m-%d)" > "$cache/vanilla/made-by"
   fi
 fi
-
-# control_year: vanilla again, without a mod, loading vanilla's start save in this job and timed as
-# the mod runs are (from the end of continue.txt to the next yearly save); sets $cy, empty when it
-# fails. A mod's year starts from a freshly loaded save, while vanilla's own year runs in the game it
-# started, so on PR #34's run vanilla's year took 73 s and the mod's 204 s (2.79), against 214 s and
-# 184 s (0.86) on #31's: the job can't see what else the host runs.
-control_year() {
-  local keep=$result
-  cy='' ccpu=''
-  rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work/start.ck2" "$saves/"
-  mapfile -t args < <(launch_args "$steps_dir/continue.txt")
-  start _vanilla.control "${args[@]}"
-  log "vanilla again, from its start save, to time a year the way the mod runs are"
-  if run_steps "$steps_dir/continue.txt"; then
-    t0=$SECONDS; year_begin
-    if wait_save "$end" "$limit"; then cy=$((SECONDS - t0)); year_end; ccpu=$ycpu; fi
-  fi
-  stop
-  result=$keep
-}
 
 # 2. each mod, from vanilla's save
 dates
@@ -544,10 +555,11 @@ for m in "${mods[@]}"; do
   hs=0; python3 "$repo/tools/harness.py" report "$m" "$dest/game.log" > "$dest/harness.txt" || hs=$?
   # The save's state: checks from tests/game/$m/save_checks.txt on the last save, and names the
   # base version's save holds that this version dropped (#20: the game logs nothing for those).
-  # Speed: this year's seconds against vanilla's (the 1067 year, from the game running to the next
-  # yearly save). Above CAMPAIGN_SLOW_RATIO, vanilla plays the year again from the same start save
-  # (control_year), timed like this run, and only that ratio warns. It never fails the run.
-  # The game's CPU seconds for each year are reported next to the wall seconds, not yet gated on (#40).
+  # Speed: this year's seconds against vanilla's, both from the start save to the next yearly save on
+  # this host (the workflow keys the cache on the host). Above CAMPAIGN_SLOW_RATIO, when vanilla's
+  # figure came from another job's cache, vanilla plays the year again in this job (control_year), and
+  # only that ratio warns. It never fails the run. The game's CPU seconds are reported next to the
+  # wall seconds, not gated on (#40).
   vy=$(cat "$out/_vanilla/year-seconds" 2>/dev/null || true)
   vc=$(cat "$out/_vanilla/year-cpu" 2>/dev/null || true)
   slow=${CAMPAIGN_SLOW_RATIO:-1.5}
@@ -557,8 +569,9 @@ for m in "${mods[@]}"; do
     if [ -n "${mcpu:-}" ] && [ -n "$vc" ] && [ "$vc" -gt 0 ]; then
       speed="$speed; game CPU ${mcpu}s, vanilla's ${vc}s: ratio $(awk -v a="$mcpu" -v b="$vc" 'BEGIN { printf "%.2f", a / b }')"
     fi
-    [ ! -f "$out/_vanilla/cached-steps.log" ] || speed="$speed (vanilla's from the cache, timed in another job)"
-    if awk -v r="$ratio" -v t="$slow" 'BEGIN { exit !(r > t) }'; then
+    [ ! -f "$out/_vanilla/cached-steps.log" ] || speed="$speed (vanilla's from the cache: another job on this host)"
+    cy=''
+    if [ -f "$out/_vanilla/cached-steps.log" ] && awk -v r="$ratio" -v t="$slow" 'BEGIN { exit !(r > t) }'; then
       control_year; dest="$out/$m"
       if [ -n "$cy" ] && [ "$cy" -gt 0 ]; then
         ratio=$(awk -v a="$year" -v b="$cy" 'BEGIN { printf "%.2f", a / b }')
@@ -568,10 +581,10 @@ for m in "${mods[@]}"; do
       else
         speed="$speed; vanilla's second year failed (see _vanilla.control), so this ratio stands"
       fi
-      if awk -v r="$ratio" -v t="$slow" 'BEGIN { exit !(r > t) }'; then
-        speed="$speed; warning: slower than $slow times vanilla"
-        echo "::warning title=campaign speed::$m: a year took $ratio times vanilla's (${year}s against ${cy:-$vy}s)"
-      fi
+    fi
+    if awk -v r="$ratio" -v t="$slow" 'BEGIN { exit !(r > t) }'; then
+      speed="$speed; warning: slower than $slow times vanilla"
+      echo "::warning title=campaign speed::$m: a year took $ratio times vanilla's (${year}s against ${cy:-$vy}s)"
     fi
   else
     speed="not measured (no year from this run or vanilla's)"

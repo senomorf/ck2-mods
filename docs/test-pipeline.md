@@ -181,15 +181,23 @@ character when a save loads (`.cwtools/on_actions.cwt`), so test events guard wi
 ratio, with a warning annotation above 1.5 (`CAMPAIGN_SLOW_RATIO`). It never fails the run, since
 both years share the host with whatever else runs there: the live test box and the runner are on
 the same machine, and on #27's run, with box runs going at the same time, vanilla's year took 545 s
-against 134 s on #24's. Even with the box stopped, vanilla's year swung from 214 s (#31's run) to
-73 s (#34's) while the mod's stayed near 200 s, so the first ratio is 0.86 one run and 2.79 the
-next. Vanilla's year runs in the game it started, and each mod's from a freshly loaded save. So
-above the threshold, vanilla plays the year again in the same job, loading the same save and timed
-the same way, and only that second ratio warns. `report.txt` gives both. Next to each wall-clock
-figure it gives the game's CPU seconds for the year (user and system, all its threads, from
-`/proc`), and `steps.log` has a line per year with the host's load average, available memory, the
-job's cgroup CPU limit and how long that limit held the job back. These are not gated on yet: #40
-collects them to find out whether CPU seconds stay steady between jobs when wall seconds do not.
+against 134 s on #24's. The two must be measured alike:
+
+- **Same method.** Vanilla's own year runs in the game it started and each mod's from a freshly
+  loaded save; timed that way, the ratio swung from 0.86 (#31's run) to 2.79 (#34's). So after its
+  new game, vanilla loads its start save the way each mod does and plays the year again, and that
+  is the figure the mods are compared with.
+- **Same machine.** The `ck2` runners sit on different hosts: since 2026-11-14 a year took 32 to 43 s
+  on one and 213 to 284 s on the other (#40). The workflow keys the campaign cache on a signature
+  of the host's hardware (CPU count and model, memory), so vanilla's cached figure comes from the
+  same machine.
+- **Same job, when in doubt.** Above the threshold, if vanilla's figure came from the cache, vanilla
+  plays the year again in this job, and only that ratio warns. `report.txt` gives both.
+
+Next to each wall-clock figure `report.txt` gives the game's CPU seconds for the year (user and
+system, all its threads, from `/proc`), and `steps.log` has a line per year with the host's load
+average, available memory, the job's cgroup CPU limit and how long that limit held the job back.
+They are not gated on.
 
 After the year, `tools/ck2save.py` reads the run's last autosave (plain Clausewitz text, since the
 script sets `compress_autosaves=no`) into `save-checks.txt`:
@@ -228,8 +236,9 @@ The effects run in no character's scope (observe mode), so start them with a sco
 its events, and its in-game tests start too (from the save's first day).
 
 The runner keeps nothing between jobs, so the workflow keeps `.campaign-cache/` in `actions/cache`
-(`CAMPAIGN_CACHE`), keyed on the hash of `tools/campaign.sh` and `tools/campaign/**`: vanilla's
-1067.1.1 save, its normalised `error.log` lines and its year's duration, and each base version's
+(`CAMPAIGN_CACHE`), keyed on the host's signature and the hash of `tools/campaign.sh` and
+`tools/campaign/**`: vanilla's 1067.1.1 save, its normalised `error.log` lines and its year's
+duration (wall and CPU seconds, from the start save), and each base version's
 save under the hash of that version's files. The game never changes (3.3.5.1 is final), so a run
 with a warm cache skips vanilla, and skips a base version it has seen. The cache is saved even when
 a mod fails, and a change to the script or its steps files starts a new one.
