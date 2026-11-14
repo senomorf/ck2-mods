@@ -18,13 +18,14 @@
 #     With CAMPAIGN_BASE (a git commit) naming a version of the mod that this one changes, that
 #     version plays the year first, and this version loads its save and plays the next year:
 #     a save made with the old version must load with the new one.
-#     The mod is installed as a copy by tools/harness.py, which logs each of its events as it fires
-#     and adds the mod's in-game tests from tests/game/<mod>/, if any.
+#     The mod is installed as a copy by tools/harness.py, which logs each of its events, event
+#     options, decision effects and scripted effects as they run, and adds the mod's in-game
+#     tests from tests/game/<mod>/, if any.
 #  3. report the mod run's error.log lines that vanilla's run does not have. Lines that name the
 #     mod (its prefix, folder or one of its file names) fail the run; the rest are listed as
 #     warnings, since the game's own runtime errors differ from run to run. Then the harness's
 #     report (harness.txt): a failed test, unfinished tests, or, for a mod with tests, an event that
-#     never fired fail the run too. Then the run's last save, read by tools/ck2save.py: the checks
+#     never fired, an option never chosen or a scripted effect that never ran fail the run too. Then the run's last save, read by tools/ck2save.py: the checks
 #     in tests/game/<mod>/save_checks.txt, if there is one (save-checks.txt), and, when this
 #     version loaded the base version's save, the mod's names that save holds and this version
 #     no longer mentions (dangling.txt). A failed check or a dangling name fails the run.
