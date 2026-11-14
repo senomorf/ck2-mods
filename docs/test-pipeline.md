@@ -51,6 +51,11 @@ Each job smokes every mod the push or pull request changed, and every mod on a m
 Linux job also smokes every mod when `tools/smoke.sh`, `tools/install.sh` or the workflow changed,
 or when git can't tell what changed, and skips the boot when no mod changed. Each job uploads its
 reports as an artifact (`smoke-linux`, `smoke-windows`) and fails on any new `error.log` line.
+The Linux job also reads the multiplayer checksum: the main menu's version label, e.g.
+`3.3.5.1 (SOHY)`, is the only place the game shows it, so each boot saves the label as
+`version.png` and the report says whether a mod's label differs from vanilla's. One that differs
+changes the checksum: label the pull request `mp-checksum`, and every multiplayer player needs the
+same release. It warns rather than fails, since most gameplay mods change it.
 
 ## Windows runner contract
 
