@@ -2,6 +2,16 @@
 
 Crusader Kings II mods, built with Claude Code in cloud sessions and tested on a real install.
 
+## Design principles
+
+Historical immersion is the main reason these mods exist (owner, 2026-11-14). Every mod is designed in this order:
+
+1. **History.** How did the thing work in reality: who did it, what it needed, what it cost, what it depended on? Cite sources, and label anything unverified.
+2. **The game.** What CK2 already models, what its script can and cannot do (checked in `vanilla/`, `.cwtools/` and, where it matters, on the live test box), and which existing rules and restrictions the mod can build on.
+3. **Play.** Keep it balanced and interesting, in single player and multiplayer: both sides of a deal pay something, no free power, few clicks, clear numbers on screen.
+
+Where realism and play pull apart, the mod's README says which way it went and why. A design starts in the mod's README (or its tracking issue) before any script.
+
 ## Layout
 
 | Path | What |
