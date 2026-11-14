@@ -22,6 +22,9 @@ Check files (tests/game/<mod>/save_checks.txt), one check per line, '#' starts a
   absent NAME                  it does not
   count PATH OP N              the number of values at PATH compared with N; OP is one of
                                == != >= <= > <
+  every PATH OP VALUE          each value at PATH compared with VALUE (as numbers when both are;
+                               otherwise only == and !=), and PATH has at least one value
+PATH parts may filter blocks by a key inside them: KEY[SUBKEY=VALUE] (#38, step 5).
 Each check prints `CK2SAVE pass|fail <line>`.
 
 A parsed block is a list of (key, value) pairs: key is None for a bare value (`{ 1 2 3 }`), value
@@ -104,17 +107,35 @@ def load(path: Union[str, Path]) -> Block:
     return parse(read_text(path))
 
 
+FILTER = re.compile(r"^([^\[]+)\[([^=\]]+)=([^\]]*)\]$")
+
+
 def get(block: Block, path: str) -> List[Value]:
-    """Values at PATH ('a/b/c'; '*' matches any key, including a bare value's None)."""
+    """Values at PATH ('a/b/c'; '*' matches any key, including a bare value's None). A part may
+    end in a filter, KEY[SUBKEY=VALUE]: only blocks whose SUBKEY is VALUE, e.g.
+    'character/*/dmn/navy/sub_unit[earmark=afl_lent_ships]'."""
     parts = [p for p in path.split("/") if p]
     found: List[Value] = [block]
     for part in parts:
+        m = FILTER.match(part)
+        key, fkey, fval = (m.group(1), m.group(2), m.group(3)) if m else (part, None, None)
         nxt: List[Value] = []
         for v in found:
             if isinstance(v, list):
-                nxt.extend(val for k, val in v if part == "*" or k == part)
+                nxt.extend(
+                    val for k, val in v
+                    if (key == "*" or k == key) and (fkey is None or (isinstance(val, list) and first(val, fkey) == fval))
+                )
         found = nxt
     return found
+
+
+def compare(value: str, op: str, want: str) -> bool:
+    """Numbers compare as numbers; anything else only with == and !=."""
+    try:
+        return OPS[op](float(value), float(want))
+    except ValueError:
+        return OPS[op](value, want) if op in ("==", "!=") else False
 
 
 def first(block: Block, key: str) -> Optional[Value]:
@@ -183,6 +204,15 @@ def run_checks(block: Block, lines: List[str]) -> Tuple[List[str], int]:
             got = len(get(block, words[1]))
             ok = OPS[words[2]](got, int(words[3]))
             detail = f"(count {got})"
+        elif words[0] == "every" and len(words) == 4 and words[2] in OPS:
+            vals = [v for v in get(block, words[1]) if isinstance(v, str)]
+            bad = [v for v in vals if not compare(v, words[2], words[3])]
+            ok = bool(vals) and not bad
+            if not vals:
+                detail = "(no values at the path)"
+            else:
+                shown = ", ".join(sorted(set(bad))[:5])
+                detail = f"({len(vals)} values" + (f", {len(bad)} not: {shown}" if bad else "") + ")"
         if ok is None:
             out.append(f"CK2SAVE fail bad check: {line}")
             failed += 1

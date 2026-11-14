@@ -206,9 +206,12 @@ After the year, `tools/ck2save.py` reads the run's last autosave (plain Clausewi
 script sets `compress_autosaves=no`) into `save-checks.txt`:
 
 - `tests/game/<mod>/save_checks.txt`, if there is one: checks on the state the year left, one per
-  line, `present NAME` / `absent NAME` (a flag, modifier, earmark or event id anywhere in the save)
-  or `count PATH OP N` (`count character/*/flags/afl_test_requester >= 1`). A failed check fails the
-  run. The harness does not copy this file into the mod.
+  line, `present NAME` / `absent NAME` (a flag, modifier, earmark or event id anywhere in the save),
+  `count PATH OP N` (`count character/*/flags/afl_test_requester >= 1`) or `every PATH OP VALUE`
+  (each value at PATH, as numbers when both are). A PATH part may filter blocks by a key inside
+  them: `every character/*/dmn/navy/sub_unit[earmark=afl_lent_ships]/troops/ga == 20` checks that
+  each lent fleet holds 20 galleys (a save keeps a fleet's ships as `troops={ ga=20.000 }` next to
+  its `earmark`). A failed check fails the run. The harness does not copy this file into the mod.
 - When this version loaded the base version's save: the names with the mod's prefix that save holds
   and that this version's files (and tests) no longer mention. Any fails the run, since the game
   logs nothing for them (#20: a deleted modifier that old saves held loaded and ran without a line).
