@@ -84,8 +84,8 @@ The homelab fleet runs it (senomorf/homelab#2322); what it provides, per #10:
 
 | Need | Detail |
 | --- | --- |
-| Runner | `dunkirk-ck2mods-1`, a repository runner for `senomorf/ck2-mods`, ephemeral (a fresh container per job) |
-| Labels | `ck2`, `dunkirk`, and the defaults `self-hosted`, `Linux`, `X64` |
+| Runner | Two repository runners for `senomorf/ck2-mods` on two hosts since 2026-11-14 (senomorf/homelab#2524), ephemeral (a fresh container per job). A job goes to whichever is free, so a campaign job and a smoke job can run at once. Their names end in a random suffix: nothing here should match a runner name. One can be off, and a job that lands on it fails: re-run the job, don't change the workflow |
+| Labels | `ck2` on both, plus the defaults `self-hosted`, `Linux`, `X64`; the jobs ask for `[self-hosted, linux, ck2]` |
 | Game | CK2 3.3.5.1, native Linux build, read-only at `/game` (`CK2_GAME_DIR` defaults to it) |
 | User dir | env `CK2_USER_DIR`, set by the runner |
 | Display | Xvfb plus Mesa's software OpenGL (llvmpipe) |
