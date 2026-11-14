@@ -169,7 +169,11 @@ character when a save loads (`.cwtools/on_actions.cwt`), so test events guard wi
 ratio, with a warning annotation above 1.5 (`CAMPAIGN_SLOW_RATIO`). It never fails the run, since
 both years share the host with whatever else runs there: the live test box and the runner are on
 the same machine, and on #27's run, with box runs going at the same time, vanilla's year took 545 s
-against 134 s on #24's. Trust a ratio from a run that had the runner to itself.
+against 134 s on #24's. Even with the box stopped, vanilla's year swung from 214 s (#31's run) to
+73 s (#34's) while the mod's stayed near 200 s, so the first ratio is 0.86 one run and 2.79 the
+next. Vanilla's year runs in the game it started, and each mod's from a freshly loaded save. So
+above the threshold, vanilla plays the year again in the same job, loading the same save and timed
+the same way, and only that second ratio warns. `report.txt` gives both.
 
 After the year, `tools/ck2save.py` reads the run's last autosave (plain Clausewitz text, since the
 script sets `compress_autosaves=no`) into `save-checks.txt`:

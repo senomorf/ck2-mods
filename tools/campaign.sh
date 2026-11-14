@@ -61,7 +61,8 @@
 #                                  error lines and year, and base versions' saves; reused when there
 #      CAMPAIGN_BASE               a commit with the previous version of the mods (the pull
 #                                  request's base); unset, each mod loads vanilla's save
-#      CAMPAIGN_SLOW_RATIO         warn when a mod's year takes this many times vanilla's (default 1.5)
+#      CAMPAIGN_SLOW_RATIO         warn when a mod's year takes this many times vanilla's (default 1.5);
+#                                  above it, vanilla first plays the year again in the same job
 #      CAMPAIGN_PROBE_SAVE         --steps only: a save to put in "save games" first
 #      CAMPAIGN_PROBE_MOD          --steps only: a mod folder to run with (the harness copy)
 #      CAMPAIGN_PROBE_EFFECTS      --steps only: a file of effects, copied to ck2test_effects.txt in
@@ -428,6 +429,26 @@ else
   fi
 fi
 
+# control_year: vanilla again, without a mod, loading vanilla's start save in this job and timed as
+# the mod runs are (from the end of continue.txt to the next yearly save); sets $cy, empty when it
+# fails. A mod's year starts from a freshly loaded save, while vanilla's own year runs in the game it
+# started, so on PR #34's run vanilla's year took 73 s and the mod's 204 s (2.79), against 214 s and
+# 184 s (0.86) on #31's: the job can't see what else the host runs.
+control_year() {
+  local keep=$result
+  cy=
+  rm -rf "$saves"; mkdir -p "$saves"; cp -p "$work/start.ck2" "$saves/"
+  mapfile -t args < <(launch_args "$steps_dir/continue.txt")
+  start _vanilla.control "${args[@]}"
+  log "vanilla again, from its start save, to time a year the way the mod runs are"
+  if run_steps "$steps_dir/continue.txt"; then
+    t0=$SECONDS
+    if wait_save "$end" "$limit"; then cy=$((SECONDS - t0)); fi
+  fi
+  stop
+  result=$keep
+}
+
 # 2. each mod, from vanilla's save
 dates
 [ "$first" = "$start_date" ] || log "vanilla's start save is dated $first, not $start_date: the runs go to $end instead of $end_date"
@@ -488,18 +509,27 @@ for m in "${mods[@]}"; do
   hs=0; python3 "$repo/tools/harness.py" report "$m" "$dest/game.log" > "$dest/harness.txt" || hs=$?
   # The save's state: checks from tests/game/$m/save_checks.txt on the last save, and names the
   # base version's save holds that this version dropped (#20: the game logs nothing for those).
-  # Speed: this year's seconds against vanilla's (the 1067 year, timed the same way: from the game
-  # running to the next yearly save; this run's clock starts a few in-game days later, after its
-  # steps). Both share the runner with whatever else runs on its host, so a ratio needs a quiet
-  # runner to mean much; it warns, never fails.
+  # Speed: this year's seconds against vanilla's (the 1067 year, from the game running to the next
+  # yearly save). Above CAMPAIGN_SLOW_RATIO, vanilla plays the year again from the same start save
+  # (control_year), timed like this run, and only that ratio warns. It never fails the run.
   vy=$(cat "$out/_vanilla/year-seconds" 2>/dev/null || true)
+  slow=${CAMPAIGN_SLOW_RATIO:-1.5}
   if [ -n "${year:-}" ] && [ -n "$vy" ] && [ "$vy" -gt 0 ]; then
     ratio=$(awk -v a="$year" -v b="$vy" 'BEGIN { printf "%.2f", a / b }')
     speed="a year took ${year}s, vanilla's ${vy}s: ratio $ratio"
     [ ! -f "$out/_vanilla/cached-steps.log" ] || speed="$speed (vanilla's from the cache, timed in another job)"
-    if awk -v r="$ratio" -v t="${CAMPAIGN_SLOW_RATIO:-1.5}" 'BEGIN { exit !(r > t) }'; then
-      speed="$speed; warning: slower than ${CAMPAIGN_SLOW_RATIO:-1.5} times vanilla"
-      echo "::warning title=campaign speed::$m: a year took $ratio times vanilla's (${year}s against ${vy}s)"
+    if awk -v r="$ratio" -v t="$slow" 'BEGIN { exit !(r > t) }'; then
+      control_year; dest="$out/$m"
+      if [ -n "$cy" ] && [ "$cy" -gt 0 ]; then
+        ratio=$(awk -v a="$year" -v b="$cy" 'BEGIN { printf "%.2f", a / b }')
+        speed="$speed; vanilla again from the same save in this job: ${cy}s, ratio $ratio"
+      else
+        speed="$speed; vanilla's second year failed (see _vanilla.control), so this ratio stands"
+      fi
+      if awk -v r="$ratio" -v t="$slow" 'BEGIN { exit !(r > t) }'; then
+        speed="$speed; warning: slower than $slow times vanilla"
+        echo "::warning title=campaign speed::$m: a year took $ratio times vanilla's (${year}s against ${cy:-$vy}s)"
+      fi
     fi
   else
     speed="not measured (no year from this run or vanilla's)"
