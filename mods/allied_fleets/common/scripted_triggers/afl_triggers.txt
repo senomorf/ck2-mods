@@ -1,0 +1,13 @@
+# Allied Fleets scripted triggers. A trigger here is the one place a feature's conditions live:
+# the decision uses it, and so do the in-game tests (tests/game/allied_fleets/).
+# Pattern: vanilla/common/scripted_triggers/00_scripted_triggers.txt, called as `NAME = yes`
+# (e.g. holy_order_check_active_trigger = yes in vanilla/decisions/HFP_holy_order_decisions.txt).
+
+# afl_can_request_ships_trigger: may this character (the ruler asking) request ships now?
+# Scope: the ruler asking. afl_request_ships checks it in FROM.
+afl_can_request_ships_trigger = {
+	war = yes
+	wealth = 50
+	NOT = { has_earmarked_regiments = afl_lent_ships }
+	NOT = { has_character_flag = afl_request_pending }
+}

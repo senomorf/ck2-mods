@@ -1,0 +1,51 @@
+# Allied Fleets scripted effects. Each holds one step of the feature, so the decision and the
+# events call the same code the in-game tests call (tests/game/allied_fleets/).
+# Pattern: vanilla/common/scripted_effects/00_scripted_effects.txt, called as `NAME = yes`
+# (e.g. holy_order_set_law_effect = yes in vanilla/decisions/HFP_holy_order_decisions.txt).
+# Each step logs an `afl:` line. It reaches game.log only with -debugscripts or -scriptlog
+# (vanilla/ChangeLog.txt), so players see nothing; names in [...] as in vanilla's own log lines
+# (vanilla/events/HF_antagonize_events.txt uses [combatant_1.GetBestName] for an event target).
+
+# afl_ask_for_ships_effect: the ruler asking sends the request to event_target:afl_ally.
+# Scope: the ruler asking.
+afl_ask_for_ships_effect = {
+	save_event_target_as = afl_requester
+	set_character_flag = afl_request_pending
+	log = "afl: request from [afl_requester.GetBestName] ([afl_requester.GetID]) to [afl_ally.GetBestName] ([afl_ally.GetID])"
+	event_target:afl_ally = {
+		character_event = { id = afl.1 }
+	}
+}
+
+# afl_lend_ships_effect: the ally lends: event_target:afl_requester pays 50 gold and gets 20
+# galleys of their own, on the same terms as vanilla conscript_merchant_ships
+# (vanilla/decisions/unit_decisions.txt).
+# Scope: the ally.
+afl_lend_ships_effect = {
+	wealth = 50
+	log = "afl: lent 20 galleys from [This.GetBestName] ([This.GetID]) to [afl_requester.GetBestName] ([afl_requester.GetID]) for 50 gold"
+	event_target:afl_requester = {
+		wealth = -50
+		spawn_fleet = {
+			province = closest
+			owner = event_target:afl_requester
+			disband_on_peace = yes
+			earmark = afl_lent_ships
+			troops = {
+				galleys = { 20 20 }
+			}
+		}
+		clr_character_flag = afl_request_pending
+		character_event = { id = afl.2 }
+	}
+}
+
+# afl_refuse_ships_effect: the ally refuses.
+# Scope: the ally.
+afl_refuse_ships_effect = {
+	log = "afl: refused by [This.GetBestName] ([This.GetID]) to [afl_requester.GetBestName] ([afl_requester.GetID])"
+	event_target:afl_requester = {
+		clr_character_flag = afl_request_pending
+		character_event = { id = afl.3 }
+	}
+}

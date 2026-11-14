@@ -17,18 +17,14 @@ targeted_decisions = {
 		}
 		allow = {
 			FROM = {
-				war = yes
-				wealth = 50
-				NOT = { has_earmarked_regiments = afl_lent_ships }
-				NOT = { has_character_flag = afl_request_pending }
+				afl_can_request_ships_trigger = yes # common/scripted_triggers/afl_triggers.txt
 			}
 		}
 		effect = {
+			save_event_target_as = afl_ally
 			FROM = {
-				save_event_target_as = afl_requester
-				set_character_flag = afl_request_pending
+				afl_ask_for_ships_effect = yes # common/scripted_effects/afl_effects.txt
 			}
-			character_event = { id = afl.1 }
 		}
 		revoke_allowed = {
 			always = no

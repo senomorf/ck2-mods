@@ -14,6 +14,11 @@ The ally's own ships are not affected. The mod only creates new ships for you.
 ## Files
 
 - `decisions/afl_decisions.txt`, `events/afl_events.txt`, `localisation/afl_localisation.csv`. It overrides no vanilla files.
+- `common/scripted_triggers/afl_triggers.txt` holds the decision's conditions (`afl_can_request_ships_trigger`), and `common/scripted_effects/afl_effects.txt` holds each step: ask (`afl_ask_for_ships_effect`), lend (`afl_lend_ships_effect`) and refuse (`afl_refuse_ships_effect`). The decision and `afl.1`'s options call them, and so do the in-game tests in `tests/game/allied_fleets/`, so the tests run the same code players do (#38).
+
+## Log lines
+
+Each step writes an `afl:` line to `game.log`, for example `afl: lent 20 galleys from <ally> (<id>) to <requester> (<id>) for 50 gold`. [Unverified] They appear only when the game runs with `-debugscripts` or `-scriptlog` (per `vanilla/ChangeLog.txt`), so normal play shows nothing. To include them in a bug report, add `-scriptlog` to the game's Steam launch options and send `Documents/Paradox Interactive/Crusader Kings II/logs/game.log`.
 
 ## Save compatibility
 
