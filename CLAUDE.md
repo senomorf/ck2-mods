@@ -8,6 +8,10 @@ Workspace for Crusader Kings II mods. Each mod is `mods/<folder>/` plus its laun
 - `vanilla/` holds the game's own files (Paradox content), and `reference/` other people's mods. Read and grep it freely; never commit it, quote large parts of it into the repo, or copy vanilla files into a mod. Copy patterns, not files.
 - Never invent script syntax. Before using an effect, trigger, scope or block you have not already seen in this repo, check it against the sources below and cite the file in the PR. Use the `ck2-syntax` skill.
 
+## Design
+
+- Historical immersion drives every mod (owner, 2026-11-14). Design from history first (sources cited), then CK2's rules and limits, then balance for single player and multiplayer; README.md, "Design principles". Bring the owner options, questions and pushback before building.
+
 ## Syntax sources, most authoritative first
 
 1. `vanilla/` - the game's own files, from the cache the session hook unpacks (`game-files` skill).
