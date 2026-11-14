@@ -3,8 +3,9 @@
 
 Usage: tools/new_mod.py <folder> --prefix <prefix> [--name "Display Name"]
 
-Writes mods/<folder>/ and mods/<folder>.mod. Files named PREFIX_* are renamed
-with the prefix, and {{NAME}}, {{FOLDER}}, {{PREFIX}} are filled in.
+Writes mods/<folder>/ and mods/<folder>.mod from mods/_template, and the mod's
+in-game test skeleton tests/game/<folder>/ from tests/game/_template. PREFIX in a
+file name becomes the prefix, and {{NAME}}, {{FOLDER}}, {{PREFIX}} are filled in.
 """
 import argparse
 import re
@@ -15,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MODS = ROOT / "mods"
 TEMPLATE = MODS / "_template"
+TEST_TEMPLATE = ROOT / "tests" / "game" / "_template"
 ENCODING = "cp1252"
 
 
@@ -45,24 +47,30 @@ def main() -> int:
             text = text.replace(k, v)
         return text
 
-    for src in sorted(TEMPLATE.rglob("*")):
-        rel = src.relative_to(TEMPLATE)
-        if rel.name == "template.mod":
-            continue
-        out = dest / rel.parent / rel.name.replace("PREFIX", args.prefix)
-        if src.is_dir():
-            out.mkdir(parents=True, exist_ok=True)
-        elif src.suffix in {".txt", ".csv", ".lua", ".gui", ".gfx"}:
-            out.parent.mkdir(parents=True, exist_ok=True)
-            out.write_text(fill(src.read_text(ENCODING)), ENCODING, newline="\n")
-        else:
-            out.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, out)
+    def copy(template: Path, to: Path) -> None:
+        for src in sorted(template.rglob("*")):
+            rel = src.relative_to(template)
+            if rel.name == "template.mod":
+                continue
+            out = to / rel.parent / rel.name.replace("PREFIX", args.prefix)
+            if src.is_dir():
+                out.mkdir(parents=True, exist_ok=True)
+            elif src.suffix in {".txt", ".csv", ".lua", ".gui", ".gfx"}:
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(fill(src.read_text(ENCODING)), ENCODING, newline="\n")
+            else:
+                out.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, out)
+
+    copy(TEMPLATE, dest)
+    tests = args.mods_dir.parent / "tests" / "game" / args.folder
+    if TEST_TEMPLATE.is_dir() and not tests.exists():
+        copy(TEST_TEMPLATE, tests)
 
     descriptor = args.mods_dir / f"{args.folder}.mod"
     descriptor.write_text(fill((TEMPLATE / "template.mod").read_text(ENCODING)), ENCODING, newline="\n")
     (dest / "PREFIX").write_text(args.prefix + "\n", "ascii")
-    print(f"created {dest.relative_to(args.mods_dir.parent)} and {descriptor.name} (prefix {args.prefix})")
+    print(f"created {dest.relative_to(args.mods_dir.parent)}, {descriptor.name} and tests/game/{args.folder} (prefix {args.prefix})")
     return 0
 
 

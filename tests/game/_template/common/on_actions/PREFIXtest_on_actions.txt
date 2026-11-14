@@ -1,0 +1,7 @@
+# Starts the {{FOLDER}} in-game tests on load (tests/game/{{FOLDER}}/events/{{PREFIX}}test_events.txt).
+# on_startup fires for every character when a save loads (.cwtools/on_actions.cwt).
+on_startup = {
+	events = {
+		{{PREFIX}}test.1
+	}
+}

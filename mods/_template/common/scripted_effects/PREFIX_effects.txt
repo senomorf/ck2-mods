@@ -1,0 +1,11 @@
+# {{NAME}} scripted effects. Put each step of a feature here and call it as `NAME = yes` from
+# decisions, event options and the in-game tests (tests/game/{{FOLDER}}/), so the tests run the
+# same code players do. Log each step with a `{{PREFIX}}:` line: it reaches game.log only with
+# -debugscripts or -scriptlog, so players see nothing. See docs/test-pipeline.md, "Writing
+# testable mods".
+
+# {{PREFIX}}_example_effect: an example. Scope: a character.
+{{PREFIX}}_example_effect = {
+	log = "{{PREFIX}}: example effect for [This.GetBestName] ([This.GetID])"
+	character_event = { id = {{PREFIX}}.1 }
+}

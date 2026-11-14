@@ -1,0 +1,4 @@
+# Checks on the campaign run's game.log for {{FOLDER}} (tools/harness.py report; format there).
+count ran {{PREFIX}}_example_effect == 1                   # the tests ran the effect once
+count line {{PREFIX}}: example effect for == 1             # and it logged its line
+count chose {{PREFIX}}.1 EVTOPTA_{{PREFIX}}_1 == 1         # the event it fires was answered

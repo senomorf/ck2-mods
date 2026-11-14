@@ -1,0 +1,36 @@
+namespace = {{PREFIX}}test
+
+# In-game tests for {{FOLDER}}, run by tools/campaign.sh through tools/harness.py (see
+# docs/test-pipeline.md, "Writing testable mods"). The run loads a 1067 save in observe mode, so
+# every character is AI. Each check logs `CK2TEST pass <name>` or `CK2TEST fail <name>: <values>`;
+# the name is the text before ': ', and a check that never reports fails the run. End with
+# `CK2TEST done`. The harness also logs each event, option, decision and scripted effect of the
+# mod as it runs, and fails the run when one of the mod's events, options or scripted effects
+# never ran: test each one. Checks on those counts go in log_checks.txt, checks on the year's
+# last save in save_checks.txt.
+
+# {{PREFIX}}test.1: the first ruler on_startup reaches runs the tests, once.
+character_event = {
+	id = {{PREFIX}}test.1
+	hide_window = yes
+	is_triggered_only = yes
+
+	trigger = {
+		is_ruler = yes
+		NOT = { has_global_flag = {{PREFIX}}_test_started }
+	}
+
+	immediate = {
+		set_global_flag = {{PREFIX}}_test_started
+		if = {
+			limit = { {{PREFIX}}_example_trigger = yes }
+			log = "CK2TEST pass the example trigger holds for a ruler"
+		}
+		if = {
+			limit = { NOT = { {{PREFIX}}_example_trigger = yes } }
+			log = "CK2TEST fail the example trigger holds for a ruler: [Root.GetBestName] ([Root.GetID])"
+		}
+		{{PREFIX}}_example_effect = yes
+		log = "CK2TEST done"
+	}
+}
