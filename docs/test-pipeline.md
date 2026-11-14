@@ -185,7 +185,11 @@ against 134 s on #24's. Even with the box stopped, vanilla's year swung from 214
 73 s (#34's) while the mod's stayed near 200 s, so the first ratio is 0.86 one run and 2.79 the
 next. Vanilla's year runs in the game it started, and each mod's from a freshly loaded save. So
 above the threshold, vanilla plays the year again in the same job, loading the same save and timed
-the same way, and only that second ratio warns. `report.txt` gives both.
+the same way, and only that second ratio warns. `report.txt` gives both. Next to each wall-clock
+figure it gives the game's CPU seconds for the year (user and system, all its threads, from
+`/proc`), and `steps.log` has a line per year with the host's load average, available memory, the
+job's cgroup CPU limit and how long that limit held the job back. These are not gated on yet: #40
+collects them to find out whether CPU seconds stay steady between jobs when wall seconds do not.
 
 After the year, `tools/ck2save.py` reads the run's last autosave (plain Clausewitz text, since the
 script sets `compress_autosaves=no`) into `save-checks.txt`:
