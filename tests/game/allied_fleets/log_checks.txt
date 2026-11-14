@@ -1,6 +1,10 @@
 # Checks on the campaign run's game.log for allied_fleets (tools/harness.py report; format there).
-count chose afl.1 EVTOPTA_afl_1 >= 1                      # an ally accepted at least once
-count chose afl.1 EVTOPTB_afl_1 >= 1                      # and refused at least once
-count fired afl.2 == count chose afl.1 EVTOPTA_afl_1       # every accept tells the requester
-count fired afl.3 == count chose afl.1 EVTOPTB_afl_1       # every refusal does too
-count pass afl.1 answers the request == 20                # all 20 requests were answered
+count chose afl.1 EVTOPTA_afl_1 >= 1                          # an ally accepted at least once
+count chose afl.1 EVTOPTB_afl_1 >= 1                          # and refused at least once
+count fired afl.2 == count ran afl_lend_ships_effect           # every lend tells the requester
+count fired afl.3 == count ran afl_refuse_ships_effect         # every refusal does too
+count pass afl.1 answers the request == 20                    # all 20 requests were answered
+count ran afl_ask_for_ships_effect == 20                      # the decision's effect ran for each request
+count line afl: request from == 20                            # and logged it
+count line afl: lent 20 galleys == count ran afl_lend_ships_effect
+count line afl: refused by == count ran afl_refuse_ships_effect
