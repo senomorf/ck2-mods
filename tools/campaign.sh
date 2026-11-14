@@ -35,6 +35,7 @@
 # Steps files, one step per line ('#' starts a comment):
 #   shot NAME               screenshot to <report>/NN-NAME.png
 #   click X Y               move the pointer to X,Y, wait 2 s, left-click
+#   rclick X Y              the same with a right-click
 #   move X Y                move the pointer to X,Y
 #   key KEYSYM...           xdotool key (X keysyms: Escape, Return, grave, space)
 #   type TEXT               type TEXT
@@ -70,6 +71,7 @@
 #                                  above it, vanilla first plays the year again in the same job
 #      CAMPAIGN_PROBE_SAVE         --steps only: a save to put in "save games" first
 #      CAMPAIGN_PROBE_MOD          --steps only: a mod folder to run with (the harness copy)
+#      CAMPAIGN_PROBE_TESTS        --steps only: `no` leaves the mod's test events out of that copy
 #      CAMPAIGN_PROBE_EFFECTS      --steps only: a file of effects, copied to ck2test_effects.txt in
 #                                  the user folder, where the console's `run ck2test_effects.txt`
 #                                  reads it (tools/campaign/run_effects.txt)
@@ -294,6 +296,7 @@ run_steps() {
     case $cmd in
       shot) shot "$rest" ;;
       click) read -r x y <<< "$rest"; xdotool mousemove "$x" "$y" sleep 2 click 1 ;;
+      rclick) read -r x y <<< "$rest"; xdotool mousemove "$x" "$y" sleep 2 click 3 ;;
       move) read -r x y <<< "$rest"; xdotool mousemove "$x" "$y" ;;
       key) read -ra keys <<< "$rest"; xdotool key --delay 150 "${keys[@]}" ;;
       type) xdotool type --delay 100 "$rest" ;;
@@ -407,7 +410,8 @@ if [ -n "$probe" ]; then
   mapfile -t args < <(launch_args "$probe")
   if [ -n "${CAMPAIGN_PROBE_MOD:-}" ]; then
     m=$CAMPAIGN_PROBE_MOD
-    rm -rf "${ud:?}/mod/$m"; python3 "$repo/tools/harness.py" install "$m" "$ud/mod/$m"; cp "$repo/mods/$m.mod" "$ud/mod/"
+    notests=(); [ "${CAMPAIGN_PROBE_TESTS:-}" != no ] || notests=(--no-tests)
+    rm -rf "${ud:?}/mod/$m"; python3 "$repo/tools/harness.py" install "$m" "$ud/mod/$m" "${notests[@]}"; cp "$repo/mods/$m.mod" "$ud/mod/"
     args+=("-mod=mod/$m.mod")
   fi
   start probe "${args[@]}"

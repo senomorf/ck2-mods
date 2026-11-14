@@ -1,0 +1,37 @@
+# UI test (#38, step 7): as King Harold II of England, at war, ask his ally King Svend II of Denmark
+# for ships through Svend's diplomacy menu, as a player would, and wait for the decision to run.
+# Coordinates were read off the live test box's screenshots (1280x720). Run it on the box from
+# vanilla's 1067.1.1 save (docs/test-pipeline.md, "UI tests"):
+#   tools/box-run.sh env CAMPAIGN_PROBE_SAVE=.box/start.ck2 CAMPAIGN_PROBE_MOD=allied_fleets \
+#     CAMPAIGN_PROBE_TESTS=no CAMPAIGN_PROBE_EFFECTS=tests/game/allied_fleets/ui/request_ships_effects.txt \
+#     tools/campaign.sh --steps tests/game/allied_fleets/ui/request_ships.txt
+launch -startgame -start_save=%SAVE%
+until 300 Launching SINGLEPLAYER-game
+wait 10
+focus
+key grave              # the console
+wait 3
+type run ck2test_effects.txt
+key Return
+wait 3
+until 10 uitest: King Svend II of Denmark \(101515\) allied with
+type play 122          # play Harold
+key Return
+wait 3
+type hello 101515      # open Svend's character screen
+key Return
+wait 3
+key grave
+wait 5
+rclick 150 190         # Svend's portrait: the diplomacy menu
+wait 3
+move 338 267           # Request Ships; its tooltip lists the requirements
+wait 4
+shot menu
+click 338 267          # the decision's window
+wait 4
+shot window
+click 606 524          # Do it!
+until 20 CK2TEST took afl_request_ships root=101515 from=122
+wait 3
+shot answer            # Svend answers on the same day, while the game stays paused

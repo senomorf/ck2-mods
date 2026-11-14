@@ -247,8 +247,9 @@ mods start this way (`tools/new_mod.py` copies `mods/_template/` and `tests/game
   <values>`. A check that never reports fails the run, so a branch the test never reached shows.
 - **Time.** `character_event = { id = ... days = N }` checks something later (the lent fleet five
   days after peace). The run plays one year.
-- **What the run can't show:** a decision's button and tooltips (only a played character sees
-  them; #38 step 7), multiplayer and DLC. Those stay in the owner's `test-round` checklist.
+- **What the run can't show:** a decision's button and tooltips, since the run has no player
+  (a UI test on the box can: "UI tests on the box" below), multiplayer and DLC. Those stay in
+  the owner's `test-round` checklist.
 
 ### Trying effects by hand
 
@@ -269,7 +270,39 @@ tools/box-run.sh env CAMPAIGN_PROBE_SAVE=.box/start.ck2 CAMPAIGN_PROBE_EFFECTS=.
 The effects run in no character's scope (observe mode), so start them with a scope such as
 `random_independent_ruler = { ... }`, and add `log = "..."` lines to see what happened in
 `campaign-reports/probe/game.log`. With a mod, the harness copy logs `CK2TEST fired <id>` for each of
-its events, and its in-game tests start too (from the save's first day).
+its events, and its in-game tests start too (from the save's first day), unless
+`CAMPAIGN_PROBE_TESTS=no`.
+
+### UI tests on the box
+
+A UI test plays a character and clicks through the mod's interface as a player would, so it checks
+what a campaign run cannot: that a decision shows in the right menu, with its tooltip, and that a
+click takes it (#38, step 7). It is a steps file in `tests/game/<mod>/ui/`, which the harness never
+copies into the mod, run on the live test box from vanilla's 1067.1.1 save:
+
+```
+tools/box-run.sh env CAMPAIGN_PROBE_SAVE=.box/start.ck2 CAMPAIGN_PROBE_MOD=allied_fleets \
+  CAMPAIGN_PROBE_TESTS=no CAMPAIGN_PROBE_EFFECTS=tests/game/allied_fleets/ui/request_ships_effects.txt \
+  tools/campaign.sh --steps tests/game/allied_fleets/ui/request_ships.txt
+```
+
+`allied_fleets`' `request_ships` test runs an effects file that makes King Svend II of Denmark the
+ally of King Harold II of England, then types `play 122` and `hello 101515` in the console (play
+Harold, open Svend's character screen), right-clicks Svend's portrait for the diplomacy menu, hovers
+and clicks Request Ships, clicks the window's "Do it!" and waits for the harness's
+`CK2TEST took afl_request_ships root=101515 from=122`. Screenshots `menu`, `window` and `answer` show
+each stage. The whole exchange, Svend's answer and the event that tells Harold, happens on the
+paused first day. A failed `until` fails the run, so a decision that is missing, disabled or
+broken fails it.
+
+Limits, so this is not in CI yet:
+
+- The ids are the 1066 start's characters, so the test needs a save where Harold still lives and
+  is at war; another observe run's save may not have that, and the effects' log line the steps wait
+  for then never comes.
+- The menu lists the actions the player may take first, then the ones they may not, so an entry's
+  place depends on what else is allowed. The coordinates hold for this setup only: with Harold
+  under 50 gold, Request Ships moved to the end of the list and the click hit Declare War.
 
 The runner keeps nothing between jobs, so the workflow keeps `.campaign-cache/` in `actions/cache`
 (`CAMPAIGN_CACHE`), keyed on the host's signature and the hash of `tools/campaign.sh` and

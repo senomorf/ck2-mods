@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """In-game test harness for tools/campaign.sh (roadmap #13, step 3; tracing: #38, step 1).
 
-install MOD DEST   copy mods/MOD to DEST (the game's mod folder entry), add a trace line
+install MOD DEST [--no-tests]
+                   copy mods/MOD to DEST (the game's mod folder entry), add a trace line
                    (below) to every event, event option, decision effect and scripted effect,
-                   and add the tests in tests/game/MOD/ if there are any.
+                   and add the tests in tests/game/MOD/ if there are any (not with --no-tests;
+                   never ui/, log_checks.txt or save_checks.txt, which the tools read).
 report MOD LOG     read the CK2TEST lines in LOG (the run's game.log), print a report, and
                    exit 1 when a test failed, the tests did not finish, or (for a mod with
                    tests) one of its events never fired, an option was never chosen or a
@@ -56,6 +58,12 @@ MARK = "CK2TEST"
 SAVE_CHECKS = Path("save_checks.txt")
 LOG_CHECKS = Path("log_checks.txt")
 NOT_COPIED = {SAVE_CHECKS, LOG_CHECKS}  # read by the tools, not by the game
+UI_DIR = "ui"  # tests/game/<mod>/ui/: UI tests, steps for tools/campaign.sh --steps (#38, step 7)
+
+
+def for_game(rel: Path) -> bool:
+    """Whether a file in tests/game/<mod>/ (path relative to it) goes into the mod's copy."""
+    return rel not in NOT_COPIED and rel.parts[0] != UI_DIR
 OPS = {"==": lambda a, b: a == b, "!=": lambda a, b: a != b, ">=": lambda a, b: a >= b,
        "<=": lambda a, b: a <= b, ">": lambda a, b: a > b, "<": lambda a, b: a < b}
 
@@ -225,7 +233,7 @@ def mod_events(mod: str) -> list[str]:
     return inventory(mod)["events"]
 
 
-def install(mod: str, dest: Path) -> int:
+def install(mod: str, dest: Path, with_tests: bool = True) -> int:
     src = REPO / "mods" / mod
     if not src.is_dir():
         print(f"harness: no mods/{mod}", file=sys.stderr)
@@ -247,9 +255,8 @@ def install(mod: str, dest: Path) -> int:
             count[what] += len(ids)
     tests = REPO / "tests" / "game" / mod
     added = 0
-    if tests.is_dir():
-        # save_checks.txt (tools/ck2save.py) and log_checks.txt (report) are not for the game.
-        for f in sorted(p for p in tests.rglob("*") if p.is_file() and p.relative_to(tests) not in NOT_COPIED):
+    if with_tests and tests.is_dir():
+        for f in sorted(p for p in tests.rglob("*") if p.is_file() and for_game(p.relative_to(tests))):
             target = dest / f.relative_to(tests)
             if target.exists():
                 print(f"harness: tests/game/{mod}/{f.relative_to(tests)} would replace a mod file", file=sys.stderr)
@@ -281,7 +288,7 @@ def check_name(rest: str) -> tuple[str, str]:
 def declared_checks(tests: Path) -> set[str]:
     """Check names the test files log, from `log = "CK2TEST pass|fail <name>..."` strings."""
     names: set[str] = set()
-    for f in sorted(p for p in tests.rglob("*.txt") if p.relative_to(tests) not in NOT_COPIED):
+    for f in sorted(p for p in tests.rglob("*.txt") if for_game(p.relative_to(tests))):
         for m in re.finditer(r'log\s*=\s*"CK2TEST (?:pass|fail) ([^"]*)"', f.read_text(encoding="latin-1")):
             names.add(check_name(m.group(1))[0])
     return names
@@ -415,8 +422,8 @@ def report(mod: str, log: Path) -> int:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) == 3 and argv[0] == "install":
-        return install(argv[1], Path(argv[2]))
+    if len(argv) in (3, 4) and argv[0] == "install" and argv[3:] in ([], ["--no-tests"]):
+        return install(argv[1], Path(argv[2]), with_tests=not argv[3:])
     if len(argv) == 3 and argv[0] == "report":
         return report(argv[1], Path(argv[2]))
     print(__doc__, file=sys.stderr)
