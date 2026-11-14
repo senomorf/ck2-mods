@@ -23,8 +23,17 @@ taker is FROM). Elsewhere ROOT may be a province or a title.
 The `log` effect writes to game.log when the game runs with -debugscripts or -scriptlog
 (vanilla/ChangeLog.txt); each line reads `[effectimplementation.cpp:N]: EVENT [<date>]:<text>`.
 Test events write their own lines:
-  CK2TEST pass <name> / CK2TEST fail <name>   one check
+  CK2TEST pass <name>[: <details>]            one check; the name is the text before the first
+  CK2TEST fail <name>[: <details>]            ': ', so details (values, ids) can follow it
   CK2TEST done                                 the tests finished
+A check that a file under tests/game/MOD/ names but that never reports fails the run (#38, step 2).
+
+tests/game/MOD/log_checks.txt holds checks on the counts above, one per line ('#' at the start
+or after a space starts a comment):
+  count KIND NAME OP N                    KIND is fired, chose, took, ran, pass or fail, NAME as
+  count KIND NAME OP count KIND NAME      the trace or check writes it; OP is == != >= <= > <
+  count line TEXT OP N                    game.log lines that contain TEXT (a mod's own log)
+e.g. `count fired afl.2 == count chose afl.1 EVTOPTA_afl_1`.
 Files keep their bytes: CK2 script is Windows-1252, read and written as latin-1.
 """
 from __future__ import annotations
@@ -45,6 +54,10 @@ FROM_DECISIONS = {"targeted_decisions", "targetted_decisions", "title_decisions"
 NOTE = " # tools/harness.py"
 MARK = "CK2TEST"
 SAVE_CHECKS = Path("save_checks.txt")
+LOG_CHECKS = Path("log_checks.txt")
+NOT_COPIED = {SAVE_CHECKS, LOG_CHECKS}  # read by the tools, not by the game
+OPS = {"==": lambda a, b: a == b, "!=": lambda a, b: a != b, ">=": lambda a, b: a >= b,
+       "<=": lambda a, b: a <= b, ">": lambda a, b: a > b, "<": lambda a, b: a < b}
 
 
 def scan(text: str):
@@ -235,8 +248,8 @@ def install(mod: str, dest: Path) -> int:
     tests = REPO / "tests" / "game" / mod
     added = 0
     if tests.is_dir():
-        # save_checks.txt is read from the save by tools/ck2save.py, not by the game.
-        for f in sorted(p for p in tests.rglob("*") if p.is_file() and p.relative_to(tests) != SAVE_CHECKS):
+        # save_checks.txt (tools/ck2save.py) and log_checks.txt (report) are not for the game.
+        for f in sorted(p for p in tests.rglob("*") if p.is_file() and p.relative_to(tests) not in NOT_COPIED):
             target = dest / f.relative_to(tests)
             if target.exists():
                 print(f"harness: tests/game/{mod}/{f.relative_to(tests)} would replace a mod file", file=sys.stderr)
@@ -259,11 +272,60 @@ def _split(rest: str) -> tuple[str, dict[str, str]]:
     return " ".join(w for w in words if not w.startswith(("root=", "from="))), scopes
 
 
+def check_name(rest: str) -> tuple[str, str]:
+    """'gold moves: 40, not 50' -> ('gold moves', '40, not 50')."""
+    name, _, details = rest.partition(": ")
+    return name.strip(), details.strip()
+
+
+def declared_checks(tests: Path) -> set[str]:
+    """Check names the test files log, from `log = "CK2TEST pass|fail <name>..."` strings."""
+    names: set[str] = set()
+    for f in sorted(p for p in tests.rglob("*.txt") if p.relative_to(tests) not in NOT_COPIED):
+        for m in re.finditer(r'log\s*=\s*"CK2TEST (?:pass|fail) ([^"]*)"', f.read_text(encoding="latin-1")):
+            names.add(check_name(m.group(1))[0])
+    return names
+
+
+def run_log_checks(path: Path, seen: dict[str, dict[str, int]], lines: list[str]) -> list[tuple[bool, str, str]]:
+    """(passed, check, what was counted) for each line of a log_checks.txt."""
+    out = []
+
+    def value(words: list[str]) -> int | None:
+        if not words or words[0] not in (*seen, "line"):
+            return None
+        name = " ".join(words[1:])
+        if words[0] == "line":
+            return sum(1 for line in lines if name in line)
+        return seen[words[0]].get(name, 0)
+
+    for raw in path.read_text(encoding="latin-1").splitlines():
+        line = re.split(r"(?:^|\s)#", raw, maxsplit=1)[0].strip()
+        if not line:
+            continue
+        words = line.split()
+        op = next((i for i, w in enumerate(words) if w in OPS), None)
+        left = value(words[1:op]) if words[0] == "count" and op else None
+        right_words = words[op + 1:] if op else []
+        if len(right_words) == 1 and right_words[0].isdigit():
+            right: int | None = int(right_words[0])
+        elif right_words[:1] == ["count"]:
+            right = value(right_words[1:])
+        else:
+            right = None
+        if left is None or right is None or op is None:
+            out.append((False, line, "not understood: count KIND NAME OP N|count KIND NAME"))
+            continue
+        out.append((OPS[words[op]](left, right), line, f"{left}" + ("" if right_words[0].isdigit() else f" vs {right}")))
+    return out
+
+
 def report(mod: str, log: Path) -> int:
     lines = log.read_text(encoding="latin-1", errors="replace").splitlines() if log.is_file() else []
     seen: dict[str, dict[str, int]] = {k: {} for k in ("fired", "chose", "took", "ran", "pass", "fail")}
     roots: dict[str, set[str]] = {}
     first: dict[str, str] = {}
+    fail_details: dict[str, list[str]] = {}
     done = False
     for line in lines:
         m = LINE.search(line)
@@ -273,13 +335,20 @@ def report(mod: str, log: Path) -> int:
         if kind == "done":
             done = True
             continue
-        name, scopes = (rest, {}) if kind in ("pass", "fail") else _split(rest)
+        if kind in ("pass", "fail"):
+            name, details = check_name(rest)
+            scopes: dict[str, str] = {}
+            if kind == "fail" and details and details not in fail_details.setdefault(name, []):
+                fail_details[name].append(details)
+        else:
+            name, scopes = _split(rest)
         seen[kind][name] = seen[kind].get(name, 0) + 1
         if "root" in scopes:
             roots.setdefault(f"{kind} {name}", set()).add(scopes["root"])
         if date and f"{kind} {name}" not in first:
             first[f"{kind} {name}"] = date
-    has_tests = (REPO / "tests" / "game" / mod).is_dir()
+    tests = REPO / "tests" / "game" / mod
+    has_tests = tests.is_dir()
     inv = inventory(mod)
 
     def count(kind: str, name: str) -> str:
@@ -311,10 +380,28 @@ def report(mod: str, log: Path) -> int:
     for name, n in sorted(seen["pass"].items()):
         print(f"pass: {name}" + (f" (x{n})" if n > 1 else ""))
     for name, n in sorted(seen["fail"].items()):
-        print(f"FAIL: {name}" + (f" (x{n})" if n > 1 else ""))
+        details = fail_details.get(name, [])
+        more = f" (+{len(details) - 3} more)" if len(details) > 3 else ""
+        print(f"FAIL: {name}" + (f" (x{n})" if n > 1 else "") + (": " + " | ".join(details[:3]) + more if details else ""))
+    declared = declared_checks(tests) if has_tests else set()
+    dynamic = sorted(d for d in declared if "[" in d)
+    unreported = sorted(d for d in declared - set(dynamic) if d not in seen["pass"] and d not in seen["fail"])
+    for d in unreported:
+        print(f"NOT RUN: {d}")
+    for d in dynamic:
+        print(f"note: check name holds a localisation command, so it is not tracked; put values after ': ': {d}")
+    results = run_log_checks(tests / LOG_CHECKS, seen, lines) if (tests / LOG_CHECKS).is_file() else []
+    if results:
+        print(f"log checks ({LOG_CHECKS}):")
+        for ok, check, got in results:
+            print(f"  {'pass' if ok else 'FAIL'}: {check} ({got})")
     problems = []
     if seen["fail"]:
         problems.append(f"{len(seen['fail'])} check(s) failed")
+    if unreported:
+        problems.append(f"{len(unreported)} check(s) never reported")
+    if any(not ok for ok, _, _ in results):
+        problems.append(f"{sum(1 for ok, _, _ in results if not ok)} log check(s) failed")
     if has_tests and not done:
         problems.append("the tests did not log CK2TEST done")
     if has_tests and unfired:

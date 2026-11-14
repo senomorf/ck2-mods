@@ -246,4 +246,30 @@ class HarnessTest(unittest.TestCase):
             self.assertIn("zzh_d: 0", r.stdout)
             r = report(*done, "CK2TEST fail b")
             self.assertEqual(r.returncode, 1, r.stdout)
+            # A check is named by the text before ': '; the rest is shown with the failure.
+            r = report(*done, "CK2TEST fail b: got 40", "CK2TEST fail b: got 30", "CK2TEST pass b")
+            self.assertIn("FAIL: b (x2): got 40 | got 30", r.stdout)
+            # Checks the test files name but that never report fail the run.
+            (tests / "events").mkdir()
+            (tests / "events" / "zzhtest_events.txt").write_text(
+                'immediate = { log = "CK2TEST pass a" log = "CK2TEST fail c: value [Root.x.GetValue]" }\n'
+            )
+            r = report(*done)
+            self.assertEqual(r.returncode, 1, r.stdout)
+            self.assertIn("NOT RUN: c", r.stdout)
+            self.assertIn("1 check(s) never reported", r.stdout)
+            r = report(*done, "CK2TEST pass c")
+            self.assertEqual(r.returncode, 0, r.stdout)
+            # Log checks compare counts with a number or with another count.
+            (tests / "log_checks.txt").write_text(
+                "# comment\ncount chose zzh.1 A == count chose zzh.1 B   # one each\n"
+                "count ran zzh_e >= 2\ncount line mod says hi == 1\nbogus\n"
+            )
+            r = report(*done, "CK2TEST pass c", "zzh: mod says hi")
+            self.assertEqual(r.returncode, 1, r.stdout)
+            self.assertIn("pass: count chose zzh.1 A == count chose zzh.1 B (1 vs 1)", r.stdout)
+            self.assertIn("FAIL: count ran zzh_e >= 2 (1)", r.stdout)
+            self.assertIn("pass: count line mod says hi == 1 (1)", r.stdout)
+            self.assertIn("FAIL: bogus (not understood", r.stdout)
+            self.assertIn("2 log check(s) failed", r.stdout)
             self.assertIn("FAIL: b", r.stdout)
