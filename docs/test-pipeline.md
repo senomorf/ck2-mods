@@ -220,6 +220,36 @@ script sets `compress_autosaves=no`) into `save-checks.txt`:
 `python3 tools/ck2save.py SAVE info|get PATH|names PREFIX|check FILE|dangling PREFIX DIR...` does
 the same by hand, on a save from the artifact or the owner's game.
 
+### Writing testable mods
+
+A campaign run tests what its test events can reach, so a mod is laid out for that (#38). New
+mods start this way (`tools/new_mod.py` copies `mods/_template/` and `tests/game/_template/`);
+`allied_fleets` is the worked example.
+
+- **Conditions in scripted triggers, steps in scripted effects.** A decision's `allow` and an
+  option's effects call `<prefix>_..._trigger = yes` and `<prefix>_..._effect = yes`
+  (`common/scripted_triggers/`, `common/scripted_effects/`), and the tests call the same ones. So
+  the tests run the code players run, and can take each option of an event on purpose instead of
+  waiting for the AI's random pick. Write them for one scope and pass other characters as event
+  targets (`event_target:afl_requester`), not FROM or PREV, so a test can call them from anywhere.
+- **No script can take a decision.** Test its trigger and its effect; the decision itself only
+  joins them. The harness counts decisions but never fails on one.
+- **Each step logs a line** that starts with the prefix and names who did what, with ids:
+  `log = "afl: lent 20 galleys from [This.GetBestName] ([This.GetID]) to ..."`. Lines reach
+  `game.log` only under `-debugscripts` or `-scriptlog`, so players see nothing, and a player's bug
+  report can include them (`test-round`). `log_checks.txt` can count them (`count line afl: lent`).
+- **Tests build their own case.** Pick characters with `random_independent_ruler` and a `limit`,
+  save them as event targets, set what the case needs (gold, flags), run the step, and check the
+  result. Measure before and after with `export_to_variable` into `global_` variables and print
+  them in the failure (`[global_afltest_paid.GetValue]`). Check each condition of a trigger alone:
+  everything else true, that one false.
+- **Name each check once, values after `: `.** `CK2TEST pass <name>` and `CK2TEST fail <name>:
+  <values>`. A check that never reports fails the run, so a branch the test never reached shows.
+- **Time.** `character_event = { id = ... days = N }` checks something later (the lent fleet five
+  days after peace). The run plays one year.
+- **What the run can't show:** a decision's button and tooltips (only a played character sees
+  them; #38 step 7), multiplayer and DLC. Those stay in the owner's `test-round` checklist.
+
 ### Trying effects by hand
 
 The console's `run FILE` runs a file of effects (`docs/ck2-notes.md`). With the live test box a

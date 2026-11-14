@@ -26,6 +26,8 @@ class ToolsTest(unittest.TestCase):
         self.descriptor = ROOT / "mods" / f"{self.folder}.mod"
         self.addCleanup(shutil.rmtree, self.mod, ignore_errors=True)
         self.addCleanup(self.descriptor.unlink, missing_ok=True)
+        self.tests = ROOT / "tests" / "game" / self.folder
+        self.addCleanup(shutil.rmtree, self.tests, ignore_errors=True)
         r = run("tools/new_mod.py", self.folder, "--prefix", "zzt", "--name", "Self Test")
         self.assertEqual(r.returncode, 0, r.stderr)
 
@@ -39,6 +41,26 @@ class ToolsTest(unittest.TestCase):
         self.assertTrue((self.mod / "events" / "zzt_events.txt").exists())
         self.assertIn('path = "mod/zz_selftest"', self.descriptor.read_text())
         self.assertIn("namespace = zzt", (self.mod / "events" / "zzt_events.txt").read_text())
+        self.assertIn("zzt_example_effect = {", (self.mod / "common" / "scripted_effects" / "zzt_effects.txt").read_text())
+        self.assertIn("zzt_example_trigger = {", (self.mod / "common" / "scripted_triggers" / "zzt_triggers.txt").read_text())
+        test_events = (self.tests / "events" / "zzttest_events.txt").read_text()
+        self.assertIn("namespace = zzttest", test_events)
+        self.assertIn("zzt_example_effect = yes", test_events)
+        self.assertIn("zzttest.1", (self.tests / "common" / "on_actions" / "zzttest_on_actions.txt").read_text())
+        self.assertIn("count ran zzt_example_effect == 1", (self.tests / "log_checks.txt").read_text())
+        self.assertNotIn("{{", test_events)
+
+    def test_scaffold_report(self) -> None:
+        """The scaffold's own traces and checks pass the harness report (#38, step 6)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "game.log"
+            log.write_text("".join(f"[effectimplementation.cpp:1]: EVENT [1067.1.1]:{line}\n" for line in (
+                "CK2TEST pass the example trigger holds for a ruler", "CK2TEST ran zzt_example_effect",
+                "zzt: example effect for Someone (12)", "CK2TEST fired zzt.1 root=12",
+                "CK2TEST chose zzt.1 EVTOPTA_zzt_1 root=12", "CK2TEST done",
+            )))
+            r = run("tools/harness.py", "report", self.folder, str(log))
+            self.assertEqual(r.returncode, 0, r.stdout)
 
     def test_template_lints_clean(self) -> None:
         code, out = self.lint()

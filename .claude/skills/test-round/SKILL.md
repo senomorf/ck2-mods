@@ -25,6 +25,8 @@ Multiplayer (CI cannot host a game):
 - [ ] Main menu label reads <code from the smoke report>, the same on every player's machine
 - [ ] <behaviour that differs in multiplayer, e.g. "the requester sees the ally's answer">, or "none"
 Then send: logs/error.log, or the lines from `python3 tools/errorlog.py error.log <folder>`
+If something went wrong: add `-scriptlog` to CK2's Steam launch options, play to the problem again,
+and send logs/game.log too: it has the mod's own `<prefix>:` lines saying what each step did
 ```
 
 Keep it under ten steps and each expectation observable on screen.

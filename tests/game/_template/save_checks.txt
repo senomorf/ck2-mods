@@ -1,0 +1,2 @@
+# Checks on the save the campaign test's {{FOLDER}} run ends with (tools/ck2save.py check).
+present {{PREFIX}}_test_started                            # the tests ran
