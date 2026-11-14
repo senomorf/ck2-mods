@@ -226,6 +226,34 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual(names, ["zzt_one_effect", "zzt_two_effect"])
         self.assertIn('log = "CK2TEST ran zzt_one_effect"', out)
 
+    def test_install_leaves_ui_tests_out(self) -> None:
+        """ui/ holds steps for campaign.sh --steps, not script; --no-tests leaves all tests out."""
+        mod, tests = ROOT / "mods" / "zz_harnessui", ROOT / "tests" / "game" / "zz_harnessui"
+        for d in (mod, tests):
+            self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        (mod / "events").mkdir(parents=True)
+        (mod / "events" / "zzu_events.txt").write_text("namespace = zzu\ncharacter_event = { id = zzu.1 }\n")
+        (tests / "events").mkdir(parents=True)
+        (tests / "events" / "zzutest_events.txt").write_text('immediate = { log = "CK2TEST pass a" }\n')
+        (tests / "ui").mkdir()
+        (tests / "ui" / "click.txt").write_text('click 1 2\n# log = "CK2TEST pass b"\n')
+        (tests / "log_checks.txt").write_text("count fired zzu.1 >= 0\n")
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "zz_harnessui"
+            r = run("tools/harness.py", "install", "zz_harnessui", str(dest))
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("1 test file(s) added", r.stdout)
+            self.assertTrue((dest / "events" / "zzutest_events.txt").is_file())
+            self.assertFalse((dest / "ui").exists())
+            self.assertFalse((dest / "log_checks.txt").exists())
+            r = run("tools/harness.py", "install", "zz_harnessui", str(dest), "--no-tests")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("0 test file(s) added", r.stdout)
+            self.assertFalse((dest / "events" / "zzutest_events.txt").exists())
+            self.assertIn('log = "CK2TEST fired zzu.1', (dest / "events" / "zzu_events.txt").read_text())
+        import harness
+        self.assertEqual(harness.declared_checks(tests), {"a"})
+
     def test_report(self) -> None:
         mod, tests = ROOT / "mods" / "zz_harnesstest", ROOT / "tests" / "game" / "zz_harnesstest"
         for d in (mod, tests):

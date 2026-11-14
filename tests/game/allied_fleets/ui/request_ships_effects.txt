@@ -1,0 +1,19 @@
+# Setup for the request_ships UI test (request_ships.txt), run by the console's `run`. The ids are
+# characters of the 1066 start: King Harold II of England (122), at war with Normandy and Norway,
+# and King Svend II of Denmark (101515). Svend becomes Harold's ally, and Harold gets 100 gold. If
+# either is missing (a save where Harold died or made peace), the "allied with" line the steps wait
+# for never comes.
+# Syntax: `character = <id>` (vanilla/events/misc_old_gods_events.txt), add_alliance
+# (.cwtools/effects.cwt; vanilla/ChangeLog.txt: "add_alliance = { who = x months/years/days = x }").
+log = "uitest: start"
+random_independent_ruler = {
+	limit = { character = 122 war = yes }
+	save_event_target_as = uit_requester
+	wealth = 100
+	log = "uitest: requester [This.GetBestName] ([This.GetID]), at war"
+	random_independent_ruler = {
+		limit = { character = 101515 }
+		add_alliance = { who = event_target:uit_requester years = 10 }
+		log = "uitest: [This.GetBestName] ([This.GetID]) allied with [uit_requester.GetBestName] ([uit_requester.GetID])"
+	}
+}
