@@ -49,7 +49,7 @@ jobs:
       # CAMPAIGN_CACHE). Saved after the run even when a mod fails, since vanilla's part is good.
       - name: Restore the campaign cache
         id: cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: .campaign-cache
           key: campaign-${{ hashFiles('tools/campaign.sh', 'tools/campaign/**') }}-${{ github.event.pull_request.base.sha || github.event.before || 'manual' }}
@@ -83,7 +83,7 @@ jobs:
           tools/campaign.sh "${mods[@]}"
       - name: Save the campaign cache
         if: ${{ !cancelled() && steps.cache.outputs.cache-hit != 'true' && hashFiles('.campaign-cache/vanilla/start.ck2') != '' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: .campaign-cache
           key: ${{ steps.cache.outputs.cache-primary-key }}
