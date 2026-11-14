@@ -168,7 +168,10 @@ line in a steps file adds launch options. The game writes few `game.log` lines, 
 on instead of timers: `clickuntil` clicks until a line appears (the lobby's random-character button
 until "set as primary local", Game Rules' Start Game until "Launching SINGLEPLAYER-game"), and
 `repeat` follows a short steps file until one does (closing the start splash and typing `observe`
-until "unset as primary local"). The fixed waits left are margins of a few seconds. On the live test
+until "unset as primary local"). Unpausing has no log line, so `clickchange` clicks the date until
+its pixels change between two screenshots 5 s apart: a click while the loaded map was still drawing
+was lost on PR #27's [run 43531833583](https://github.com/senomorf/ck2-mods/actions/runs/43531833583),
+and the game sat paused until the timeout. The fixed waits left are margins of a few seconds. On the live test
 box (2026-11-13) a new game was running at full speed 123 s after launch, against 381 s on #15's
 run through the menus. The artifact
 `campaign-linux` holds them with `steps.log`, the logs and `report.txt` per run. What the steps
