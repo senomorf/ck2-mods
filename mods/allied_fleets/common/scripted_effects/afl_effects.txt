@@ -627,3 +627,215 @@ afl_end_charter_effect = {
 	}
 	character_event = { id = afl.23 }
 }
+
+# Galley companies (step 3). A ruler founds a mercenary company of 50 to 500 of its own galleys, led
+# by a captain of its own; anyone in reach hires it, at the game's price, through the Mercenaries
+# list, and a share of its pay goes to the founder (owner, 2026-11-15; README.md, "Galley
+# companies"). The founder's own holdings lose as many galleys while it exists. Box probes 7-17
+# (docs/ck2-notes.md): founding needs no DLC; a hired company's fleet appears off the hirer's coastal
+# capital, or for a landlocked hirer off the company's base; each hire moves the base to the hirer's
+# capital, so a dismissed company is pinned back to its founder's port (afl.66); no effect dismisses
+# a hired company, and destroying its title while hired leaves the hirer a fleet without a company,
+# so a hired company is dissolved only after its hirer dismisses it.
+# Event targets: afl_founder, afl_captain, afl_company (the company's title), afl_hirer.
+# Variables (character scope): afl_company_size, the company's galleys, on its founder.
+# Flags: afl_company on the founder and on the company's title; afl_dissolve on a company's title
+# that dissolves when its hirer dismisses it.
+
+# afl_found_company_effect: founds the company: a captain of the founder's culture and religion,
+# and a landless mercenary title with afl_ask galleys, pinned to the founder's port; the founder's
+# own holdings lose as many (afl_ships_away_effect), renewed monthly (afl.65).
+# Constructs: create_character with new_character and dynasty = random
+# (vanilla/events/HFP_crusade_flavour.txt); create_title with mercenary, siphons_income_to_creator
+# and army_template, and set_defacto_liege (vanilla/decisions/ze_decisions.txt,
+# create_mercenary_company_feudal; vanilla/events/ze_various_events.txt; .cwtools/create_title_effects.cwt).
+# Scope: the founder, with afl_ask set.
+afl_found_company_effect = {
+	save_event_target_as = afl_founder
+	set_character_flag = afl_company
+	set_variable = { which = afl_company_size which = afl_ask }
+	create_character = {
+		random_traits = yes
+		dynasty = random
+		religion = event_target:afl_founder
+		culture = event_target:afl_founder
+		female = no
+		age = 35
+	}
+	new_character = { save_event_target_as = afl_captain }
+	primary_title = {
+		create_title = {
+			tier = DUKE
+			name = AFL_GALLEY_COMPANY
+			landless = yes
+			temporary = yes
+			adventurer = yes
+			custom_created = yes
+			culture = event_target:afl_founder
+			holder = event_target:afl_captain
+			base_title = THIS
+			mercenary = yes
+			replace_captain_on_death = yes
+			siphons_income_to_creator = 0.25
+			army_template = naval_merc_composition
+			ruler = "CAPTAIN"
+			ruler_female = "CAPTAIN"
+			foa = "CAPTAIN_FOA"
+		}
+	}
+	event_target:afl_captain = {
+		set_defacto_liege = event_target:afl_founder
+		primary_title = {
+			save_event_target_as = afl_company
+			set_title_flag = afl_company
+			afl_company_size_effect = yes
+			afl_pin_company_effect = yes
+		}
+	}
+	log = "afl: company of [This.afl_company_size.GetValue] galleys founded by [afl_founder.GetBestName] ([afl_founder.GetID]): [afl_company.GetName], captain [afl_captain.GetBestName] ([afl_captain.GetID])"
+	afl_ships_away_effect = yes
+	character_event = { id = afl.63 }
+	character_event = { id = afl.65 days = 30 }
+}
+
+# afl_company_size_effect: the company's galleys, afl_company_size on its founder: vanilla's
+# naval_merc_composition gives 10 (vanilla/common/mercenaries/00_mercenaries.txt), and
+# change_mercenary_composition adds the rest (a box probe grew a company from 10 to exactly 50).
+# It takes a number, so each count has its block. Scope: the company's title.
+afl_company_size_effect = {
+	if = {
+		limit = { event_target:afl_founder = { is_variable_equal = { which = afl_company_size value = 500 } } }
+		change_mercenary_composition = { type = galleys change = 490 }
+	}
+	else_if = {
+		limit = { event_target:afl_founder = { is_variable_equal = { which = afl_company_size value = 400 } } }
+		change_mercenary_composition = { type = galleys change = 390 }
+	}
+	else_if = {
+		limit = { event_target:afl_founder = { is_variable_equal = { which = afl_company_size value = 300 } } }
+		change_mercenary_composition = { type = galleys change = 290 }
+	}
+	else_if = {
+		limit = { event_target:afl_founder = { is_variable_equal = { which = afl_company_size value = 200 } } }
+		change_mercenary_composition = { type = galleys change = 190 }
+	}
+	else_if = {
+		limit = { event_target:afl_founder = { is_variable_equal = { which = afl_company_size value = 150 } } }
+		change_mercenary_composition = { type = galleys change = 140 }
+	}
+	else_if = {
+		limit = { event_target:afl_founder = { is_variable_equal = { which = afl_company_size value = 100 } } }
+		change_mercenary_composition = { type = galleys change = 90 }
+	}
+	else = {
+		change_mercenary_composition = { type = galleys change = 40 }
+	}
+}
+
+# afl_pin_company_effect: sets the company's base to its founder's port (afl_port_effect), so that
+# the game offers it to rulers near that port, and a landlocked hirer's fleet waits there. A box
+# probe moved a dismissed company's base from its last hirer's capital back to its founder's this
+# way. Constructs: set_preferred_capital with a county (vanilla/common/scripted_effects/00_scripted_effects.txt),
+# county of a province (.cwtools/links.cwt), capital_scope of a title (box probe).
+# Scope: the company's title.
+afl_pin_company_effect = {
+	clear_event_target = afl_port
+	band_creator = {
+		if = {
+			limit = { has_character_flag = afl_company }
+			afl_port_effect = yes
+		}
+	}
+	if = {
+		limit = { event_target:afl_port = { always = yes } }
+		event_target:afl_port = { county = { save_event_target_as = afl_port_county } }
+		set_preferred_capital = event_target:afl_port_county
+		capital_scope = { log = "afl: [Prev.GetName] based at [This.GetName]" }
+	}
+}
+
+# afl_withdraw_found_effect: the founder thought better of it. Scope: the founder.
+afl_withdraw_found_effect = {
+	log = "afl: company not founded by [Root.GetBestName] ([Root.GetID])"
+}
+
+# afl_company_check_effect: once a month while the founder has a company. If the company is gone,
+# or the founder holds no land, "Ships away" comes off the founder's holdings (and the company
+# dissolves, now or when its hirer dismisses it); else "Ships away" is renewed, and a hired company's
+# hirer is logged (while hired, its base is the hirer's capital).
+# Constructs: any_mercenary_band (.cwtools/scopes.cwt; box probes), capital_scope with owner (box probe).
+# Scope: the founder.
+afl_company_check_effect = {
+	save_event_target_as = afl_founder
+	clear_event_target = afl_company
+	any_mercenary_band = {
+		limit = {
+			afl_company_trigger = yes
+			band_creator = { character = event_target:afl_founder }
+		}
+		save_event_target_as = afl_company
+	}
+	if = {
+		limit = { NOT = { event_target:afl_company = { always = yes } } }
+		log = "afl: [afl_founder.GetBestName] ([afl_founder.GetID]) has no company any more"
+		clr_character_flag = afl_company
+		afl_ships_home_effect = yes
+	}
+	else_if = {
+		limit = { is_landed = no }
+		log = "afl: founder [afl_founder.GetBestName] ([afl_founder.GetID]) holds no land"
+		clr_character_flag = afl_company
+		afl_ships_home_effect = yes
+		event_target:afl_company = { afl_end_company_effect = yes }
+	}
+	else = {
+		set_variable = { which = afl_ask which = afl_company_size }
+		afl_ships_away_effect = yes
+		event_target:afl_company = {
+			if = {
+				limit = { NOT = { afl_company_idle_trigger = yes } }
+				capital_scope = { owner = { save_event_target_as = afl_hirer } }
+				log = "afl: [This.GetName] serves [afl_hirer.GetBestName] ([afl_hirer.GetID])"
+			}
+		}
+		character_event = { id = afl.65 days = 30 }
+	}
+}
+
+# afl_dissolve_company_effect: the founder dissolves its company (afl_dissolve_company, only while
+# nobody has hired it). Scope: the founder.
+afl_dissolve_company_effect = {
+	save_event_target_as = afl_founder
+	any_mercenary_band = {
+		limit = {
+			afl_company_trigger = yes
+			band_creator = { character = event_target:afl_founder }
+		}
+		afl_end_company_effect = yes
+	}
+}
+
+# afl_end_company_effect: an idle company is disbanded: its founder, if it still has the company,
+# gets its ships back and is told (afl.67), and the title is destroyed (vanilla ZE.11030,
+# vanilla/events/ze_mercenary_events_02.txt; its captain stays a courtier). A hired one is marked,
+# and dissolves when its hirer dismisses it (afl.66, afl.69). Scope: the company's title.
+afl_end_company_effect = {
+	if = {
+		limit = { afl_company_idle_trigger = yes }
+		band_creator = {
+			if = {
+				limit = { has_character_flag = afl_company }
+				clr_character_flag = afl_company
+				afl_ships_home_effect = yes
+				character_event = { id = afl.67 }
+			}
+		}
+		log = "afl: [This.GetName] dissolved"
+		activate_title = { title = THIS status = no }
+		destroy_landed_title = THIS
+	}
+	else = {
+		set_title_flag = afl_dissolve
+		log = "afl: [This.GetName] dissolves when its hirer dismisses it"
+	}
+}

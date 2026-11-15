@@ -1,17 +1,22 @@
 # Allied Fleets scripted triggers. A trigger here is the one place a condition lives: the
 # decisions and events use it, and so do the in-game tests (tests/game/allied_fleets/).
 # Pattern: vanilla/common/scripted_triggers/00_scripted_triggers.txt, called as `NAME = yes`.
-# Constructs: any_war with any_attacker and any_defender (vanilla/events/HFP_crusade_events.txt,
+# Constructs: has_mercenary_band (vanilla/decisions/ze_decisions.txt), has_raised_standing_troops in
+# title scope (vanilla/common/scripted_triggers/00_scripted_triggers.txt; box probe: yes while a
+# company is hired), band_creator (vanilla/events/ze_mercenary_events.txt);
+# any_war with any_attacker and any_defender (vanilla/events/HFP_crusade_events.txt,
 # .cwtools/scopes.cwt), war_with = event_target (vanilla/events/jd_artifact_events.txt),
 # has_earmarked_regiments (this mod's tests), any_demesne_title with tier, has_building and
 # holding_type in title scope (box probe 6, docs/ck2-notes.md).
 
-# afl_in_contract_trigger: lends or borrows ships now, or has a request or a charter offer out or
-# in. One contract per ruler at a time, so two allies can't trade fleets to avoid paying for their
-# own, and one request per lender at a time, so two askers can't overwrite each other's terms.
+# afl_in_contract_trigger: lends or borrows ships now, has a request or a charter offer out or in,
+# or has founded a galley company. One contract per ruler at a time, so two allies can't trade
+# fleets to avoid paying for their own, and one request per lender at a time, so two askers can't
+# overwrite each other's terms; a founder's ships are the company's.
 # Scope: a character.
 afl_in_contract_trigger = {
 	OR = {
+		has_character_flag = afl_company
 		has_character_flag = afl_borrowing
 		has_character_flag = afl_lending
 		has_character_flag = afl_request_pending
@@ -133,4 +138,28 @@ afl_war_loan_over_trigger = {
 			}
 		}
 	}
+}
+
+# Galley companies (step 3). A ruler founds a mercenary company of its own galleys, which anyone in
+# reach hires through the game's Mercenaries list (owner, 2026-11-15; README.md, "Galley companies").
+
+# afl_can_found_trigger: may this ruler found a galley company now? It needs a holding of its own
+# with ships, no other contract, and no mercenary company already (has_mercenary_band also sees
+# a company founded by vanilla's own decision). Scope: the ruler.
+afl_can_found_trigger = {
+	is_landed = yes
+	afl_can_lend_trigger = yes
+	NOT = { has_mercenary_band = yes }
+}
+
+# afl_company_trigger: a galley company founded by this mod. Scope: a title.
+afl_company_trigger = {
+	mercenary = yes
+	has_title_flag = afl_company
+}
+
+# afl_company_idle_trigger: a galley company nobody has hired now (its fleet is raised only while
+# hired). Scope: the company's title.
+afl_company_idle_trigger = {
+	has_raised_standing_troops = no
 }

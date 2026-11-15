@@ -1,10 +1,20 @@
 # Allied Fleets on_actions. Several files may add to one on_action:
 # vanilla/common/on_actions/_on_actions.info.
 
-# A borrower's death ends the war loan (afl.30). on_death fires before succession, while the dying
-# character still has flags and titles (.cwtools/on_actions.cwt).
+# A borrower's death ends the war loan (afl.30), a founder's its galley company (afl.68). on_death
+# fires before succession, while the dying character still has flags and titles (.cwtools/on_actions.cwt).
 on_death = {
 	events = {
 		afl.30
+		afl.68
+	}
+}
+
+# A dismissed galley company goes back to its founder's port (afl.66). ROOT = the company's captain,
+# FROM = the hirer (box probe; vanilla ZE.10039 in vanilla/common/on_actions/00_on_actions.txt).
+# on_mercenary_hired never fired in box probes, so nothing relies on it.
+on_mercenary_dismissed = {
+	events = {
+		afl.66
 	}
 }

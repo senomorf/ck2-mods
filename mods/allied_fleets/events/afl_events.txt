@@ -1,7 +1,8 @@
 namespace = afl
 
-# Allied Fleets events: the war loan (README.md, "Design"). Event targets as in
-# common/scripted_effects/afl_effects.txt: afl_borrower, afl_lender, afl_lender_title.
+# Allied Fleets events: war loans, charters and galley companies (README.md, "Design"). Event
+# targets as in common/scripted_effects/afl_effects.txt: afl_borrower, afl_lender, afl_lender_title;
+# for galley companies afl_founder, afl_captain, afl_company.
 # Constructs: desc blocks with text and trigger (vanilla/events/HFP_health_events.txt), pictures
 # GFX_evt_council and GFX_evt_merchant_ship_at_sea_republic (vanilla/interface/eventwindow.gfx),
 # persistent_event_target with holder_scope (vanilla/events/hf_warrior_lodge_legends_events.txt).
@@ -694,5 +695,260 @@ character_event = {
 
 	option = {
 		name = EVTOPTA_afl_54
+	}
+}
+
+# afl.60, afl.61 and afl.62: the founder chooses how many galleys the company takes from its own
+# holdings, as afl.50 to afl.52 for a charter offer: each count only if those holdings hold that
+# many before bonuses (afl_base). Only players take the decision; the AI chances serve the in-game
+# tests: the largest count offered; a ruler at war looks through the pages to the last it is
+# offered, then keeps its ships ("never mind"), so a test sets afl_base and war to choose.
+# ROOT = the founder.
+character_event = {
+	id = afl.60
+	desc = {
+		text = EVTDESC_afl_60
+		trigger = { check_variable = { which = afl_base value = 50 } }
+	}
+	desc = {
+		text = EVTDESC_afl_60_none
+		trigger = { NOT = { check_variable = { which = afl_base value = 50 } } }
+	}
+	picture = GFX_evt_merchant_ship_at_sea_republic
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_60 # 50 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 50 }
+		}
+		custom_tooltip = { text = afl_found_company_now_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 50 }
+			afl_found_company_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 100 } } } }
+	}
+	option = {
+		name = EVTOPTB_afl_60 # 100 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 100 }
+		}
+		custom_tooltip = { text = afl_found_company_now_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 100 }
+			afl_found_company_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 150 } } } }
+	}
+	option = {
+		name = EVTOPTC_afl_60 # more: afl.61
+		trigger = { check_variable = { which = afl_base value = 150 } }
+		character_event = { id = afl.61 }
+		ai_chance = { factor = 30 modifier = { factor = 100 always = yes } }
+	}
+	option = {
+		name = EVTOPTD_afl_60 # never mind
+		hidden_tooltip = { afl_withdraw_found_effect = yes }
+		ai_chance = { factor = 10 modifier = { factor = 10000 war = yes NOT = { check_variable = { which = afl_base value = 150 } } } }
+	}
+}
+
+# afl.61: the second page, 150 or 200 galleys. ROOT = the founder.
+character_event = {
+	id = afl.61
+	desc = EVTDESC_afl_61
+	picture = GFX_evt_merchant_ship_at_sea_republic
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_61 # 150 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 150 }
+		}
+		custom_tooltip = { text = afl_found_company_now_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 150 }
+			afl_found_company_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 200 } } } }
+	}
+	option = {
+		name = EVTOPTB_afl_61 # 200 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 200 }
+		}
+		custom_tooltip = { text = afl_found_company_now_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 200 }
+			afl_found_company_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 300 } } } }
+	}
+	option = {
+		name = EVTOPTC_afl_61 # more: afl.62
+		trigger = { check_variable = { which = afl_base value = 300 } }
+		character_event = { id = afl.62 }
+		ai_chance = { factor = 30 modifier = { factor = 100 always = yes } }
+	}
+	option = {
+		name = EVTOPTD_afl_61 # never mind
+		hidden_tooltip = { afl_withdraw_found_effect = yes }
+		ai_chance = { factor = 10 modifier = { factor = 10000 war = yes NOT = { check_variable = { which = afl_base value = 300 } } } }
+	}
+}
+
+# afl.62: the third page, 300 to 500 galleys. ROOT = the founder.
+character_event = {
+	id = afl.62
+	desc = EVTDESC_afl_62
+	picture = GFX_evt_merchant_ship_at_sea_republic
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_62 # 300 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 300 }
+		}
+		custom_tooltip = { text = afl_found_company_now_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 300 }
+			afl_found_company_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 400 } } } }
+	}
+	option = {
+		name = EVTOPTB_afl_62 # 400 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 400 }
+		}
+		custom_tooltip = { text = afl_found_company_now_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 400 }
+			afl_found_company_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 500 } } } }
+	}
+	option = {
+		name = EVTOPTC_afl_62 # 500 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 500 }
+		}
+		custom_tooltip = { text = afl_found_company_now_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 500 }
+			afl_found_company_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 always = yes } }
+	}
+	option = {
+		name = EVTOPTD_afl_62 # never mind
+		hidden_tooltip = { afl_withdraw_found_effect = yes }
+		ai_chance = { factor = 10 modifier = { factor = 10000 war = yes } }
+	}
+}
+
+# afl.63: tells the founder its company is founded. ROOT = the founder.
+character_event = {
+	id = afl.63
+	desc = EVTDESC_afl_63
+	picture = GFX_evt_merchant_ship_at_sea_republic
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_63
+	}
+}
+
+# afl.65: the founder's monthly check, hidden. ROOT = the founder.
+character_event = {
+	id = afl.65
+	hide_window = yes
+	is_triggered_only = yes
+
+	trigger = {
+		has_character_flag = afl_company
+	}
+
+	immediate = {
+		afl_company_check_effect = yes
+	}
+}
+
+# afl.66 (on_mercenary_dismissed): a hirer dismissed a company. ROOT = its captain, FROM = the hirer
+# (box probe; vanilla ZE.10039). Its base goes back to its founder's port; a company marked to
+# dissolve does so the next day (afl.69), once its fleet has gone.
+character_event = {
+	id = afl.66
+	hide_window = yes
+	is_triggered_only = yes
+
+	trigger = {
+		primary_title = { afl_company_trigger = yes }
+	}
+
+	immediate = {
+		primary_title = {
+			log = "afl: [This.GetName] dismissed by [From.GetBestName] ([From.GetID])"
+			afl_pin_company_effect = yes
+		}
+		if = {
+			limit = { primary_title = { has_title_flag = afl_dissolve } }
+			character_event = { id = afl.69 days = 1 }
+		}
+	}
+}
+
+# afl.67: tells the founder its company is disbanded and its ships are home. ROOT = the founder.
+character_event = {
+	id = afl.67
+	desc = EVTDESC_afl_67
+	picture = GFX_evt_merchant_ship_at_sea_republic
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_67
+	}
+}
+
+# afl.68 (on_death): a founder's death ends its company: its holdings get their ships back now, and
+# the company dissolves, at once if nobody has hired it, else when its hirer dismisses it.
+# ROOT = the dying founder, who still has its flags and titles.
+character_event = {
+	id = afl.68
+	hide_window = yes
+	is_triggered_only = yes
+
+	trigger = {
+		has_character_flag = afl_company
+	}
+
+	immediate = {
+		save_event_target_as = afl_founder
+		log = "afl: founder [afl_founder.GetBestName] ([afl_founder.GetID]) died"
+		clr_character_flag = afl_company
+		afl_ships_home_effect = yes
+		any_mercenary_band = {
+			limit = {
+				afl_company_trigger = yes
+				band_creator = { character = event_target:afl_founder }
+			}
+			afl_end_company_effect = yes
+		}
+	}
+}
+
+# afl.69: a day after its hirer dismissed it, a company marked to dissolve does. ROOT = its captain.
+character_event = {
+	id = afl.69
+	hide_window = yes
+	is_triggered_only = yes
+
+	trigger = {
+		primary_title = { afl_company_trigger = yes has_title_flag = afl_dissolve }
+	}
+
+	immediate = {
+		primary_title = { afl_end_company_effect = yes }
 	}
 }
