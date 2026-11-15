@@ -77,7 +77,7 @@ character_event = {
 					afl_can_lend_trigger = yes
 					check_variable = { which = afl_base value = 50 }
 					NOT = { character = event_target:afltest_asker }
-					NOT = { war_with = event_target:afltest_asker }
+					NOT = { any_current_enemy = { character = event_target:afltest_asker } }
 				}
 				save_event_target_as = afl_lender
 			}
@@ -96,7 +96,7 @@ character_event = {
 					is_landed = yes
 					afl_can_lend_trigger = yes
 					NOT = { character = event_target:afltest_asker }
-					NOT = { war_with = event_target:afltest_asker }
+					NOT = { any_current_enemy = { character = event_target:afltest_asker } }
 				}
 				save_event_target_as = afl_lender
 			}
@@ -303,8 +303,8 @@ character_event = {
 				check_variable = { which = afl_base value = 50 }
 				NOT = { character = event_target:afltest_b }
 				NOT = { character = event_target:afltest_b2 }
-				NOT = { war_with = event_target:afltest_b }
-				NOT = { war_with = event_target:afltest_b2 }
+				NOT = { any_current_enemy = { character = event_target:afltest_b } }
+				NOT = { any_current_enemy = { character = event_target:afltest_b2 } }
 			}
 			save_event_target_as = afltest_l
 		}
@@ -392,6 +392,15 @@ character_event = {
 			if = { limit = { event_target:afltest_p = { is_variable_equal = { which = afl_k value = 100 } } } log = "CK2TEST pass 200 galleys of 201 cut each holding 100%" }
 			if = { limit = { NOT = { event_target:afltest_p = { is_variable_equal = { which = afl_k value = 100 } } } } log = "CK2TEST fail 200 galleys of 201 cut each holding 100%: it gave [afltest_p.afl_k.GetValue]" }
 			event_target:afltest_p = { set_variable = { which = afl_ask value = 0 } set_variable = { which = afl_base value = 0 } set_variable = { which = afl_k value = 0 } }
+
+			# The two at war with each other end a contract (afl_lender_enemy_trigger): a current enemy of
+			# afltest_b counts, afltest_l, at peace with it, does not.
+			event_target:afltest_b = { random_current_enemy = { save_event_target_as = afl_lender } }
+			if = { limit = { event_target:afltest_b = { afl_lender_enemy_trigger = yes } } log = "CK2TEST pass the contracts see a lender at war with the borrower" }
+			if = { limit = { NOT = { event_target:afltest_b = { afl_lender_enemy_trigger = yes } } } log = "CK2TEST fail the contracts see a lender at war with the borrower: [afl_lender.GetBestName] ([afl_lender.GetID]) is not seen as an enemy of [afltest_b.GetBestName]" }
+			event_target:afltest_l = { save_event_target_as = afl_lender }
+			if = { limit = { event_target:afltest_b = { NOT = { afl_lender_enemy_trigger = yes } } } log = "CK2TEST pass the contracts see a lender at peace with the borrower as such" }
+			if = { limit = { event_target:afltest_b = { afl_lender_enemy_trigger = yes } } log = "CK2TEST fail the contracts see a lender at peace with the borrower as such: [afl_lender.GetBestName] ([afl_lender.GetID]) is seen as an enemy" }
 
 			# Paying an amount in steps (afl_pay_effect).
 			event_target:afltest_l = { save_event_target_as = afl_lender }
