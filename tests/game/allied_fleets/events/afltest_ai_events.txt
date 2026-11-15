@@ -8,9 +8,11 @@ namespace = afltest
 # lender for a count it needs (afl.71). Both rulers get afl_test_requester, so the other tests
 # leave them alone. afltest.94 runs the AI's war loan request (afl_ai_ask_war_loan_effect) for a
 # ruler at war and a lender who can spare 50, as afltest.2 does the decision's (afltest.95), and
-# afltest.96 checks the answer and ends the loan. afltest.92 also fires afl.72 for the scenario's war, which
-# is no crusade, so it starts no check: no crusade comes in the test's year, and afl.72's crusade
-# branch is untested. Started by afltest.1.
+# afltest.96 checks the answer, that the ruler asking remembers it (step 3), and ends the loan.
+# afltest.92 also fires afl.72 for the scenario's war, which is no crusade, so it starts no check:
+# no crusade comes in the test's year, and afl.72's crusade branch is untested. afltest.97 checks
+# step 3's limits as pure checks: the cap on AI contracts, a player's part of whom an AI asks (on AI
+# rulers, since every ruler is AI in observe mode), and one ruler's wait. Started by afltest.1.
 # Constructs, all in vanilla 3.3.5.1 or this mod's tests: unsafe_war with casus_belli =
 # duchy_adventure, thirdparty_title and tier (vanilla/events/adventures_the_old_gods.txt; with a
 # province as the title, box probe 19), export_to_variable with realm_levies
@@ -119,6 +121,7 @@ character_event = {
 		if = { limit = { k_egypt = { holder_scope = { afl_ai_overseas_trigger = yes } } e_hre = { holder_scope = { NOT = { afl_ai_overseas_trigger = yes } } } } log = "CK2TEST pass Egypt is overseas from France by its long land path, the Empire is not" }
 		if = { limit = { NAND = { k_egypt = { holder_scope = { afl_ai_overseas_trigger = yes } } e_hre = { holder_scope = { NOT = { afl_ai_overseas_trigger = yes } } } } } log = "CK2TEST fail Egypt is overseas from France by its long land path, the Empire is not" }
 		clear_event_target = afl_home
+		character_event = { id = afltest.97 }
 		character_event = { id = afltest.91 }
 	}
 }
@@ -140,6 +143,7 @@ character_event = {
 				NOT = { afl_in_contract_trigger = yes }
 				NOT = { has_character_flag = afl_test_requester }
 				NOT = { has_character_flag = afl_ai_watch }
+				afl_ai_may_ask_again_trigger = yes # not served or refused in the other tests
 				NOT = { character = ROOT } # the tests' own chains run on ROOT
 			}
 			preferred_limit = { has_landed_title = k_hungary }
@@ -356,6 +360,30 @@ character_event = {
 			}
 			log = "CK2TEST fail an AI ruler's war loan request is answered by its score: [Root.GetBestName] ([Root.GetID]) asked for [This.afl_ask.GetValue], scored [Root.afl_score.GetValue] by [afl_lender.GetBestName] ([afl_lender.GetID])"
 		}
+		# Step 3: a ruler lent ships is served for the war (afl_ai_served), one refused waits a year
+		# (afl_ai_refused); either way it may not ask again now.
+		if = {
+			limit = {
+				OR = {
+					AND = { has_character_flag = afl_borrowing has_character_flag = afl_ai_served }
+					AND = { NOT = { has_character_flag = afl_borrowing } has_character_flag = afl_ai_refused }
+				}
+				NOT = { afl_ai_may_ask_again_trigger = yes }
+			}
+			log = "CK2TEST pass an AI ruler answered remembers it"
+		}
+		if = {
+			limit = {
+				NAND = {
+					OR = {
+						AND = { has_character_flag = afl_borrowing has_character_flag = afl_ai_served }
+						AND = { NOT = { has_character_flag = afl_borrowing } has_character_flag = afl_ai_refused }
+					}
+					NOT = { afl_ai_may_ask_again_trigger = yes }
+				}
+			}
+			log = "CK2TEST fail an AI ruler answered remembers it: [Root.GetBestName] ([Root.GetID]) has neither the served nor the refused flag its answer gives"
+		}
 		if = {
 			limit = { has_character_flag = afl_borrowing }
 			log = "afltest: AI war loan case: lent"
@@ -364,6 +392,153 @@ character_event = {
 		if = {
 			limit = { NOT = { has_character_flag = afl_borrowing } }
 			log = "afltest: AI war loan case: refused"
+		}
+	}
+}
+
+# afltest.97: step 3's limits (afl_ai_triggers.txt), as pure checks, all in one day so that nothing
+# else runs between them. ROOT = the tests' character.
+character_event = {
+	id = afltest.97
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		# The cap (afl_ai_cap_trigger): mark AI rulers as borrowing until it holds, then count the AI
+		# rulers who borrow or wait for an answer. It should hold at 5, no sooner and no later.
+		set_variable = { which = afltest_cap_n value = 0 }
+		while = {
+			count = 6
+			limit = { NOT = { afl_ai_cap_trigger = yes } }
+			random_playable_ruler = {
+				limit = {
+					ai = yes
+					NOT = { character = ROOT }
+					NOT = { has_character_flag = afl_borrowing }
+					NOT = { has_character_flag = afl_request_pending }
+				}
+				set_character_flag = afl_borrowing
+				set_character_flag = afltest_cap
+			}
+		}
+		any_playable_ruler = {
+			limit = {
+				ai = yes
+				OR = {
+					has_character_flag = afl_borrowing
+					has_character_flag = afl_request_pending
+				}
+			}
+			ROOT = { change_variable = { which = afltest_cap_n value = 1 } }
+		}
+		if = { limit = { afl_ai_cap_trigger = yes is_variable_equal = { which = afltest_cap_n value = 5 } } log = "CK2TEST pass the cap holds at 5 AI rulers who borrow or wait" }
+		if = { limit = { NAND = { afl_ai_cap_trigger = yes is_variable_equal = { which = afltest_cap_n value = 5 } } } log = "CK2TEST fail the cap holds at 5 AI rulers who borrow or wait: it held at [Root.afltest_cap_n.GetValue]" }
+		any_playable_ruler = {
+			limit = { has_character_flag = afltest_cap }
+			clr_character_flag = afl_borrowing
+			clr_character_flag = afltest_cap
+		}
+
+		# A player's part of whom an AI asks (afl_ai_player_may_be_asked_trigger), on AI rulers: not
+		# one at war with the enemy the ships are for, nor one asked in the last year.
+		clear_event_target = afl_front
+		random_playable_ruler = {
+			limit = { war = yes NOT = { character = ROOT } }
+			save_event_target_as = afltest_pw
+			random_current_enemy = { save_event_target_as = afl_front }
+		}
+		if = { limit = { event_target:afltest_pw = { NOT = { afl_ai_player_may_be_asked_trigger = yes } } } log = "CK2TEST pass a player at war with the asker's enemy is not asked" }
+		if = { limit = { NOT = { event_target:afltest_pw = { NOT = { afl_ai_player_may_be_asked_trigger = yes } } } } log = "CK2TEST fail a player at war with the asker's enemy is not asked: [afltest_pw.GetBestName] ([afltest_pw.GetID]) against [afl_front.GetBestName] ([afl_front.GetID])" }
+		random_playable_ruler = {
+			limit = {
+				war = no
+				NOT = { character = ROOT }
+				NOT = { has_character_flag = afl_ai_asked }
+			}
+			save_event_target_as = afltest_pp
+		}
+		event_target:afltest_pp = {
+			if = { limit = { afl_ai_player_may_be_asked_trigger = yes } set_character_flag = afltest_free }
+			set_character_flag = afl_ai_asked
+			if = {
+				limit = { has_character_flag = afltest_free NOT = { afl_ai_player_may_be_asked_trigger = yes } }
+				log = "CK2TEST pass a player at peace may be asked once a year"
+			}
+			if = {
+				limit = { NAND = { has_character_flag = afltest_free NOT = { afl_ai_player_may_be_asked_trigger = yes } } }
+				log = "CK2TEST fail a player at peace may be asked once a year: [This.GetBestName] ([This.GetID]) against [afl_front.GetBestName] ([afl_front.GetID])"
+			}
+			clr_character_flag = afl_ai_asked
+			clr_character_flag = afltest_free
+		}
+		if = {
+			limit = { NOT = { event_target:afltest_pp = { always = yes } } }
+			log = "CK2TEST fail a player at peace may be asked once a year: no ruler at peace found"
+		}
+		clear_event_target = afl_front
+
+		# One ruler's wait (afl_ai_may_ask_again_trigger): a contract started (afl_ai_served_effect)
+		# and a refusal (afl_refuse_war_loan_effect) each stop it asking again.
+		random_playable_ruler = {
+			limit = {
+				ai = yes
+				NOT = { character = ROOT }
+				NOT = { afl_in_contract_trigger = yes }
+				NOT = { has_character_flag = afl_test_requester }
+				afl_ai_may_ask_again_trigger = yes
+			}
+			save_event_target_as = afltest_aq
+		}
+		random_playable_ruler = {
+			limit = {
+				NOT = { character = ROOT }
+				NOT = { character = event_target:afltest_aq }
+				NOT = { afl_in_contract_trigger = yes }
+			}
+			save_event_target_as = afltest_aql
+		}
+		if = {
+			limit = { event_target:afltest_aql = { always = yes } }
+			event_target:afltest_aq = {
+				afl_ai_served_effect = yes
+				if = { limit = { has_character_flag = afl_ai_served NOT = { afl_ai_may_ask_again_trigger = yes } } log = "CK2TEST pass an AI ruler served once a war asks no more" }
+				if = { limit = { NAND = { has_character_flag = afl_ai_served NOT = { afl_ai_may_ask_again_trigger = yes } } } log = "CK2TEST fail an AI ruler served once a war asks no more: [This.GetBestName] ([This.GetID])" }
+				clr_character_flag = afl_ai_served
+				set_character_flag = afl_test_requester
+				save_event_target_as = afl_borrower
+				set_character_flag = afl_request_pending
+			}
+			event_target:afltest_aql = {
+				save_event_target_as = afl_lender
+				set_character_flag = afl_request_incoming
+				afl_refuse_war_loan_effect = yes
+			}
+			event_target:afltest_aq = {
+				if = {
+					limit = {
+						has_character_flag = afl_ai_refused
+						NOT = { had_character_flag = { flag = afl_ai_refused days = 1 } }
+						NOT = { afl_ai_may_ask_again_trigger = yes }
+					}
+					log = "CK2TEST pass an AI ruler refused waits a year"
+				}
+				if = {
+					limit = {
+						NAND = {
+							has_character_flag = afl_ai_refused
+							NOT = { had_character_flag = { flag = afl_ai_refused days = 1 } }
+							NOT = { afl_ai_may_ask_again_trigger = yes }
+						}
+					}
+					log = "CK2TEST fail an AI ruler refused waits a year: [This.GetBestName] ([This.GetID])"
+				}
+				clr_character_flag = afl_ai_refused
+			}
+		}
+		if = {
+			limit = { NOT = { event_target:afltest_aql = { always = yes } } }
+			log = "CK2TEST fail an AI ruler served once a war asks no more: no rulers found"
+			log = "CK2TEST fail an AI ruler refused waits a year: no rulers found"
 		}
 	}
 }

@@ -496,6 +496,10 @@ character_event = {
 			event_target:afltest_l = { afl_start_war_loan_effect = yes }
 			afltest_expected_cut_effect = yes
 			if = { limit = { event_target:afltest_b = { has_earmarked_regiments = afl_war_loan } } log = "CK2TEST pass a war loan gives the borrower a fleet" }
+			# v0.2, step 3: an AI borrower's contract marks it served for the war (afl_ai_served_effect)
+			if = { limit = { event_target:afltest_b = { has_character_flag = afl_ai_served } } log = "CK2TEST pass a war loan marks an AI borrower served for the war" }
+			if = { limit = { NOT = { event_target:afltest_b = { has_character_flag = afl_ai_served } } } log = "CK2TEST fail a war loan marks an AI borrower served for the war: [afltest_b.GetBestName] ([afltest_b.GetID]) is not" }
+			event_target:afltest_b = { clr_character_flag = afl_ai_served }
 			if = { limit = { NOT = { event_target:afltest_b = { has_earmarked_regiments = afl_war_loan } } } log = "CK2TEST fail a war loan gives the borrower a fleet: [afltest_b.GetBestName] ([afltest_b.GetID]) has none" }
 			if = { limit = { event_target:afltest_b = { has_character_flag = afl_borrowing NOT = { has_character_flag = afl_request_pending } } event_target:afltest_l = { has_character_flag = afl_lending } } log = "CK2TEST pass a war loan marks both rulers" }
 			if = { limit = { NAND = { event_target:afltest_b = { has_character_flag = afl_borrowing NOT = { has_character_flag = afl_request_pending } } event_target:afltest_l = { has_character_flag = afl_lending } } } log = "CK2TEST fail a war loan marks both rulers: flags not as expected" }
