@@ -1,13 +1,94 @@
-# Allied Fleets scripted triggers. A trigger here is the one place a feature's conditions live:
-# the decision uses it, and so do the in-game tests (tests/game/allied_fleets/).
-# Pattern: vanilla/common/scripted_triggers/00_scripted_triggers.txt, called as `NAME = yes`
-# (e.g. holy_order_check_active_trigger = yes in vanilla/decisions/HFP_holy_order_decisions.txt).
+# Allied Fleets scripted triggers. A trigger here is the one place a condition lives: the
+# decisions and events use it, and so do the in-game tests (tests/game/allied_fleets/).
+# Pattern: vanilla/common/scripted_triggers/00_scripted_triggers.txt, called as `NAME = yes`.
+# Constructs: any_war with any_attacker and any_defender (vanilla/events/HFP_crusade_events.txt,
+# .cwtools/scopes.cwt), war_with = event_target (vanilla/events/jd_artifact_events.txt),
+# has_earmarked_regiments (this mod's tests), any_demesne_title with tier, has_building and
+# holding_type in title scope (box probe 6, docs/ck2-notes.md).
 
-# afl_can_request_ships_trigger: may this character (the ruler asking) request ships now?
-# Scope: the ruler asking. afl_request_ships checks it in FROM.
-afl_can_request_ships_trigger = {
+# afl_in_contract_trigger: lends or borrows ships now, or has a request out or in. One contract
+# per ruler at a time, so two allies can't trade fleets to avoid paying for their own, and one
+# request per lender at a time, so two askers can't overwrite each other's terms.
+# Scope: a character.
+afl_in_contract_trigger = {
+	OR = {
+		has_character_flag = afl_borrowing
+		has_character_flag = afl_lending
+		has_character_flag = afl_request_pending
+		has_character_flag = afl_request_incoming
+	}
+}
+
+# afl_war_partner_trigger: the scoped ruler (the lender) and FROM (the ruler asking) are allied,
+# or on the same side of a war. Crusade partners are war allies only, which is_allied_with misses.
+# Scope: the lender; FROM: the ruler asking (afl_ask_war_loan).
+afl_war_partner_trigger = {
+	OR = {
+		is_allied_with = FROM
+		any_war = {
+			OR = {
+				AND = {
+					any_attacker = { character = ROOT }
+					any_attacker = { character = FROM }
+				}
+				AND = {
+					any_defender = { character = ROOT }
+					any_defender = { character = FROM }
+				}
+			}
+		}
+	}
+}
+
+# afl_can_borrow_trigger: may this ruler ask for a war loan now?
+# Scope: the ruler asking.
+afl_can_borrow_trigger = {
 	war = yes
-	wealth = 50
-	NOT = { has_earmarked_regiments = afl_lent_ships }
-	NOT = { has_character_flag = afl_request_pending }
+	NOT = { afl_in_contract_trigger = yes }
+}
+
+# afl_has_ships_trigger: a holding whose buildings give galleys. Every vanilla building with
+# `galleys` (vanilla/common/buildings/: 00_buildings.txt, 00_Castle.txt, 00_tribal.txt,
+# 00_nomad.txt) upgrades from its level 1, so level 1 stands for the chain; a family palace has
+# galleys = 25 of its own (vanilla/common/static_modifiers.txt). afl_count_base_effect lists the
+# same buildings. Scope: a title.
+afl_has_ships_trigger = {
+	tier = BARON
+	OR = {
+		has_building = ct_shipyard_1
+		has_building = ct_rep_arsenal_1
+		has_building = ca_shipyard_1
+		has_building = tp_shipyard_1
+		has_building = fp_shipyard_1
+		has_building = tb_shipyard_1
+		has_building = no_harbor_1
+		holding_type = family_palace
+	}
+}
+
+# afl_can_lend_trigger: may this ruler lend ships now? It lends from its own holdings only (owner,
+# 2026-11-15), so one of them needs ships; how many it can spare is counted when it is asked
+# (afl_count_base_effect). Scope: the lender.
+afl_can_lend_trigger = {
+	any_demesne_title = { afl_has_ships_trigger = yes }
+	NOT = { afl_in_contract_trigger = yes }
+}
+
+# afl_war_loan_over_trigger: has the war loan ended? At peace (the fleet has disband_on_peace),
+# when the fleet is gone, when the two are at war with each other, when the lender recalls the
+# ships, or when the lender's title has no landed holder.
+# Scope: the borrower; event_target:afl_lender = the lender's title's holder.
+afl_war_loan_over_trigger = {
+	OR = {
+		war = no
+		NOT = { has_earmarked_regiments = afl_war_loan }
+		war_with = event_target:afl_lender
+		event_target:afl_lender = {
+			OR = {
+				is_alive = no
+				is_landed = no
+				has_character_flag = afl_recalling
+			}
+		}
+	}
 }

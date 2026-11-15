@@ -1,0 +1,13 @@
+# "Ships away": holding modifiers on the lender's own holdings with shipyards while its galleys
+# serve a borrower. A holding's galleys are its buildings' galleys x (1.2 + percentage modifiers),
+# so each copy takes 1% or 10% of the holding's base off it, and copies stack (box probe 6,
+# docs/ck2-notes.md: ten -1% copies took Venezia from 36 to 33). Icon 61, as vanilla's
+# merchant_harbor_province (galleys_perc = 0.5) in vanilla/common/event_modifiers/00_event_modifiers.txt.
+afl_ships_away_10 = {
+	icon = 61
+	galleys_perc = -0.1
+}
+afl_ships_away_1 = {
+	icon = 61
+	galleys_perc = -0.01
+}
