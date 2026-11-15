@@ -1,10 +1,22 @@
 # Checks on the campaign run's game.log for allied_fleets (tools/harness.py report; format there).
-count chose afl.1 EVTOPTA_afl_1 >= 1                          # an ally accepted at least once
-count chose afl.1 EVTOPTB_afl_1 >= 1                          # and refused at least once
-count fired afl.2 == count ran afl_lend_ships_effect           # every lend tells the requester
-count fired afl.3 == count ran afl_refuse_ships_effect         # every refusal does too
-count pass afl.1 answers the request >= 18                    # the 20 requests were answered; a requester can die first (afltest.5 logs it)
-count ran afl_ask_for_ships_effect == 20                      # the decision's effect ran for each request
-count line afl: request from == 20                            # and logged it
-count line afl: lent 20 galleys == count ran afl_lend_ships_effect
-count line afl: refused by == count ran afl_refuse_ships_effect
+count ran afl_ask_war_loan_effect >= 25                       # most of the 30 AI requests found an asker and a lender
+count line afl: request from == count ran afl_ask_war_loan_effect
+count chose afl.10 EVTOPTD_afl_10 >= 1                        # an asker withdrew at least once
+count chose afl.10 EVTOPTA_afl_10 >= 1                        # and asked for 50 galleys at least once
+count fired afl.14 == count chose afl.10 EVTOPTC_afl_10      # "more galleys" opens the second page
+count fired afl.15 == count chose afl.14 EVTOPTC_afl_14      # and the third
+count chose afl.11 EVTOPTA_afl_11 >= 1                        # a lender agreed at least once
+count chose afl.11 EVTOPTB_afl_11 >= 1                        # and refused at least once
+count fired afl.11 == count ran afl_send_request_effect       # every request sent reached the lender
+count fired afl.12 == count ran afl_start_war_loan_effect     # every loan tells the borrower
+count fired afl.13 == count ran afl_refuse_war_loan_effect    # every refusal does too
+count ran afl_spawn_fleet_effect == count ran afl_start_war_loan_effect  # every loan spawns its fleet
+count ran afl_ships_away_effect >= count ran afl_start_war_loan_effect   # each loan cuts the lender's holdings
+count ran afl_ships_home_effect >= count ran afl_end_war_loan_effect     # each end restores them
+count fired afl.23 >= count ran afl_end_war_loan_effect       # each end tells both rulers (a dead one gets none)
+count fired afl.20 >= 1                                       # the monthly check ran on its own
+count fired afl.21 >= 2                                       # the scenario's unpaid wages warned both
+count fired afl.24 >= 1                                       # the scenario's new title holder was told
+count fired afl.30 >= 1                                       # the scenario's borrower died
+count line afl: margin of >= 1                                # a margin was paid
+count pass afl.10 and afl.11 answer the request >= 20         # the AI requests were answered; an asker can die first (afltest.5 logs it)

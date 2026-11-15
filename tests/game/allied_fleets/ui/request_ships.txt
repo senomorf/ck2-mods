@@ -25,13 +25,13 @@ key grave
 wait 5
 rclick 150 190         # Svend's portrait: the diplomacy menu
 wait 3
-move 338 267           # Request Ships; its tooltip lists the requirements
+move 338 267           # Ask for Ships (was Request Ships; re-read the spot for #49); its tooltip lists the requirements
 wait 4
 shot menu
 click 338 267          # the decision's window
 wait 4
 shot window
 click 606 524          # Do it!
-until 20 CK2TEST took afl_request_ships root=101515 from=122
+until 20 CK2TEST took afl_ask_war_loan root=101515 from=122
 wait 3
-shot answer            # Svend answers on the same day, while the game stays paused
+shot answer            # Harold's choice of count (afl.10) opens on the same day, while the game stays paused; Svend's own ports may hold under 50, and then it offers none

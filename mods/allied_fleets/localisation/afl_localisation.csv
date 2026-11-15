@@ -1,10 +1,42 @@
 #CODE;ENGLISH;FRENCH;GERMAN;;SPANISH;;;;;;;;;x
-afl_request_ships;Request Ships;;;;;;;;;;;;;x
-afl_request_ships_desc;Ask [Root.GetTitledName] to lend you a fleet of 20 ships for this war, for 50 gold. The ships are yours to command and disband when the war ends.;;;;;;;;;;;;;x
-EVTDESC_afl_1;[afl_requester.GetTitledName], our ally, asks us to lend a fleet of 20 ships for the war, and offers 50 gold in return.;;;;;;;;;;;;;x
-EVTOPTA_afl_1;Lend them the ships.;;;;;;;;;;;;;x
-EVTOPTB_afl_1;We need our ships.;;;;;;;;;;;;;x
-EVTDESC_afl_2;Our ally has agreed. A fleet of 20 ships awaits our orders in the nearest port.;;;;;;;;;;;;;x
-EVTOPTA_afl_2;Excellent.;;;;;;;;;;;;;x
-EVTDESC_afl_3;Our ally has refused to lend us ships.;;;;;;;;;;;;;x
-EVTOPTA_afl_3;So be it.;;;;;;;;;;;;;x
+afl_ask_war_loan;Ask for Ships;;;;;;;;;;;;;x
+afl_ask_war_loan_desc;Ask [Root.GetTitledName] to lend galleys from their own ports for this war. The ships sail under your command until peace. You pay their crews' wages, and a tenth more to [Root.GetTitledName].;;;;;;;;;;;;;x
+afl_can_borrow_tt;We are at war, and neither borrow nor lend ships now;;;;;;;;;;;;;x
+afl_can_lend_tt;They have a shipyard, arsenal, harbour or family palace in a holding of their own, and neither borrow nor lend ships now;;;;;;;;;;;;;x
+afl_ask_war_loan_tt;We choose how many galleys to ask for;;;;;;;;;;;;;x
+afl_send_request_tt;[afl_lender.GetTitledName] will consider our request;;;;;;;;;;;;;x
+afl_lend_tt;Our galleys sail to [afl_borrower.GetTitledName] at once;;;;;;;;;;;;;x
+afl_recall_ships;Recall Our Ships;;;;;;;;;;;;;x
+afl_recall_ships_desc;Call home the ships we have lent. They will leave our ally within the month.;;;;;;;;;;;;;x
+afl_ships_away_10;Ships Away;;;;;;;;;;;;;x
+afl_ships_away_10_desc;A tenth of this holding's galleys serve an ally.;;;;;;;;;;;;;x
+afl_ships_away_1;Ships Away;;;;;;;;;;;;;x
+afl_ships_away_1_desc;A hundredth of this holding's galleys serve an ally.;;;;;;;;;;;;;x
+EVTDESC_afl_10;How many galleys should we ask [afl_lender.GetTitledName] for? Their own ports can spare up to [Root.afl_base.GetValue]. We would pay the crews' wages, and a tenth more to them.;;;;;;;;;;;;;x
+EVTDESC_afl_14;How large a fleet should we ask [afl_lender.GetTitledName] for? Their own ports can spare up to [Root.afl_base.GetValue]. We would pay the crews' wages, and a tenth more to them.;;;;;;;;;;;;;x
+EVTOPTA_afl_10;50 galleys, for 5,000 men: about 16.5 gold a month;;;;;;;;;;;;;x
+EVTOPTB_afl_10;100 galleys, for 10,000 men: about 33 gold a month;;;;;;;;;;;;;x
+EVTOPTC_afl_10;More galleys: 150 or 200;;;;;;;;;;;;;x
+EVTOPTD_afl_10;On second thought, we will manage without.;;;;;;;;;;;;;x
+EVTOPTA_afl_14;150 galleys, for 15,000 men: about 49.5 gold a month;;;;;;;;;;;;;x
+EVTOPTB_afl_14;200 galleys, for 20,000 men: about 66 gold a month;;;;;;;;;;;;;x
+EVTOPTC_afl_14;More galleys: 300 to 500;;;;;;;;;;;;;x
+EVTOPTD_afl_14;On second thought, we will manage without.;;;;;;;;;;;;;x
+EVTOPTA_afl_15;300 galleys, for 30,000 men: about 99 gold a month;;;;;;;;;;;;;x
+EVTOPTB_afl_15;400 galleys, for 40,000 men: about 132 gold a month;;;;;;;;;;;;;x
+EVTOPTC_afl_15;500 galleys, for 50,000 men: about 165 gold a month;;;;;;;;;;;;;x
+EVTOPTD_afl_15;On second thought, we will manage without.;;;;;;;;;;;;;x
+EVTDESC_afl_10_none;[afl_lender.GetTitledName] has only [Root.afl_base.GetValue] galleys in their own ports, too few to spare fifty. Their vassals' ships are not theirs to lend.;;;;;;;;;;;;;x
+EVTDESC_afl_11;[afl_borrower.GetTitledName], our partner in this war, asks us to lend [Root.afl_ask.GetValue] galleys until peace. They would pay the crews' wages, and a tenth more to us: [Root.afl_margin.GetValue] gold a month. While the ships are away, each of our own holdings with a shipyard would raise [Root.afl_k.GetValue]% fewer galleys. Our vassals keep theirs.;;;;;;;;;;;;;x
+EVTOPTA_afl_11;Lend them the ships.;;;;;;;;;;;;;x
+EVTOPTB_afl_11;We need our ships.;;;;;;;;;;;;;x
+EVTDESC_afl_12;The galleys of [afl_lender.GetTitledName] have come, [Root.afl_ask.GetValue] of them, and await our orders at sea. They will sail home when the war ends.;;;;;;;;;;;;;x
+EVTOPTA_afl_12;Excellent.;;;;;;;;;;;;;x
+EVTDESC_afl_13;[afl_lender.GetTitledName] has refused to lend us ships.;;;;;;;;;;;;;x
+EVTOPTA_afl_13;So be it.;;;;;;;;;;;;;x
+EVTDESC_afl_21;The crews of the galleys [afl_lender.GetTitledName] lent [afl_borrower.GetTitledName] went unpaid this month: the treasury is in debt. If they go unpaid next month too, the ships will sail home.;;;;;;;;;;;;;x
+EVTOPTA_afl_21;Noted.;;;;;;;;;;;;;x
+EVTDESC_afl_23;The galleys [afl_lender.GetTitledName] lent [afl_borrower.GetTitledName] have sailed home.;;;;;;;;;;;;;x
+EVTOPTA_afl_23;So ends the loan.;;;;;;;;;;;;;x
+EVTDESC_afl_24;Our predecessor lent [Root.afl_ask.GetValue] galleys to [afl_borrower.GetTitledName] for their war, and those ships still serve them, for their wages and a tenth more to us. We may let the loan run until peace, or recall the ships.;;;;;;;;;;;;;x
+EVTOPTA_afl_24;Let them serve.;;;;;;;;;;;;;x

@@ -1,11 +1,13 @@
-# Allied Fleets: ask an ally to lend you ships.
-# Targeted decision: ROOT = the ally (target), FROM = the ruler asking.
-# Pattern: break_non_aggression_pact (vanilla/decisions/rip_various_decisions.txt)
-# for a decision targeting a character outside your realm.
+# Allied Fleets decisions.
+# afl_ask_war_loan: a targeted decision in the other ruler's diplomacy menu. ROOT = the ruler asked
+# (the lender), FROM = the ruler asking. Pattern: break_non_aggression_pact
+# (vanilla/decisions/rip_various_decisions.txt), a decision targeting a character outside the realm.
+# afl_recall_ships: the lender's own decision. Pattern: vanilla/decisions/unit_decisions.txt.
+# Players only for now: ai = no. AI rulers come with #52.
 
 targeted_decisions = {
 
-	afl_request_ships = {
+	afl_ask_war_loan = {
 		ai_target_filter = self
 		ai = no
 
@@ -13,18 +15,49 @@ targeted_decisions = {
 			is_playable = yes
 		}
 		potential = {
-			is_allied_with = FROM
+			is_landed = yes
+			NOT = { character = FROM }
+			afl_war_partner_trigger = yes # common/scripted_triggers/afl_triggers.txt
 		}
 		allow = {
-			FROM = {
-				afl_can_request_ships_trigger = yes # common/scripted_triggers/afl_triggers.txt
-			}
+			# custom_tooltip around a trigger: vanilla/decisions/HFP_realm_decisions.txt (owns_jerusalem_tt)
+			FROM = { custom_tooltip = { text = afl_can_borrow_tt afl_can_borrow_trigger = yes } }
+			custom_tooltip = { text = afl_can_lend_tt afl_can_lend_trigger = yes }
+			NOT = { war_with = FROM }
 		}
 		effect = {
-			save_event_target_as = afl_ally
-			FROM = {
-				afl_ask_for_ships_effect = yes # common/scripted_effects/afl_effects.txt
+			# hidden_tooltip: the effects set variables the window would otherwise list
+			# (vanilla/decisions/HFP_realm_decisions.txt, create_the_hansa)
+			custom_tooltip = { text = afl_ask_war_loan_tt }
+			hidden_tooltip = {
+				save_event_target_as = afl_lender
+				FROM = {
+					afl_ask_war_loan_effect = yes # common/scripted_effects/afl_effects.txt
+				}
 			}
+		}
+		revoke_allowed = {
+			always = no
+		}
+		ai_will_do = {
+			factor = 0
+		}
+	}
+}
+
+decisions = {
+
+	afl_recall_ships = {
+		potential = {
+			ai = no # players only, as conscript_merchant_ships's potential (vanilla/decisions/unit_decisions.txt)
+			has_character_flag = afl_lending
+		}
+		allow = {
+			NOT = { has_character_flag = afl_recalling }
+		}
+		effect = {
+			set_character_flag = afl_recalling
+			log = "afl: [Root.GetBestName] ([Root.GetID]) recalls the ships"
 		}
 		revoke_allowed = {
 			always = no

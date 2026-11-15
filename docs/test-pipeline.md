@@ -295,10 +295,9 @@ tools/box-run.sh env CAMPAIGN_PROBE_SAVE=.box/start.ck2 CAMPAIGN_PROBE_MOD=allie
 `allied_fleets`' `request_ships` test runs an effects file that makes King Svend II of Denmark the
 ally of King Harold II of England, then types `play 122` and `hello 101515` in the console (play
 Harold, open Svend's character screen), right-clicks Svend's portrait for the diplomacy menu, hovers
-and clicks Request Ships, clicks the window's "Do it!" and waits for the harness's
-`CK2TEST took afl_request_ships root=101515 from=122`. Screenshots `menu`, `window` and `answer` show
-each stage. The whole exchange, Svend's answer and the event that tells Harold, happens on the
-paused first day. A failed `until` fails the run, so a decision that is missing, disabled or
+and clicks Ask for Ships, clicks the window's "Do it!" and waits for the harness's
+`CK2TEST took afl_ask_war_loan root=101515 from=122`. Screenshots `menu`, `window` and `answer` show
+each stage; `answer` is Harold's choice of count, which opens on the paused first day. A failed `until` fails the run, so a decision that is missing, disabled or
 broken fails it.
 
 Limits, so this is not in CI yet:

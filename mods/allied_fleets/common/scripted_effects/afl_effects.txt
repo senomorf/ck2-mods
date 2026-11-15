@@ -1,51 +1,360 @@
-# Allied Fleets scripted effects. Each holds one step of the feature, so the decision and the
-# events call the same code the in-game tests call (tests/game/allied_fleets/).
-# Pattern: vanilla/common/scripted_effects/00_scripted_effects.txt, called as `NAME = yes`
-# (e.g. holy_order_set_law_effect = yes in vanilla/decisions/HFP_holy_order_decisions.txt).
+# Allied Fleets scripted effects. Each holds one step of the war loan, so the decisions and events
+# call the same code the in-game tests call (tests/game/allied_fleets/).
+# Pattern: vanilla/common/scripted_effects/00_scripted_effects.txt, called as `NAME = yes`.
 # Each step logs an `afl:` line. It reaches game.log only with -debugscripts or -scriptlog
-# (vanilla/ChangeLog.txt), so players see nothing; names in [...] as in vanilla's own log lines
-# (vanilla/events/HF_antagonize_events.txt uses [combatant_1.GetBestName] for an event target).
+# (vanilla/ChangeLog.txt), so players see nothing.
+# Event targets, saved when the request is made and carried by every event after it:
+#   afl_borrower      the ruler who asked
+#   afl_lender        the lender: the holder of afl_lender_title, looked up again each month
+#   afl_lender_title  the lender's main title, so the contract outlives the lender
+# Variables (character scope):
+#   afl_base    the lender's own galleys before bonuses: its holdings' buildings (afl_count_base_effect);
+#               copied to the borrower when it asks
+#   afl_ask     the galleys asked for, 50 to 500; on the borrower, copied to the lender
+#   afl_margin  the lender's monthly margin, a tenth of the crews' wages; on both
+#   afl_k       the percentage cut on each of the lender's holdings with ships (afl_count_cut_effect)
+#   afl_missed  months in a row the borrower left the wages unpaid
+# Constructs: spawn_fleet with troops (vanilla/events/adventures_the_old_gods.txt) and
+# maintenance_multiplier (Allied Fleets probes, docs/ck2-notes.md); add_holding_modifier with
+# stacking, remove_holding_modifier, has_building and holding_type in title scope (box probe 6,
+# docs/ck2-notes.md); duration on add_holding_modifier (.cwtools/effects.cwt, enum duration_dmy);
+# set_variable with `which = PREV` to copy another scope's variable
+# (vanilla/events/jd_chinese_war_events.txt); multiply_variable (vanilla/events/HFP_crusade_events.txt);
+# divide_variable and is_variable_equal (.cwtools/variables_event_targets.cwt); while with count
+# and limit (vanilla/events/game_rule_events.txt); save_persistent_event_target
+# (vanilla/events/hf_warrior_lodge_legends_events.txt); disband_event_forces
+# (vanilla/decisions/unit_decisions.txt); else and else_if (vanilla/ChangeLog.txt,
+# vanilla/events/HF_sainthood_events.txt).
 
-# afl_ask_for_ships_effect: the ruler asking sends the request to event_target:afl_ally.
-# Scope: the ruler asking.
-afl_ask_for_ships_effect = {
-	save_event_target_as = afl_requester
+# afl_ask_war_loan_effect: the ruler asking chooses how many galleys to ask for (afl.10), out of
+# what the lender's own holdings hold.
+# Scope: the ruler asking; event_target:afl_lender saved by the decision.
+afl_ask_war_loan_effect = {
+	save_event_target_as = afl_borrower
 	set_character_flag = afl_request_pending
-	log = "afl: request from [afl_requester.GetBestName] ([afl_requester.GetID]) to [afl_ally.GetBestName] ([afl_ally.GetID])"
-	event_target:afl_ally = {
-		character_event = { id = afl.1 }
+	event_target:afl_lender = {
+		set_character_flag = afl_request_incoming
+		afl_count_base_effect = yes
+		event_target:afl_borrower = { set_variable = { which = afl_base which = PREV } }
+	}
+	log = "afl: request from [afl_borrower.GetBestName] ([afl_borrower.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID]), who can spare [This.afl_base.GetValue]"
+	character_event = { id = afl.10 }
+}
+
+# afl_send_request_effect: the ruler asking has chosen afl_ask; the lender learns the terms
+# (afl_set_terms_effect) and answers (afl.11).
+# Scope: the ruler asking.
+afl_send_request_effect = {
+	afl_set_terms_effect = yes
+	event_target:afl_lender = { character_event = { id = afl.11 } }
+}
+
+# afl_set_terms_effect: the margin for afl_ask galleys, a tenth of their wages (0.03 gold a galley
+# a month), and the count, the margin and the cut it would take, on the lender.
+# Scope: the ruler asking, with afl_ask set.
+afl_set_terms_effect = {
+	set_variable = { which = afl_margin which = afl_ask }
+	multiply_variable = { which = afl_margin value = 0.03 }
+	event_target:afl_lender = {
+		set_variable = { which = afl_ask which = PREV }
+		set_variable = { which = afl_margin which = PREV }
+		afl_count_base_effect = yes
+		afl_count_cut_effect = yes
 	}
 }
 
-# afl_lend_ships_effect: the ally lends: event_target:afl_requester pays 50 gold and gets 20
-# galleys of their own, on the same terms as vanilla conscript_merchant_ships
-# (vanilla/decisions/unit_decisions.txt).
-# Scope: the ally.
-afl_lend_ships_effect = {
-	wealth = 50
-	log = "afl: lent 20 galleys from [This.GetBestName] ([This.GetID]) to [afl_requester.GetBestName] ([afl_requester.GetID]) for 50 gold"
-	event_target:afl_requester = {
-		wealth = -50
-		spawn_fleet = {
-			province = closest
-			owner = event_target:afl_requester
-			disband_on_peace = yes
-			earmark = afl_lent_ships
-			troops = {
-				galleys = { 20 20 }
-			}
+# afl_withdraw_request_effect: the ruler asking thought better of it.
+# Scope: the ruler asking.
+afl_withdraw_request_effect = {
+	clr_character_flag = afl_request_pending
+	event_target:afl_lender = { clr_character_flag = afl_request_incoming }
+	log = "afl: request withdrawn by [afl_borrower.GetBestName] ([afl_borrower.GetID])"
+}
+
+# afl_refuse_war_loan_effect: the lender refuses.
+# Scope: the lender.
+afl_refuse_war_loan_effect = {
+	clr_character_flag = afl_request_incoming
+	log = "afl: refused by [afl_lender.GetBestName] ([afl_lender.GetID]) to [afl_borrower.GetBestName] ([afl_borrower.GetID])"
+	event_target:afl_borrower = {
+		clr_character_flag = afl_request_pending
+		character_event = { id = afl.13 }
+	}
+}
+
+# afl_start_war_loan_effect: the lender agrees. The borrower gets a fleet of afl_ask galleys and
+# pays their crews like its own; the lender's holdings lose as many (afl_ships_away_effect); the
+# monthly check starts. No money changes hands now: the margin is paid monthly.
+# Scope: the lender.
+afl_start_war_loan_effect = {
+	clr_character_flag = afl_request_incoming
+	set_character_flag = afl_lending
+	primary_title = { save_event_target_as = afl_lender_title }
+	event_target:afl_borrower = {
+		clr_character_flag = afl_request_pending
+		set_character_flag = afl_borrowing
+		save_persistent_event_target = { name = afl_lender_title scope = event_target:afl_lender_title }
+		afl_spawn_fleet_effect = yes
+		set_variable = { which = afl_missed value = 0 }
+	}
+	log = "afl: war loan of [This.afl_ask.GetValue] galleys from [afl_lender.GetBestName] ([afl_lender.GetID]) to [afl_borrower.GetBestName] ([afl_borrower.GetID])"
+	afl_ships_away_effect = yes
+	event_target:afl_borrower = {
+		character_event = { id = afl.12 }
+		character_event = { id = afl.20 days = 30 }
+	}
+}
+
+# afl_spawn_fleet_effect: afl_ask galleys for the borrower, near it, at the usual crew wages
+# (maintenance_multiplier = 1: 0.3 gold a galley a month in a probe; GALLEYS_MAINTENANCE in
+# vanilla/common/defines.lua). spawn_fleet takes the count as a number, so each count the
+# request offers (afl.10) has its own block.
+# Scope: the borrower.
+afl_spawn_fleet_effect = {
+	if = {
+		limit = { is_variable_equal = { which = afl_ask value = 500 } }
+		spawn_fleet = { province = closest owner = event_target:afl_borrower troops = { galleys = { 500 500 } } maintenance_multiplier = 1 disband_on_peace = yes earmark = afl_war_loan }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 400 } }
+		spawn_fleet = { province = closest owner = event_target:afl_borrower troops = { galleys = { 400 400 } } maintenance_multiplier = 1 disband_on_peace = yes earmark = afl_war_loan }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 300 } }
+		spawn_fleet = { province = closest owner = event_target:afl_borrower troops = { galleys = { 300 300 } } maintenance_multiplier = 1 disband_on_peace = yes earmark = afl_war_loan }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 200 } }
+		spawn_fleet = { province = closest owner = event_target:afl_borrower troops = { galleys = { 200 200 } } maintenance_multiplier = 1 disband_on_peace = yes earmark = afl_war_loan }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 150 } }
+		spawn_fleet = { province = closest owner = event_target:afl_borrower troops = { galleys = { 150 150 } } maintenance_multiplier = 1 disband_on_peace = yes earmark = afl_war_loan }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 100 } }
+		spawn_fleet = { province = closest owner = event_target:afl_borrower troops = { galleys = { 100 100 } } maintenance_multiplier = 1 disband_on_peace = yes earmark = afl_war_loan }
+	}
+	else = {
+		spawn_fleet = { province = closest owner = event_target:afl_borrower troops = { galleys = { 50 50 } } maintenance_multiplier = 1 disband_on_peace = yes earmark = afl_war_loan }
+	}
+}
+
+# afl_count_base_effect: afl_base = the galleys the ruler's own holdings give before bonuses: each
+# building's `galleys`, every level counted (vanilla/common/buildings/), and 25 for a family
+# palace (vanilla/common/static_modifiers.txt). Its vassals' holdings don't count: a ruler lends
+# from its own (owner, 2026-11-15). Box probe 6 summed Venice's two this way: 30 and 43.
+# Scope: the ruler. PREV inside any_demesne_title is the ruler.
+afl_count_base_effect = {
+	set_variable = { which = afl_base value = 0 }
+	any_demesne_title = {
+		limit = { afl_has_ships_trigger = yes }
+		if = { limit = { has_building = ct_shipyard_1 } PREV = { change_variable = { which = afl_base value = 7 } } }
+		if = { limit = { has_building = ct_shipyard_2 } PREV = { change_variable = { which = afl_base value = 8 } } }
+		if = { limit = { has_building = ct_shipyard_3 } PREV = { change_variable = { which = afl_base value = 9 } } }
+		if = { limit = { has_building = ct_shipyard_4 } PREV = { change_variable = { which = afl_base value = 10 } } }
+		if = { limit = { has_building = ct_rep_arsenal_1 } PREV = { change_variable = { which = afl_base value = 15 } } }
+		if = { limit = { has_building = ct_rep_arsenal_2 } PREV = { change_variable = { which = afl_base value = 15 } } }
+		if = { limit = { has_building = ct_rep_arsenal_3 } PREV = { change_variable = { which = afl_base value = 15 } } }
+		if = { limit = { has_building = ca_shipyard_1 } PREV = { change_variable = { which = afl_base value = 6 } } }
+		if = { limit = { has_building = ca_shipyard_2 } PREV = { change_variable = { which = afl_base value = 7 } } }
+		if = { limit = { has_building = ca_shipyard_3 } PREV = { change_variable = { which = afl_base value = 8 } } }
+		if = { limit = { has_building = ca_shipyard_4 } PREV = { change_variable = { which = afl_base value = 9 } } }
+		if = { limit = { has_building = tp_shipyard_1 } PREV = { change_variable = { which = afl_base value = 6 } } }
+		if = { limit = { has_building = tp_shipyard_2 } PREV = { change_variable = { which = afl_base value = 7 } } }
+		if = { limit = { has_building = tp_shipyard_3 } PREV = { change_variable = { which = afl_base value = 8 } } }
+		if = { limit = { has_building = tp_shipyard_4 } PREV = { change_variable = { which = afl_base value = 9 } } }
+		if = { limit = { has_building = fp_shipyard_1 } PREV = { change_variable = { which = afl_base value = 6 } } }
+		if = { limit = { has_building = fp_shipyard_2 } PREV = { change_variable = { which = afl_base value = 12 } } }
+		if = { limit = { has_building = fp_shipyard_3 } PREV = { change_variable = { which = afl_base value = 18 } } }
+		if = { limit = { has_building = tb_shipyard_1 } PREV = { change_variable = { which = afl_base value = 6 } } }
+		if = { limit = { has_building = tb_shipyard_2 } PREV = { change_variable = { which = afl_base value = 7 } } }
+		if = { limit = { has_building = tb_shipyard_3 } PREV = { change_variable = { which = afl_base value = 8 } } }
+		if = { limit = { has_building = tb_shipyard_4 } PREV = { change_variable = { which = afl_base value = 9 } } }
+		if = { limit = { has_building = no_harbor_1 } PREV = { change_variable = { which = afl_base value = 7 } } }
+		if = { limit = { has_building = no_harbor_2 } PREV = { change_variable = { which = afl_base value = 8 } } }
+		if = { limit = { has_building = no_harbor_3 } PREV = { change_variable = { which = afl_base value = 9 } } }
+		if = { limit = { has_building = no_harbor_4 } PREV = { change_variable = { which = afl_base value = 10 } } }
+		if = { limit = { has_building = no_harbor_5 } PREV = { change_variable = { which = afl_base value = 11 } } }
+		if = { limit = { has_building = no_harbor_6 } PREV = { change_variable = { which = afl_base value = 12 } } }
+		if = { limit = { has_building = no_harbor_7 } PREV = { change_variable = { which = afl_base value = 13 } } }
+		if = { limit = { has_building = no_harbor_8 } PREV = { change_variable = { which = afl_base value = 14 } } }
+		if = { limit = { holding_type = family_palace } PREV = { change_variable = { which = afl_base value = 25 } } }
+	}
+}
+
+# afl_count_cut_effect: afl_k = the percentage each of the ruler's holdings with ships loses so
+# that together they lose afl_ask galleys: 100 x afl_ask / afl_base, rounded up, at most 100. Every
+# holding loses the same share of its base, and a percentage takes that share of the base whatever
+# its other bonuses (probe 6), so the cut is afl_ask or up to 1% of afl_base more. A request is
+# offered only up to afl_base (afl.10); a lender that has since lost holdings loses all it has left
+# above the bonuses (afl_k = 100), and the borrower keeps the count it was lent.
+# Scope: the ruler, with afl_ask and afl_base set.
+afl_count_cut_effect = {
+	set_variable = { which = afl_k value = 0 }
+	if = {
+		limit = { check_variable = { which = afl_base value = 1 } }
+		set_variable = { which = afl_q which = afl_ask }
+		multiply_variable = { which = afl_q value = 100 }
+		divide_variable = { which = afl_q which = afl_base }
+		while = {
+			count = 100
+			limit = { check_variable = { which = afl_q value = 0.001 } }
+			change_variable = { which = afl_q value = -1 }
+			change_variable = { which = afl_k value = 1 }
 		}
-		clr_character_flag = afl_request_pending
-		character_event = { id = afl.2 }
+	}
+	else = {
+		set_variable = { which = afl_k value = 100 }
 	}
 }
 
-# afl_refuse_ships_effect: the ally refuses.
-# Scope: the ally.
-afl_refuse_ships_effect = {
-	log = "afl: refused by [This.GetBestName] ([This.GetID]) to [afl_requester.GetBestName] ([afl_requester.GetID])"
-	event_target:afl_requester = {
-		clr_character_flag = afl_request_pending
-		character_event = { id = afl.3 }
+# afl_ships_away_effect: puts "Ships away" on each of the lender's own holdings with ships for 45
+# days: afl_k percent, as tens of afl_ships_away_10 and the rest of afl_ships_away_1, so a holding
+# carries at most 19 copies. It counts the holdings again first, so new shipyards and holdings
+# count from the month they come. remove_holding_modifier removes every copy (probe 6), so a
+# renewal removes and adds them all again. If the monthly check ever stopped, they would lapse.
+# Scope: the lender, with afl_ask set.
+afl_ships_away_effect = {
+	afl_count_base_effect = yes
+	afl_count_cut_effect = yes
+	afl_ships_home_effect = yes
+	set_variable = { which = afl_left which = afl_k }
+	while = {
+		count = 10
+		limit = { check_variable = { which = afl_left value = 10 } }
+		any_demesne_title = {
+			limit = { afl_has_ships_trigger = yes }
+			add_holding_modifier = { modifier = afl_ships_away_10 duration = 45 stacking = yes }
+		}
+		change_variable = { which = afl_left value = -10 }
 	}
+	while = {
+		count = 9
+		limit = { check_variable = { which = afl_left value = 1 } }
+		any_demesne_title = {
+			limit = { afl_has_ships_trigger = yes }
+			add_holding_modifier = { modifier = afl_ships_away_1 duration = 45 stacking = yes }
+		}
+		change_variable = { which = afl_left value = -1 }
+	}
+}
+
+# afl_ships_home_effect: takes "Ships away" off the lender's own holdings. A holding the lender
+# has lost keeps its copies until they lapse.
+# Scope: the lender.
+afl_ships_home_effect = {
+	any_demesne_title = {
+		limit = { tier = BARON }
+		remove_holding_modifier = afl_ships_away_10
+		remove_holding_modifier = afl_ships_away_1
+	}
+}
+
+# afl_pay_effect: the payer gives the lender afl_due gold, in steps of 8, 4, 2, 1, 0.5, 0.25 and
+# 0.1, since `wealth` takes a number, not a variable (.cwtools/effects.cwt); a remainder under 0.1
+# is not paid. Margins (0.03 a galley) come out exact.
+# Scope: the payer, with afl_due set.
+afl_pay_effect = {
+	while = {
+		count = 100
+		limit = { check_variable = { which = afl_due value = 8 } }
+		wealth = -8
+		event_target:afl_lender = { wealth = 8 }
+		change_variable = { which = afl_due value = -8 }
+	}
+	if = { limit = { check_variable = { which = afl_due value = 4 } } wealth = -4 event_target:afl_lender = { wealth = 4 } change_variable = { which = afl_due value = -4 } }
+	if = { limit = { check_variable = { which = afl_due value = 2 } } wealth = -2 event_target:afl_lender = { wealth = 2 } change_variable = { which = afl_due value = -2 } }
+	if = { limit = { check_variable = { which = afl_due value = 1 } } wealth = -1 event_target:afl_lender = { wealth = 1 } change_variable = { which = afl_due value = -1 } }
+	if = { limit = { check_variable = { which = afl_due value = 0.5 } } wealth = -0.5 event_target:afl_lender = { wealth = 0.5 } change_variable = { which = afl_due value = -0.5 } }
+	if = { limit = { check_variable = { which = afl_due value = 0.25 } } wealth = -0.25 event_target:afl_lender = { wealth = 0.25 } change_variable = { which = afl_due value = -0.25 } }
+	if = { limit = { check_variable = { which = afl_due value = 0.1 } } wealth = -0.1 event_target:afl_lender = { wealth = 0.1 } change_variable = { which = afl_due value = -0.1 } }
+	if = { limit = { check_variable = { which = afl_due value = 0.1 } } wealth = -0.1 event_target:afl_lender = { wealth = 0.1 } change_variable = { which = afl_due value = -0.1 } }
+	set_variable = { which = afl_due value = 0 }
+}
+
+# afl_wages_check_effect: the crews want their wages. The game charges them to the borrower each
+# month through the fleet's upkeep; the borrower also pays the lender a margin of a tenth of them
+# (owner, 2026-11-14 and 2026-11-15): afl_margin, 0.03 gold a galley a month. A borrower in debt
+# at the check pays no margin and leaves the wages unpaid; a second month in a row ends the loan
+# (afl_monthly_check_effect). Scope: the borrower.
+afl_wages_check_effect = {
+	if = {
+		limit = { wealth = 0 }
+		set_variable = { which = afl_missed value = 0 }
+		set_variable = { which = afl_due which = afl_margin }
+		afl_pay_effect = yes
+		log = "afl: margin of [This.afl_margin.GetValue] paid by [afl_borrower.GetBestName] ([afl_borrower.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID])"
+	}
+	else = {
+		change_variable = { which = afl_missed value = 1 }
+		log = "afl: wages unpaid by [afl_borrower.GetBestName] ([afl_borrower.GetID])"
+	}
+}
+
+# afl_monthly_check_effect: once a month while the loan runs. Finds the lender's title's holder
+# (a new one takes the loan over, and the old one's holdings get their ships back), ends the loan
+# if it is over, else checks the wages, renews "Ships away" and schedules the next.
+# Scope: the borrower.
+afl_monthly_check_effect = {
+	event_target:afl_lender = { save_event_target_as = afl_old_lender }
+	event_target:afl_lender_title = {
+		holder_scope = { save_event_target_as = afl_lender }
+	}
+	event_target:afl_lender = {
+		set_variable = { which = afl_ask which = PREV }
+		set_variable = { which = afl_margin which = PREV }
+	}
+	if = {
+		limit = { NOT = { event_target:afl_lender = { character = event_target:afl_old_lender } } }
+		log = "afl: [afl_lender_title.GetName] passed from [afl_old_lender.GetBestName] ([afl_old_lender.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID]); the loan goes on"
+		event_target:afl_old_lender = {
+			clr_character_flag = afl_lending
+			clr_character_flag = afl_recalling
+			afl_ships_home_effect = yes
+		}
+		event_target:afl_lender = {
+			set_character_flag = afl_lending
+			character_event = { id = afl.24 }
+		}
+	}
+	if = {
+		limit = { afl_war_loan_over_trigger = yes }
+		afl_end_war_loan_effect = yes
+	}
+	else = {
+		afl_wages_check_effect = yes
+		if = {
+			limit = { check_variable = { which = afl_missed value = 2 } }
+			log = "afl: wages unpaid a second month: the ships go home"
+			afl_end_war_loan_effect = yes
+		}
+		else = {
+			if = {
+				limit = { check_variable = { which = afl_missed value = 1 } }
+				character_event = { id = afl.21 }
+				event_target:afl_lender = { character_event = { id = afl.21 } }
+			}
+			event_target:afl_lender = { afl_ships_away_effect = yes }
+			character_event = { id = afl.20 days = 30 }
+		}
+	}
+}
+
+# afl_end_war_loan_effect: the ships go home. The fleet is disbanded, "Ships away" comes off the
+# lender's holdings, and both rulers are told (afl.23).
+# Scope: the borrower.
+afl_end_war_loan_effect = {
+	log = "afl: war loan ended: [afl_lender.GetBestName] ([afl_lender.GetID]) to [afl_borrower.GetBestName] ([afl_borrower.GetID])"
+	disband_event_forces = afl_war_loan
+	clr_character_flag = afl_borrowing
+	set_variable = { which = afl_missed value = 0 }
+	clear_persistent_event_target = afl_lender_title
+	event_target:afl_lender = {
+		clr_character_flag = afl_lending
+		clr_character_flag = afl_recalling
+		afl_ships_home_effect = yes
+		character_event = { id = afl.23 }
+	}
+	character_event = { id = afl.23 }
 }

@@ -2,8 +2,9 @@
 # One per line: present NAME | absent NAME | count PATH OP N | every PATH OP VALUE; PATH parts
 # may filter, KEY[SUBKEY=VALUE]. See tools/ck2save.py.
 present afl_test_started                            # the tests' global flag: they ran
-count character/*/flags/afl_test_requester >= 1    # the requesters the tests picked
-present afl_lent_ships                              # fleets lent by an accepted request (earmark)
+count character/*/flags/afl_test_requester >= 20   # the AI askers the tests picked
 absent afl_request_pending                          # every request was answered
-every character/*/dmn/navy/sub_unit[earmark=afl_lent_ships]/troops/ga == 20          # each lent fleet: 20 galleys
-every character/*/dmn/navy/sub_unit[earmark=afl_lent_ships]/disband_on_peace == yes  # and goes at peace
+absent afl_request_incoming                         # and every lender is free of it
+count character/*/dmn/navy/sub_unit[earmark=afl_war_loan] >= 1   # afltest.13's late loans reach the save
+every character/*/dmn/navy/sub_unit[earmark=afl_war_loan]/troops/ga == 50   # each lent fleet is the 50 galleys asked for
+count character/*/dmn/navy/sub_unit[earmark=afl_war_loan]/maintenance_multiplier == 0  # spawned at the usual wages: a multiplier of 1 writes no line (docs/ck2-notes.md)

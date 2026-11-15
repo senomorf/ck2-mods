@@ -1,0 +1,27 @@
+# Scripted effects for the allied_fleets in-game tests (generated with the tests, gen_counts.py).
+
+# afltest_expected_cut_effect: on afltest_l, splits afl_k into afltest_tens (copies of the 10%
+# modifier) and afltest_ones (of the 1%), for afltest_cut_matches_trigger, and works out
+# afltest_over = afl_k x afl_base - 100 x afl_ask and afltest_under = afltest_over - afl_base: the
+# cut is at least the count asked for, and less than one more percent would be.
+afltest_expected_cut_effect = {
+	event_target:afltest_l = {
+		set_variable = { which = afltest_left which = afl_k }
+		set_variable = { which = afltest_tens value = 0 }
+		while = {
+			count = 10
+			limit = { check_variable = { which = afltest_left value = 10 } }
+			change_variable = { which = afltest_left value = -10 }
+			change_variable = { which = afltest_tens value = 1 }
+		}
+		set_variable = { which = afltest_ones which = afltest_left }
+		set_variable = { which = afltest_over which = afl_k }
+		multiply_variable = { which = afltest_over which = afl_base }
+		set_variable = { which = afltest_need which = afl_ask }
+		multiply_variable = { which = afltest_need value = 100 }
+		subtract_variable = { which = afltest_over which = afltest_need }
+		set_variable = { which = afltest_under which = afltest_over }
+		subtract_variable = { which = afltest_under which = afl_base }
+	}
+}
+
