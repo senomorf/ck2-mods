@@ -1,0 +1,259 @@
+# Allied Fleets: AI rulers who ask for ships (v0.2, step 2; README.md, "AI rulers ask for ships").
+# afl.70 (on_war_started) starts afl_ai_watch_effect for each AI ruler in a new war; afl.71 runs
+# afl_ai_check_effect then and every 90 days while the ruler is at war. A ruler that needs ships asks
+# a lender as a player would, with the count chosen here instead of on the pages (afl.10, afl.40),
+# and the lender answers by its score (afl.11, afl.43; README.md, "The lender's score").
+# Variables (character scope), besides those in afl_effects.txt:
+#   afl_need  the galleys the ruler's army needs, 50 to 500 (afl_ai_need_effect)
+#   afl_own   the galleys its own holdings hold (afl_count_base_effect)
+#   afl_cap   the most it asks for: afl_need, or what the lender can spare if less
+# Flags: afl_ai_watch on a ruler whose check runs (afl.71 clears it at peace).
+# Event targets: afl_home, the ruler's capital; afl_front, an enemy overseas.
+# Constructs: export_to_variable with realm_levies (vanilla/events/jd_chinese_war_events.txt; box probe
+# 22, docs/ck2-notes.md), random_current_enemy with limit (vanilla/events/court_events.txt),
+# random_playable_ruler with limit and preferred_limit (vanilla/events/HFP_crusade_events.txt),
+# any_playable_ruler (vanilla/events/HFP_crusade_events.txt), distance with who (vanilla/common/objectives/00_factions.txt),
+# clear_event_target (vanilla/events/HFP_pregnancy_events.txt), check_variable comparing two variables
+# (.cwtools/variables_event_targets.cwt), while with count and limit, else_if (this mod).
+
+# afl_ai_watch_effect: starts afl.71 for an AI ruler who may borrow, once while its check runs.
+# Scope: a ruler in a war that has just started.
+afl_ai_watch_effect = {
+	if = {
+		limit = {
+			ai = yes
+			independent = yes
+			higher_tier_than = COUNT
+			NOT = { controls_religion = yes }
+			NOT = { has_character_flag = afl_ai_watch }
+		}
+		set_character_flag = afl_ai_watch
+		character_event = { id = afl.71 days = 7 }
+	}
+}
+
+# afl_ai_check_effect: does the ruler need ships, and whom does it ask? It needs them against an
+# enemy overseas (afl_ai_overseas_trigger) when its own holdings hold fewer galleys than its army
+# needs (afl_ai_needs_ships_trigger). It hires a charter if it can pay the sum on signing for 50
+# galleys, from a merchant republic first, as land powers hired the maritime cities' fleets; else
+# it asks an ally for a war loan (README.md, "AI rulers ask for ships"). Either lender must have 50
+# galleys to spare (afl_base), and one within 800 of the ruler comes first (in a straight line, Rome
+# to Constantinople is 200-400 and Venice to Acre 400-800, box probe 23).
+# Scope: the ruler; ROOT: the same (afl.71).
+afl_ai_check_effect = {
+	capital_scope = { save_event_target_as = afl_home }
+	random_current_enemy = {
+		limit = { afl_ai_overseas_trigger = yes }
+		save_event_target_as = afl_front
+	}
+	if = {
+		limit = { event_target:afl_front = { always = yes } }
+		afl_ai_need_effect = yes
+		if = {
+			limit = { afl_ai_needs_ships_trigger = yes }
+			if = {
+				limit = { wealth = 30 }
+				any_playable_ruler = {
+					limit = { afl_ai_charter_lender_trigger = yes }
+					afl_count_base_effect = yes
+				}
+				random_playable_ruler = {
+					limit = {
+						afl_ai_charter_lender_trigger = yes
+						check_variable = { which = afl_base value = 50 }
+					}
+					preferred_limit = {
+						is_merchant_republic = yes
+						war = no
+						NOT = { distance = { who = ROOT distance = 800 } }
+					}
+					preferred_limit = {
+						is_merchant_republic = yes
+						NOT = { distance = { who = ROOT distance = 800 } }
+					}
+					preferred_limit = {
+						war = no
+						NOT = { distance = { who = ROOT distance = 800 } }
+					}
+					preferred_limit = { is_merchant_republic = yes }
+					preferred_limit = { war = no }
+					save_event_target_as = afl_lender
+				}
+			}
+			if = {
+				limit = { event_target:afl_lender = { always = yes } }
+				afl_ai_ask_charter_effect = yes
+			}
+			else = {
+				any_playable_ruler = {
+					limit = { afl_ai_war_loan_lender_trigger = yes }
+					afl_count_base_effect = yes
+				}
+				random_playable_ruler = {
+					limit = {
+						afl_ai_war_loan_lender_trigger = yes
+						check_variable = { which = afl_base value = 50 }
+					}
+					preferred_limit = { NOT = { distance = { who = ROOT distance = 800 } } }
+					save_event_target_as = afl_lender
+				}
+				if = {
+					limit = { event_target:afl_lender = { always = yes } }
+					afl_ai_ask_war_loan_effect = yes
+				}
+				else = {
+					log = "afl: AI [Root.GetBestName] ([Root.GetID]) needs [This.afl_need.GetValue] galleys against [afl_front.GetBestName] ([afl_front.GetID]), has [This.afl_own.GetValue], and found no lender"
+				}
+			}
+		}
+	}
+}
+
+# afl_ai_need_effect: afl_need, a galley for each 100 men of the ruler's levies
+# (NUMBER_OF_TROOPS_PER_GALLEY, vanilla/common/defines.lua), at least 50 and at most 500, the counts
+# a contract offers; afl_own, the galleys its own holdings hold. Scope: the ruler.
+afl_ai_need_effect = {
+	export_to_variable = { which = afl_need value = realm_levies }
+	divide_variable = { which = afl_need value = 100 }
+	if = {
+		limit = { NOT = { check_variable = { which = afl_need value = 50 } } }
+		set_variable = { which = afl_need value = 50 }
+	}
+	if = {
+		limit = { check_variable = { which = afl_need value = 500 } }
+		set_variable = { which = afl_need value = 500 }
+	}
+	afl_count_base_effect = yes
+	set_variable = { which = afl_own which = afl_base }
+}
+
+# afl_ai_count_effect: afl_ask, the largest count on offer (50, 100, 150, 200, 300, 400, 500) no
+# more than the ruler needs (afl_need) and the lender can spare (afl_base, copied from the lender);
+# for a charter (flag afl_charter), also one it can pay the sum on signing for
+# (afl_can_pay_lump_trigger). 0 when there is none. Scope: the ruler asking.
+afl_ai_count_effect = {
+	set_variable = { which = afl_cap which = afl_need }
+	if = {
+		limit = { NOT = { check_variable = { which = afl_base which = afl_cap } } }
+		set_variable = { which = afl_cap which = afl_base }
+	}
+	set_variable = { which = afl_ask value = 0 }
+	if = {
+		limit = { check_variable = { which = afl_cap value = 500 } }
+		set_variable = { which = afl_ask value = 500 }
+	}
+	else_if = {
+		limit = { check_variable = { which = afl_cap value = 400 } }
+		set_variable = { which = afl_ask value = 400 }
+	}
+	else_if = {
+		limit = { check_variable = { which = afl_cap value = 300 } }
+		set_variable = { which = afl_ask value = 300 }
+	}
+	else_if = {
+		limit = { check_variable = { which = afl_cap value = 200 } }
+		set_variable = { which = afl_ask value = 200 }
+	}
+	else_if = {
+		limit = { check_variable = { which = afl_cap value = 150 } }
+		set_variable = { which = afl_ask value = 150 }
+	}
+	else_if = {
+		limit = { check_variable = { which = afl_cap value = 100 } }
+		set_variable = { which = afl_ask value = 100 }
+	}
+	else_if = {
+		limit = { check_variable = { which = afl_cap value = 50 } }
+		set_variable = { which = afl_ask value = 50 }
+	}
+	if = {
+		limit = { has_character_flag = afl_charter }
+		while = {
+			count = 7
+			limit = {
+				check_variable = { which = afl_ask value = 50 }
+				NOT = { afl_can_pay_lump_trigger = yes }
+			}
+			afl_ai_count_down_effect = yes
+		}
+	}
+}
+
+# afl_ai_count_down_effect: afl_ask to the next count down, 50 to 0. Scope: the ruler asking.
+afl_ai_count_down_effect = {
+	if = {
+		limit = { is_variable_equal = { which = afl_ask value = 500 } }
+		set_variable = { which = afl_ask value = 400 }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 400 } }
+		set_variable = { which = afl_ask value = 300 }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 300 } }
+		set_variable = { which = afl_ask value = 200 }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 200 } }
+		set_variable = { which = afl_ask value = 150 }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 150 } }
+		set_variable = { which = afl_ask value = 100 }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 100 } }
+		set_variable = { which = afl_ask value = 50 }
+	}
+	else = {
+		set_variable = { which = afl_ask value = 0 }
+	}
+}
+
+# afl_ai_ask_charter_effect: the AI ruler asks event_target:afl_lender for a charter of the count
+# afl_ai_count_effect chooses, as afl_ask_charter_effect does for a player but without the pages,
+# and the lender answers (afl_send_charter_request_effect, afl.43). With no count to ask, it drops
+# the request. Scope and ROOT: the ruler asking (afl.71), since the lender's event reads the ROOT of
+# the event that sent it as FROM, the ruler asking (box probe 20).
+afl_ai_ask_charter_effect = {
+	save_event_target_as = afl_borrower
+	set_character_flag = afl_request_pending
+	set_character_flag = afl_charter
+	event_target:afl_lender = {
+		set_character_flag = afl_request_incoming
+		afl_count_base_effect = yes
+		event_target:afl_borrower = { set_variable = { which = afl_base which = PREV } }
+	}
+	afl_ai_count_effect = yes
+	if = {
+		limit = { check_variable = { which = afl_ask value = 50 } }
+		log = "afl: AI charter request from [afl_borrower.GetBestName] ([afl_borrower.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID]) for [This.afl_ask.GetValue] galleys against [afl_front.GetBestName] ([afl_front.GetID]): it needs [This.afl_need.GetValue], has [This.afl_own.GetValue], the lender can spare [This.afl_base.GetValue]"
+		afl_send_charter_request_effect = yes
+	}
+	else = {
+		log = "afl: AI charter request from [afl_borrower.GetBestName] ([afl_borrower.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID]) dropped: the lender can spare [This.afl_base.GetValue], or it can't pay for 50"
+		afl_withdraw_request_effect = yes
+	}
+}
+
+# afl_ai_ask_war_loan_effect: the same for a war loan (afl_ask_war_loan_effect, afl.10;
+# afl_send_request_effect, afl.11). Scope and ROOT: the ruler asking.
+afl_ai_ask_war_loan_effect = {
+	save_event_target_as = afl_borrower
+	set_character_flag = afl_request_pending
+	event_target:afl_lender = {
+		set_character_flag = afl_request_incoming
+		afl_count_base_effect = yes
+		event_target:afl_borrower = { set_variable = { which = afl_base which = PREV } }
+	}
+	afl_ai_count_effect = yes
+	if = {
+		limit = { check_variable = { which = afl_ask value = 50 } }
+		log = "afl: AI war loan request from [afl_borrower.GetBestName] ([afl_borrower.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID]) for [This.afl_ask.GetValue] galleys against [afl_front.GetBestName] ([afl_front.GetID]): it needs [This.afl_need.GetValue], has [This.afl_own.GetValue], the lender can spare [This.afl_base.GetValue]"
+		afl_send_request_effect = yes
+	}
+	else = {
+		log = "afl: AI war loan request from [afl_borrower.GetBestName] ([afl_borrower.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID]) dropped: the lender can spare [This.afl_base.GetValue]"
+		afl_withdraw_request_effect = yes
+	}
+}
