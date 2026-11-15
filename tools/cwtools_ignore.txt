@@ -35,3 +35,6 @@
 # has_pledged_crusade_participation (a Holy Fury trigger the 2019 rules lack): vanilla/common/scripted_triggers/03_crusades.txt
 # (check_if_crusader_trigger, inside an OR)
 ^has_pledged_crusade_participation is unexpected in
+# count = N in an any_playable_ruler trigger: vanilla/events/jd_chinese_invasion_events.txt (count = 4 and 9,
+# China's tributaries); Allied Fleets' in-game test "the cap holds at 5" checks it (afl_ai_cap_trigger)
+^count is unexpected in any_playable_ruler$

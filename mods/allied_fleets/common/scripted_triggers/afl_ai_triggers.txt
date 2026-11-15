@@ -1,4 +1,4 @@
-# Allied Fleets: AI rulers who ask for ships (v0.2, step 2; README.md, "AI rulers ask for ships").
+# Allied Fleets: AI rulers who ask for ships (v0.2, steps 2 and 3; README.md, "AI rulers ask for ships").
 # afl.70 starts a check when a war starts and afl.71 repeats it every three months while the
 # ruler is at war (events/afl_ai_events.txt, common/scripted_effects/afl_ai_effects.txt).
 # Constructs: independent and higher_tier_than (vanilla/events/HFP_crusade_events.txt),
@@ -7,11 +7,13 @@
 # docs/ck2-notes.md), distance with who (vanilla/common/objectives/00_factions.txt), using_cb =
 # crusade / new_crusade (vanilla/common/scripted_triggers/03_crusades.txt), capital_scope, war_with,
 # is_allied_with, religion_group = ROOT, check_variable (this mod), any_current_enemy
-# (vanilla/events/religious_events.txt).
+# (vanilla/events/religious_events.txt); step 3: had_character_flag with days
+# (vanilla/events/HF_battle_events.txt, vanilla/events/crusade_events.txt), any_playable_ruler with
+# count (vanilla/events/jd_chinese_invasion_events.txt).
 
 # afl_ai_borrower_trigger: an AI ruler who may ask for ships on its own: independent, a duke or
-# higher, not a religious head (who calls crusades rather than leads them), at war, and in no
-# contract. Scope: the ruler.
+# higher, not a religious head (who calls crusades rather than leads them), at war, in no
+# contract, and free to ask again (afl_ai_may_ask_again_trigger). Scope: the ruler.
 afl_ai_borrower_trigger = {
 	ai = yes
 	is_landed = yes
@@ -20,6 +22,56 @@ afl_ai_borrower_trigger = {
 	NOT = { controls_religion = yes }
 	war = yes
 	NOT = { afl_in_contract_trigger = yes }
+	afl_ai_may_ask_again_trigger = yes
+}
+
+# afl_ai_may_ask_again_trigger: the limits on one AI ruler (step 3): one contract a war (flag
+# afl_ai_served, set when a contract starts and cleared at peace, afl.71), and a year's wait after a
+# lender refused it (flag afl_ai_refused, set by afl_refuse_war_loan_effect). Scope: the ruler.
+afl_ai_may_ask_again_trigger = {
+	NOT = { has_character_flag = afl_ai_served }
+	OR = {
+		NOT = { has_character_flag = afl_ai_refused }
+		had_character_flag = { flag = afl_ai_refused days = 365 }
+	}
+}
+
+# afl_ai_cap_trigger: the limit on AI contracts in the world (step 3): true when 5 AI rulers or more
+# borrow ships or wait for an answer. [Inference] count = 5 means at least 5, as vanilla's China
+# events read "count = 4" (vanilla/events/jd_chinese_invasion_events.txt); the in-game tests check it.
+afl_ai_cap_trigger = {
+	any_playable_ruler = {
+		count = 5
+		ai = yes
+		OR = {
+			has_character_flag = afl_borrowing
+			has_character_flag = afl_request_pending
+		}
+	}
+}
+
+# afl_ai_may_ask_trigger: whom an AI ruler may ask (step 3): an AI ruler, or a player who is not at
+# war with the enemy the ships are for (event_target:afl_front), since that player needs its own
+# ships, and whom no AI ruler asked in the last year (flag afl_ai_asked, set when a request is sent,
+# afl_ai_ask_charter_effect). Scope: the lender.
+afl_ai_may_ask_trigger = {
+	OR = {
+		ai = yes
+		AND = {
+			ai = no
+			afl_ai_player_may_be_asked_trigger = yes
+		}
+	}
+}
+
+# afl_ai_player_may_be_asked_trigger: the player's part of afl_ai_may_ask_trigger, apart so that the
+# in-game tests, where every ruler is AI, can check it. Scope: the lender.
+afl_ai_player_may_be_asked_trigger = {
+	NOT = { any_current_enemy = { character = event_target:afl_front } }
+	OR = {
+		NOT = { has_character_flag = afl_ai_asked }
+		had_character_flag = { flag = afl_ai_asked days = 365 }
+	}
 }
 
 # afl_ai_overseas_trigger: an enemy whose capital the ruler's army must cross the sea to reach, or
@@ -63,13 +115,13 @@ afl_ai_needs_ships_trigger = {
 	NOT = { check_variable = { which = afl_own which = afl_need } }
 }
 
-# afl_ai_charter_lender_trigger: a ruler the AI asks for a charter: an AI ruler (players come in step
-# 3) with ships of its own, not at war with the ruler asking (ROOT) or allied with its enemy
+# afl_ai_charter_lender_trigger: a ruler the AI asks for a charter: an AI ruler, or a player it may
+# ask (afl_ai_may_ask_trigger), with ships of its own, not at war with the ruler asking (ROOT) or allied with its enemy
 # (event_target:afl_front), of its religion group (a lender of another faith scores 40 less,
 # README.md, "The lender's score"). afl_ai_check_effect also wants 50 galleys to spare (afl_base).
 # Scope: the lender; ROOT: the ruler asking.
 afl_ai_charter_lender_trigger = {
-	ai = yes
+	afl_ai_may_ask_trigger = yes
 	is_landed = yes
 	NOT = { character = ROOT }
 	religion_group = ROOT
@@ -79,11 +131,12 @@ afl_ai_charter_lender_trigger = {
 	afl_can_lend_trigger = yes
 }
 
-# afl_ai_war_loan_lender_trigger: a ruler the AI asks for a war loan: an AI ruler, an ally of the
+# afl_ai_war_loan_lender_trigger: a ruler the AI asks for a war loan: an AI ruler or a player it may
+# ask (afl_ai_may_ask_trigger), an ally of the
 # ruler asking (ROOT) or on its side of a war, with ships of its own. afl_ai_check_effect also
 # wants 50 galleys to spare. Scope: the lender; ROOT: the ruler asking.
 afl_ai_war_loan_lender_trigger = {
-	ai = yes
+	afl_ai_may_ask_trigger = yes
 	is_landed = yes
 	NOT = { character = ROOT }
 	NOT = { war_with = ROOT }

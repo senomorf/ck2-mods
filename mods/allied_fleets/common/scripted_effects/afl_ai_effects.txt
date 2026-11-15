@@ -1,4 +1,4 @@
-# Allied Fleets: AI rulers who ask for ships (v0.2, step 2; README.md, "AI rulers ask for ships").
+# Allied Fleets: AI rulers who ask for ships (v0.2, steps 2 and 3; README.md, "AI rulers ask for ships").
 # afl.70 (on_war_started) starts afl_ai_watch_effect for each AI ruler in a new war; afl.71 runs
 # afl_ai_check_effect then and every 90 days while the ruler is at war. A ruler that needs ships asks
 # a lender as a player would, with the count chosen here instead of on the pages (afl.10, afl.40),
@@ -7,7 +7,11 @@
 #   afl_need  the galleys the ruler's army needs, 50 to 500 (afl_ai_need_effect)
 #   afl_own   the galleys its own holdings hold (afl_count_base_effect)
 #   afl_cap   the most it asks for: afl_need, or what the lender can spare if less
-# Flags: afl_ai_watch on a ruler whose check runs (afl.71 clears it at peace).
+# Flags: afl_ai_watch on a ruler whose check runs (afl.71 clears it at peace). Step 3's limits:
+# afl_ai_served on an AI ruler whose contract started in this war (afl_start_war_loan_effect,
+# afl_start_charter_effect; afl.71 clears it at peace), afl_ai_refused on one a lender refused
+# (afl_refuse_war_loan_effect), afl_ai_asked on a player an AI ruler asked (here); the triggers read
+# their age (afl_ai_may_ask_again_trigger, afl_ai_player_may_be_asked_trigger).
 # Event targets: afl_home, the ruler's capital; afl_front, an enemy overseas.
 # Constructs: export_to_variable with realm_levies (vanilla/events/jd_chinese_war_events.txt; box probe
 # 22, docs/ck2-notes.md), random_current_enemy with limit (vanilla/events/court_events.txt),
@@ -38,7 +42,8 @@ afl_ai_watch_effect = {
 # galleys, from a merchant republic first, as land powers hired the maritime cities' fleets; else
 # it asks an ally for a war loan (README.md, "AI rulers ask for ships"). Either lender must have 50
 # galleys to spare (afl_base), and one within 800 of the ruler comes first (in a straight line, Rome
-# to Constantinople is 200-400 and Venice to Acre 400-800, box probe 23).
+# to Constantinople is 200-400 and Venice to Acre 400-800, box probe 23). While 5 AI rulers borrow
+# or wait for an answer (afl_ai_cap_trigger), it waits for its next check.
 # Scope: the ruler; ROOT: the same (afl.71).
 afl_ai_check_effect = {
 	capital_scope = { save_event_target_as = afl_home }
@@ -50,6 +55,13 @@ afl_ai_check_effect = {
 		limit = { event_target:afl_front = { always = yes } }
 		afl_ai_need_effect = yes
 		if = {
+			limit = {
+				afl_ai_needs_ships_trigger = yes
+				afl_ai_cap_trigger = yes
+			}
+			log = "afl: AI [Root.GetBestName] ([Root.GetID]) needs [This.afl_need.GetValue] galleys against [afl_front.GetBestName] ([afl_front.GetID]), has [This.afl_own.GetValue], and waits: 5 AI rulers borrow ships or wait for an answer"
+		}
+		else_if = {
 			limit = { afl_ai_needs_ships_trigger = yes }
 			if = {
 				limit = { wealth = 30 }
@@ -213,8 +225,9 @@ afl_ai_count_down_effect = {
 # afl_ai_ask_charter_effect: the AI ruler asks event_target:afl_lender for a charter of the count
 # afl_ai_count_effect chooses, as afl_ask_charter_effect does for a player but without the pages,
 # and the lender answers (afl_send_charter_request_effect, afl.43). With no count to ask, it drops
-# the request. Scope and ROOT: the ruler asking (afl.71), since the lender's event reads the ROOT of
-# the event that sent it as FROM, the ruler asking (box probe 20).
+# the request. A player asked gets flag afl_ai_asked, so no AI ruler asks it again for a year
+# (afl_ai_player_may_be_asked_trigger). Scope and ROOT: the ruler asking (afl.71), since the
+# lender's event reads the ROOT of the event that sent it as FROM, the ruler asking (box probe 20).
 afl_ai_ask_charter_effect = {
 	save_event_target_as = afl_borrower
 	set_character_flag = afl_request_pending
@@ -228,6 +241,7 @@ afl_ai_ask_charter_effect = {
 	if = {
 		limit = { check_variable = { which = afl_ask value = 50 } }
 		log = "afl: AI charter request from [afl_borrower.GetBestName] ([afl_borrower.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID]) for [This.afl_ask.GetValue] galleys against [afl_front.GetBestName] ([afl_front.GetID]): it needs [This.afl_need.GetValue], has [This.afl_own.GetValue], the lender can spare [This.afl_base.GetValue]"
+		afl_ai_mark_player_asked_effect = yes
 		afl_send_charter_request_effect = yes
 	}
 	else = {
@@ -250,10 +264,34 @@ afl_ai_ask_war_loan_effect = {
 	if = {
 		limit = { check_variable = { which = afl_ask value = 50 } }
 		log = "afl: AI war loan request from [afl_borrower.GetBestName] ([afl_borrower.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID]) for [This.afl_ask.GetValue] galleys against [afl_front.GetBestName] ([afl_front.GetID]): it needs [This.afl_need.GetValue], has [This.afl_own.GetValue], the lender can spare [This.afl_base.GetValue]"
+		afl_ai_mark_player_asked_effect = yes
 		afl_send_request_effect = yes
 	}
 	else = {
 		log = "afl: AI war loan request from [afl_borrower.GetBestName] ([afl_borrower.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID]) dropped: the lender can spare [This.afl_base.GetValue]"
 		afl_withdraw_request_effect = yes
+	}
+}
+
+# afl_ai_mark_player_asked_effect: flag afl_ai_asked, set anew, on a player lender
+# (event_target:afl_lender) an AI ruler asks. Cleared and set so that had_character_flag counts from
+# today. Scope: any.
+afl_ai_mark_player_asked_effect = {
+	event_target:afl_lender = {
+		if = {
+			limit = { ai = no }
+			clr_character_flag = afl_ai_asked
+			set_character_flag = afl_ai_asked
+		}
+	}
+}
+
+# afl_ai_served_effect: flag afl_ai_served on an AI ruler whose contract starts, so it asks for no
+# other while it is at war (afl_ai_may_ask_again_trigger; afl.71 clears it at peace). Called by
+# afl_start_war_loan_effect and afl_start_charter_effect. Scope: the borrower.
+afl_ai_served_effect = {
+	if = {
+		limit = { ai = yes }
+		set_character_flag = afl_ai_served
 	}
 }

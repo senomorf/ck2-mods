@@ -86,6 +86,12 @@ afl_refuse_war_loan_effect = {
 	event_target:afl_borrower = {
 		clr_character_flag = afl_request_pending
 		clr_character_flag = afl_charter
+		# v0.2: an AI ruler refused waits a year before it asks again (afl_ai_may_ask_again_trigger)
+		if = {
+			limit = { ai = yes }
+			clr_character_flag = afl_ai_refused
+			set_character_flag = afl_ai_refused
+		}
 		character_event = { id = afl.13 }
 	}
 }
@@ -101,6 +107,7 @@ afl_start_war_loan_effect = {
 	event_target:afl_borrower = {
 		clr_character_flag = afl_request_pending
 		set_character_flag = afl_borrowing
+		afl_ai_served_effect = yes # v0.2
 		save_persistent_event_target = { name = afl_lender_title scope = event_target:afl_lender_title }
 		afl_spawn_fleet_effect = yes
 		set_variable = { which = afl_missed value = 0 }
@@ -514,6 +521,7 @@ afl_start_charter_effect = {
 		clr_character_flag = afl_offer_in
 		set_character_flag = afl_borrowing
 		set_character_flag = afl_charter
+		afl_ai_served_effect = yes # v0.2
 		save_persistent_event_target = { name = afl_lender_title scope = event_target:afl_lender_title }
 		set_variable = { which = afl_missed value = 0 }
 		set_variable = { which = afl_months value = 0 }

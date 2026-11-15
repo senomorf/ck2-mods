@@ -1,6 +1,6 @@
 namespace = afl
 
-# Allied Fleets: AI rulers who ask for ships (v0.2, step 2; README.md, "AI rulers ask for ships";
+# Allied Fleets: AI rulers who ask for ships (v0.2, steps 2 and 3; README.md, "AI rulers ask for ships";
 # common/scripted_effects/afl_ai_effects.txt). Hidden events, no window.
 # Constructs: on_war_started's FROM and ROOT (vanilla/common/on_actions/00_on_actions.txt; its
 # handler HF.24013 in vanilla/events/HF_bloodline_events.txt), any_war with limit and any_attacker as
@@ -46,6 +46,7 @@ character_event = {
 		if = {
 			limit = { war = no }
 			clr_character_flag = afl_ai_watch
+			clr_character_flag = afl_ai_served # one contract a war (step 3)
 		}
 		else = {
 			clear_event_target = afl_lender
