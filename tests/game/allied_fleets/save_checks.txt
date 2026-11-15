@@ -13,3 +13,6 @@ absent afl_offer_in
 count character/*/dmn/navy/sub_unit[earmark=afl_charter] >= 1   # afltest.38's late charter reaches the save
 every character/*/dmn/navy/sub_unit[earmark=afl_charter]/troops/ga == 50   # each chartered fleet is the 50 galleys asked for
 count character/*/dmn/navy/sub_unit[earmark=afl_charter]/maintenance_multiplier == 0  # at the usual wages
+count title/*[mercenary=yes]/flags/afl_company >= 1   # afltest.69's late galley company reaches the save
+count title/*[mercenary=yes]/mercenary_type[galleys=50.000] >= 1   # with the 50 galleys chosen
+count character/*/flags/afl_company >= 1            # and its founder's flag

@@ -1,0 +1,387 @@
+namespace = afltest
+
+# In-game tests for allied_fleets' galley companies (README.md, "Galley companies"), run by
+# tools/campaign.sh through tools/harness.py after the charters' (afltest_charter_events.txt):
+# afltest.37 starts them. Generated (gen_company_tests.py); every check is written as a pass line
+# and a fail line. A test can't hire a company (no effect does), so AI rulers may hire the tests'
+# companies on their own; the year's log shows it (afl.65, afl.66).
+# Part 1 (afltest.60 to afltest.63): a company founded, its base pinned and moved back, a
+# founder's death, the monthly check, and dissolving.
+# Part 2 (afltest.64, afltest.65, afltest.67): founding pages with afl_base and war chosen, so
+# every count and every "never mind" is chosen; the first company found dissolves the way a
+# hired one does after its hirer dismisses it (afl.66, afl.69).
+# afltest.69 (from afltest.38, near the year's end): a company in the year's last save.
+# Constructs as in afltest_events.txt; current_heir (vanilla/events/HFP_crusade_events.txt).
+
+# afltest.60: pick two free rulers whose own holdings can spare 50 galleys: afltest_f founds a
+# company and keeps it for part 1; afltest_g founds one and dies.
+character_event = {
+	id = afltest.60
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		clear_event_target = afl_founder
+		clear_event_target = afl_captain
+		clear_event_target = afl_company
+		clear_event_target = afl_port
+		any_independent_ruler = {
+			limit = { is_landed = yes afl_can_lend_trigger = yes }
+			afl_count_base_effect = yes
+		}
+		random_independent_ruler = {
+			limit = { is_landed = yes war = no afl_can_found_trigger = yes check_variable = { which = afl_base value = 50 } }
+			save_event_target_as = afltest_f
+		}
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				afl_can_found_trigger = yes
+				check_variable = { which = afl_base value = 50 }
+				NOT = { character = event_target:afltest_f }
+			}
+			save_event_target_as = afltest_g
+		}
+		if = {
+			limit = { OR = { NOT = { event_target:afltest_f = { always = yes } } NOT = { event_target:afltest_g = { always = yes } } } }
+			log = "CK2TEST fail company scenario setup: missing two free rulers whose holdings can spare 50 galleys"
+			character_event = { id = afltest.63 days = 1 }
+		}
+		if = {
+			limit = { event_target:afltest_f = { always = yes } event_target:afltest_g = { always = yes } }
+			log = "CK2TEST pass company scenario setup"
+			log = "afltest: company scenario founder [afltest_f.GetBestName] ([afltest_f.GetID]), dying founder [afltest_g.GetBestName] ([afltest_g.GetID])"
+
+			# The conditions (common/scripted_triggers/afl_triggers.txt).
+			if = { limit = { event_target:afltest_f = { afl_can_found_trigger = yes } } log = "CK2TEST pass a free ruler with ships may found a galley company" }
+			if = { limit = { NOT = { event_target:afltest_f = { afl_can_found_trigger = yes } } } log = "CK2TEST fail a free ruler with ships may found a galley company: it may not" }
+			event_target:afltest_f = { set_character_flag = afl_offer_in }
+			if = { limit = { event_target:afltest_f = { NOT = { afl_can_found_trigger = yes } } } log = "CK2TEST pass a ruler in a contract may not found one" }
+			if = { limit = { NOT = { event_target:afltest_f = { NOT = { afl_can_found_trigger = yes } } } } log = "CK2TEST fail a ruler in a contract may not found one: it may" }
+			event_target:afltest_f = { clr_character_flag = afl_offer_in }
+
+			# Founding 50 galleys (afl_found_company_effect, as afl.60's first option).
+			event_target:afltest_f = {
+				set_variable = { which = afl_ask value = 50 }
+				afl_found_company_effect = yes
+			}
+			any_mercenary_band = {
+				limit = { afl_company_trigger = yes band_creator = { character = event_target:afltest_f } }
+				save_event_target_as = afltest_co
+			}
+			event_target:afl_port = { save_event_target_as = afltest_fport }
+			if = { limit = { event_target:afltest_co = { always = yes } } log = "CK2TEST pass founding makes a galley company with the founder as its creator" }
+			if = { limit = { NOT = { event_target:afltest_co = { always = yes } } } log = "CK2TEST fail founding makes a galley company with the founder as its creator: no mercenary band with flag afl_company has [afltest_f.GetBestName] ([afltest_f.GetID]) as creator" }
+			if = { limit = { event_target:afltest_co = { holder_scope = { culture = event_target:afltest_f religion = event_target:afltest_f } } } log = "CK2TEST pass the company's captain is of its founder's culture and religion" }
+			if = { limit = { NOT = { event_target:afltest_co = { holder_scope = { culture = event_target:afltest_f religion = event_target:afltest_f } } } } log = "CK2TEST fail the company's captain is of its founder's culture and religion: [afltest_co.GetName]'s captain is not" }
+			if = { limit = { event_target:afltest_co = { afl_company_idle_trigger = yes } } log = "CK2TEST pass a new company is idle" }
+			if = { limit = { NOT = { event_target:afltest_co = { afl_company_idle_trigger = yes } } } log = "CK2TEST fail a new company is idle: its fleet is raised" }
+			if = { limit = { event_target:afltest_co = { capital_scope = { province = event_target:afltest_fport } } } log = "CK2TEST pass a new company's base is its founder's port" }
+			if = { limit = { NOT = { event_target:afltest_co = { capital_scope = { province = event_target:afltest_fport } } } } log = "CK2TEST fail a new company's base is its founder's port: [afltest_co.GetName] is not based at [afltest_fport.GetName]" }
+			if = { limit = { event_target:afltest_f = { any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } log = "CK2TEST pass the founder's holdings with ships carry Ships away" }
+			if = { limit = { NOT = { event_target:afltest_f = { any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST fail the founder's holdings with ships carry Ships away: none does" }
+			if = { limit = { event_target:afltest_f = { has_character_flag = afl_company has_mercenary_band = yes NOT = { afl_can_found_trigger = yes } NOT = { afl_can_lend_trigger = yes } NOT = { afl_can_charter_trigger = yes } } } log = "CK2TEST pass a founder has a mercenary band and can't found another, lend or hire" }
+			if = { limit = { NOT = { event_target:afltest_f = { has_character_flag = afl_company has_mercenary_band = yes NOT = { afl_can_found_trigger = yes } NOT = { afl_can_lend_trigger = yes } NOT = { afl_can_charter_trigger = yes } } } } log = "CK2TEST fail a founder has a mercenary band and can't found another, lend or hire: a flag or a trigger is wrong" }
+			if = { limit = { event_target:afltest_f = { is_variable_equal = { which = afl_company_size value = 50 } } } log = "CK2TEST pass the company's size is on its founder" }
+			if = { limit = { NOT = { event_target:afltest_f = { is_variable_equal = { which = afl_company_size value = 50 } } } } log = "CK2TEST fail the company's size is on its founder: afl_company_size [afltest_f.afl_company_size.GetValue]" }
+
+			# The base moves (as a hire moves it), then afl.66 runs as when a hirer dismisses the company.
+			event_target:afltest_g = { capital_scope = { county = { save_event_target_as = afltest_elsewhere } } }
+			event_target:afltest_co = { set_preferred_capital = event_target:afltest_elsewhere }
+			if = { limit = { event_target:afltest_co = { capital_scope = { NOT = { province = event_target:afltest_fport } } } } log = "CK2TEST pass set_preferred_capital moves a company's base" }
+			if = { limit = { NOT = { event_target:afltest_co = { capital_scope = { NOT = { province = event_target:afltest_fport } } } } } log = "CK2TEST fail set_preferred_capital moves a company's base: [afltest_co.GetName] is still based at [afltest_fport.GetName]" }
+			event_target:afltest_co = { holder_scope = { character_event = { id = afl.66 } } }
+
+			# A founder's death (afl.68, on_death) ends its company; afltest.61 checks.
+			event_target:afltest_g = {
+				current_heir = { save_event_target_as = afltest_gh }
+				set_variable = { which = afl_ask value = 50 }
+				afl_found_company_effect = yes
+			}
+			if = { limit = { event_target:afltest_g = { has_character_flag = afl_company } any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_g } } } log = "CK2TEST pass a second founder has its company" }
+			if = { limit = { NOT = { event_target:afltest_g = { has_character_flag = afl_company } any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_g } } } } log = "CK2TEST fail a second founder has its company: it has none" }
+			event_target:afltest_g = { death = { death_reason = death_accident_drowning } }
+			character_event = { id = afltest.61 days = 1 }
+		}
+	}
+}
+
+# afltest.61: a day on. The dismissed company is back at its founder's port; the dead founder's
+# company is gone, and its heir's holdings carry no Ships away (unless the heir lends or has a
+# company of its own). Then afltest_f keeps its company past the first monthly check.
+character_event = {
+	id = afltest.61
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = { limit = { event_target:afltest_co = { capital_scope = { province = event_target:afltest_fport } } } log = "CK2TEST pass a dismissed company goes back to its founder's port" }
+		if = { limit = { NOT = { event_target:afltest_co = { capital_scope = { province = event_target:afltest_fport } } } } log = "CK2TEST fail a dismissed company goes back to its founder's port: [afltest_co.GetName] is not based at [afltest_fport.GetName]" }
+		if = { limit = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_g } } } } log = "CK2TEST pass a founder's death ends its company" }
+		if = { limit = { NOT = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_g } } } } } log = "CK2TEST fail a founder's death ends its company: a company of [afltest_g.GetBestName] ([afltest_g.GetID]) is still there" }
+		if = { limit = { OR = { NOT = { event_target:afltest_gh = { always = yes } } event_target:afltest_gh = { OR = { afl_in_contract_trigger = yes NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } } log = "CK2TEST pass a dead founder's heir gets the ships back" }
+		if = { limit = { NOT = { OR = { NOT = { event_target:afltest_gh = { always = yes } } event_target:afltest_gh = { OR = { afl_in_contract_trigger = yes NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } } } log = "CK2TEST fail a dead founder's heir gets the ships back: [afltest_gh.GetBestName] ([afltest_gh.GetID]) has Ships away" }
+		character_event = { id = afltest.62 days = 49 }
+	}
+}
+
+# afltest.62: fifty days after founding, past the first monthly check (afl.65, at 30 days). Ships
+# away lasts 45 days, so it is still there only if the check renewed it. Then the founder
+# dissolves the company (afl_dissolve_company_effect, as the decision), unless an AI ruler has
+# hired it meanwhile, which marks it to dissolve when dismissed; afltest.63 checks.
+character_event = {
+	id = afltest.62
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = { limit = { event_target:afltest_f = { has_character_flag = afl_company any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_f } } } log = "CK2TEST pass the monthly check renews Ships away while the company exists" }
+		if = { limit = { NOT = { event_target:afltest_f = { has_character_flag = afl_company any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_f } } } } log = "CK2TEST fail the monthly check renews Ships away while the company exists: the company, the flag or Ships away is gone" }
+		if = {
+			limit = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_f } NOT = { afl_company_idle_trigger = yes } } }
+			log = "afltest: [afltest_f.GetBestName]'s company is hired: it dissolves when dismissed"
+			set_global_flag = afltest_company_hired
+		}
+		event_target:afltest_f = { afl_dissolve_company_effect = yes }
+		character_event = { id = afltest.63 days = 1 }
+	}
+}
+
+# afltest.63: the dissolved company is gone and its founder's ships home; then the founding pages.
+character_event = {
+	id = afltest.63
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = {
+			limit = { has_global_flag = afltest_company_hired }
+			log = "afltest: skipping the dissolve checks: an AI ruler hired the company"
+		}
+		if = {
+			limit = { event_target:afltest_f = { always = yes } NOT = { has_global_flag = afltest_company_hired } }
+			if = { limit = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_f } } } event_target:afltest_f = { NOT = { has_character_flag = afl_company } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } afl_can_found_trigger = yes } } log = "CK2TEST pass dissolving an idle company ends it and brings its ships home" }
+			if = { limit = { NOT = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_f } } } event_target:afltest_f = { NOT = { has_character_flag = afl_company } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } afl_can_found_trigger = yes } } } log = "CK2TEST fail dissolving an idle company ends it and brings its ships home: the company, the flag or Ships away is still there, or it can't found again" }
+		}
+		set_variable = { which = global_afltest_ki value = 0 }
+		character_event = { id = afltest.64 days = 1 }
+	}
+}
+
+# afltest.64: run 20 founding cases, one every six days (global_afltest_ki counts them; case
+# ki modulo 10, global_afltest_ci, picks the afl_base and war): a free ruler with ships, at peace or at
+# war as the case needs, has afl_base forced and gets afl.60; afltest.65 checks five days later.
+character_event = {
+	id = afltest.64
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		change_variable = { which = global_afltest_ki value = 1 }
+		set_variable = { which = global_afltest_ci which = global_afltest_ki }
+		while = {
+			count = 10
+			limit = { check_variable = { which = global_afltest_ci value = 11 } }
+			change_variable = { which = global_afltest_ci value = -10 }
+		}
+		clear_event_target = afltest_case
+		if = {
+			limit = { is_variable_equal = { which = global_afltest_ci value = 1 } }
+			random_independent_ruler = {
+				limit = { is_landed = yes war = no afl_can_found_trigger = yes any_demesne_title = { afl_has_ships_trigger = yes } }
+				save_event_target_as = afltest_case
+				set_variable = { which = afl_base value = 50 }
+				log = "afltest: founding case 1 (50): [This.GetBestName] ([This.GetID])"
+			}
+		}
+		if = {
+			limit = { is_variable_equal = { which = global_afltest_ci value = 2 } }
+			random_independent_ruler = {
+				limit = { is_landed = yes war = no afl_can_found_trigger = yes any_demesne_title = { afl_has_ships_trigger = yes } }
+				save_event_target_as = afltest_case
+				set_variable = { which = afl_base value = 100 }
+				log = "afltest: founding case 2 (100): [This.GetBestName] ([This.GetID])"
+			}
+		}
+		if = {
+			limit = { is_variable_equal = { which = global_afltest_ci value = 3 } }
+			random_independent_ruler = {
+				limit = { is_landed = yes war = no afl_can_found_trigger = yes any_demesne_title = { afl_has_ships_trigger = yes } }
+				save_event_target_as = afltest_case
+				set_variable = { which = afl_base value = 150 }
+				log = "afltest: founding case 3 (150): [This.GetBestName] ([This.GetID])"
+			}
+		}
+		if = {
+			limit = { is_variable_equal = { which = global_afltest_ci value = 4 } }
+			random_independent_ruler = {
+				limit = { is_landed = yes war = no afl_can_found_trigger = yes any_demesne_title = { afl_has_ships_trigger = yes } }
+				save_event_target_as = afltest_case
+				set_variable = { which = afl_base value = 200 }
+				log = "afltest: founding case 4 (200): [This.GetBestName] ([This.GetID])"
+			}
+		}
+		if = {
+			limit = { is_variable_equal = { which = global_afltest_ci value = 5 } }
+			random_independent_ruler = {
+				limit = { is_landed = yes war = no afl_can_found_trigger = yes any_demesne_title = { afl_has_ships_trigger = yes } }
+				save_event_target_as = afltest_case
+				set_variable = { which = afl_base value = 300 }
+				log = "afltest: founding case 5 (300): [This.GetBestName] ([This.GetID])"
+			}
+		}
+		if = {
+			limit = { is_variable_equal = { which = global_afltest_ci value = 6 } }
+			random_independent_ruler = {
+				limit = { is_landed = yes war = no afl_can_found_trigger = yes any_demesne_title = { afl_has_ships_trigger = yes } }
+				save_event_target_as = afltest_case
+				set_variable = { which = afl_base value = 400 }
+				log = "afltest: founding case 6 (400): [This.GetBestName] ([This.GetID])"
+			}
+		}
+		if = {
+			limit = { is_variable_equal = { which = global_afltest_ci value = 7 } }
+			random_independent_ruler = {
+				limit = { is_landed = yes war = no afl_can_found_trigger = yes any_demesne_title = { afl_has_ships_trigger = yes } }
+				save_event_target_as = afltest_case
+				set_variable = { which = afl_base value = 500 }
+				log = "afltest: founding case 7 (500): [This.GetBestName] ([This.GetID])"
+			}
+		}
+		if = {
+			limit = { is_variable_equal = { which = global_afltest_ci value = 8 } }
+			random_independent_ruler = {
+				limit = { is_landed = yes war = yes afl_can_found_trigger = yes any_demesne_title = { afl_has_ships_trigger = yes } }
+				save_event_target_as = afltest_case
+				set_variable = { which = afl_base value = 50 }
+				log = "afltest: founding case 8 (never, first page): [This.GetBestName] ([This.GetID])"
+			}
+		}
+		if = {
+			limit = { is_variable_equal = { which = global_afltest_ci value = 9 } }
+			random_independent_ruler = {
+				limit = { is_landed = yes war = yes afl_can_found_trigger = yes any_demesne_title = { afl_has_ships_trigger = yes } }
+				save_event_target_as = afltest_case
+				set_variable = { which = afl_base value = 150 }
+				log = "afltest: founding case 9 (never, second page): [This.GetBestName] ([This.GetID])"
+			}
+		}
+		if = {
+			limit = { is_variable_equal = { which = global_afltest_ci value = 10 } }
+			random_independent_ruler = {
+				limit = { is_landed = yes war = yes afl_can_found_trigger = yes any_demesne_title = { afl_has_ships_trigger = yes } }
+				save_event_target_as = afltest_case
+				set_variable = { which = afl_base value = 300 }
+				log = "afltest: founding case 10 (never, third page): [This.GetBestName] ([This.GetID])"
+			}
+		}
+		if = {
+			limit = { event_target:afltest_case = { always = yes } }
+			event_target:afltest_case = {
+				character_event = { id = afl.60 }
+				character_event = { id = afltest.65 days = 5 }
+			}
+		}
+		if = {
+			limit = { NOT = { event_target:afltest_case = { always = yes } } }
+			log = "afltest: founding case [global_afltest_ci.GetValue]: no free ruler with ships for it"
+		}
+		if = {
+			limit = { NOT = { check_variable = { which = global_afltest_ki value = 20 } } }
+			character_event = { id = afltest.64 days = 6 }
+		}
+		if = {
+			limit = { check_variable = { which = global_afltest_ki value = 20 } }
+			character_event = { id = afltest.66 days = 10 }
+		}
+	}
+}
+
+# afltest.65: five days after a founding case. A company found has the size chosen, 50 to 500, and
+# its founder's holdings carry Ships away; then it dissolves: the first one found the way a hired
+# one does once dismissed (afl_dissolve, afl.66, afl.69; afltest.67 checks), the rest by the
+# founder's decision. A founder who chose "never mind" has no company. ROOT = the case's ruler.
+character_event = {
+	id = afltest.65
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = {
+			limit = { has_character_flag = afl_company }
+			if = { limit = { check_variable = { which = afl_company_size value = 50 } NOT = { check_variable = { which = afl_company_size value = 501 } } is_variable_equal = { which = afl_company_size which = afl_ask } any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } any_mercenary_band = { afl_company_trigger = yes band_creator = { character = ROOT } } } log = "CK2TEST pass a company founded on the pages has the size chosen, and Ships away on its founder's holdings" }
+			if = { limit = { NOT = { check_variable = { which = afl_company_size value = 50 } NOT = { check_variable = { which = afl_company_size value = 501 } } is_variable_equal = { which = afl_company_size which = afl_ask } any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } any_mercenary_band = { afl_company_trigger = yes band_creator = { character = ROOT } } } } log = "CK2TEST fail a company founded on the pages has the size chosen, and Ships away on its founder's holdings: afl_company_size [Root.afl_company_size.GetValue], afl_ask [Root.afl_ask.GetValue], or no Ships away or company" }
+			if = {
+				limit = { NOT = { has_global_flag = afltest_deferred_started } }
+				set_global_flag = afltest_deferred_started
+				any_mercenary_band = {
+					limit = { afl_company_trigger = yes band_creator = { character = ROOT } }
+					set_title_flag = afl_dissolve
+					holder_scope = { character_event = { id = afl.66 } }
+				}
+				character_event = { id = afltest.67 days = 3 }
+			}
+			else = {
+				afl_dissolve_company_effect = yes
+			}
+		}
+		if = {
+			limit = { NOT = { has_character_flag = afl_company } }
+			log = "afltest: [Root.GetBestName] ([Root.GetID]) founded no company: never mind"
+			if = { limit = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = ROOT } } } OR = { afl_in_contract_trigger = yes NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST pass a founder who changed its mind has no company" }
+			if = { limit = { NOT = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = ROOT } } } OR = { afl_in_contract_trigger = yes NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } log = "CK2TEST fail a founder who changed its mind has no company: it has a company or Ships away" }
+		}
+	}
+}
+
+# afltest.66: the company tests are done, but for the late company (afltest.69).
+character_event = {
+	id = afltest.66
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		log = "CK2TEST done"
+	}
+}
+
+# afltest.67: three days after the first case's company was marked to dissolve and afl.66 ran:
+# afl.69 dissolved it the next day. ROOT = its founder.
+character_event = {
+	id = afltest.67
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = { limit = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = ROOT } } } NOT = { has_character_flag = afl_company } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } log = "CK2TEST pass a company marked to dissolve does once dismissed" }
+		if = { limit = { NOT = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = ROOT } } } NOT = { has_character_flag = afl_company } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST fail a company marked to dissolve does once dismissed: the company, the flag or Ships away is still there" }
+	}
+}
+
+# afltest.69 (from afltest.38, near the year's end): a 50-galley company whose title is in the
+# year's last save (save_checks.txt).
+character_event = {
+	id = afltest.69
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		any_independent_ruler = {
+			limit = { is_landed = yes afl_can_lend_trigger = yes }
+			afl_count_base_effect = yes
+		}
+		random_independent_ruler = {
+			limit = { is_landed = yes afl_can_found_trigger = yes check_variable = { which = afl_base value = 50 } }
+			set_variable = { which = afl_ask value = 50 }
+			afl_found_company_effect = yes
+		}
+		if = {
+			limit = { any_mercenary_band = { afl_company_trigger = yes } }
+			log = "CK2TEST pass a late company runs into the year's last save"
+		}
+		if = {
+			limit = { NOT = { any_mercenary_band = { afl_company_trigger = yes } } }
+			log = "CK2TEST fail a late company runs into the year's last save: no free ruler could found one"
+		}
+	}
+}
