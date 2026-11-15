@@ -187,7 +187,8 @@ character_event = {
 
 # afltest.64: run 20 founding cases, one every six days (global_afltest_ki counts them; case
 # ki modulo 10, global_afltest_ci, picks the afl_base and war): a free ruler with ships, at peace or at
-# war as the case needs, has afl_base forced and gets afl.60; afltest.65 checks five days later.
+# war as the case needs, has afl_base forced and gets afl.60 (the second 500 case, afl.62); afltest.65
+# checks five days later.
 character_event = {
 	id = afltest.64
 	hide_window = yes
@@ -301,8 +302,19 @@ character_event = {
 				log = "afltest: founding case 10 (never, third page): [This.GetBestName] ([This.GetID])"
 			}
 		}
+		# AI founders took a lower count over "more galleys" on 4 of 30 such pages in two box runs
+		# (docs/ck2-notes.md), so both 500 cases fell short in one; the second 500 case (ki 17)
+		# opens the third page directly.
 		if = {
-			limit = { event_target:afltest_case = { always = yes } }
+			limit = { event_target:afltest_case = { always = yes } is_variable_equal = { which = global_afltest_ki value = 17 } }
+			log = "afltest: founding case 7 opens the third page"
+			event_target:afltest_case = {
+				character_event = { id = afl.62 }
+				character_event = { id = afltest.65 days = 5 }
+			}
+		}
+		if = {
+			limit = { event_target:afltest_case = { always = yes } NOT = { is_variable_equal = { which = global_afltest_ki value = 17 } } }
 			event_target:afltest_case = {
 				character_event = { id = afl.60 }
 				character_event = { id = afltest.65 days = 5 }
