@@ -1,19 +1,26 @@
-# Allied Fleets scripted effects. Each holds one step of the war loan, so the decisions and events
-# call the same code the in-game tests call (tests/game/allied_fleets/).
+# Allied Fleets scripted effects. Each holds one step of a war loan or a charter, so the decisions
+# and events call the same code the in-game tests call (tests/game/allied_fleets/).
 # Pattern: vanilla/common/scripted_effects/00_scripted_effects.txt, called as `NAME = yes`.
 # Each step logs an `afl:` line. It reaches game.log only with -debugscripts or -scriptlog
 # (vanilla/ChangeLog.txt), so players see nothing.
 # Event targets, saved when the request is made and carried by every event after it:
-#   afl_borrower      the ruler who asked
+#   afl_borrower      the ruler who asked, or who was offered a charter
 #   afl_lender        the lender: the holder of afl_lender_title, looked up again each month
 #   afl_lender_title  the lender's main title, so the contract outlives the lender
+#   afl_port          a charter's port: the lender's capital, or a province of its own with ships
 # Variables (character scope):
 #   afl_base    the lender's own galleys before bonuses: its holdings' buildings (afl_count_base_effect);
 #               copied to the borrower when it asks
 #   afl_ask     the galleys asked for, 50 to 500; on the borrower, copied to the lender
-#   afl_margin  the lender's monthly margin, a tenth of the crews' wages; on both
+#   afl_margin  the lender's monthly margin: a tenth of the crews' wages for a war loan, a quarter
+#               for a charter; on both
 #   afl_k       the percentage cut on each of the lender's holdings with ships (afl_count_cut_effect)
 #   afl_missed  months in a row the borrower left the wages unpaid
+#   afl_wages   a charter's wages, about 0.3 gold a galley a month, for its event texts; on both
+#   afl_lump    a charter's sum on signing, two months' wages; on both
+#   afl_months  monthly checks since a charter's ships sailed; the term ends at 12
+# Flags: afl_charter on both rulers of a charter (none for a war loan); afl_charter_sailed on its
+# borrower once the ships have gathered.
 # Constructs: spawn_fleet with troops (vanilla/events/adventures_the_old_gods.txt) and
 # maintenance_multiplier (Allied Fleets probes, docs/ck2-notes.md); add_holding_modifier with
 # stacking, remove_holding_modifier, has_building and holding_type in title scope (box probe 6,
@@ -63,21 +70,23 @@ afl_set_terms_effect = {
 	}
 }
 
-# afl_withdraw_request_effect: the ruler asking thought better of it.
+# afl_withdraw_request_effect: the ruler asking for a war loan or a charter thought better of it.
 # Scope: the ruler asking.
 afl_withdraw_request_effect = {
 	clr_character_flag = afl_request_pending
+	clr_character_flag = afl_charter
 	event_target:afl_lender = { clr_character_flag = afl_request_incoming }
 	log = "afl: request withdrawn by [afl_borrower.GetBestName] ([afl_borrower.GetID])"
 }
 
-# afl_refuse_war_loan_effect: the lender refuses.
+# afl_refuse_war_loan_effect: the lender refuses a war loan or a charter.
 # Scope: the lender.
 afl_refuse_war_loan_effect = {
 	clr_character_flag = afl_request_incoming
 	log = "afl: refused by [afl_lender.GetBestName] ([afl_lender.GetID]) to [afl_borrower.GetBestName] ([afl_borrower.GetID])"
 	event_target:afl_borrower = {
 		clr_character_flag = afl_request_pending
+		clr_character_flag = afl_charter
 		character_event = { id = afl.13 }
 	}
 }
@@ -292,9 +301,10 @@ afl_wages_check_effect = {
 	}
 }
 
-# afl_monthly_check_effect: once a month while the loan runs. Finds the lender's title's holder
-# (a new one takes the loan over, and the old one's holdings get their ships back), ends the loan
-# if it is over, else checks the wages, renews "Ships away" and schedules the next.
+# afl_monthly_check_effect: once a month while a war loan or a charter runs. Finds the lender's
+# title's holder (a new one takes the contract over, and the old one's holdings get their ships
+# back). A war loan ends here if it is over, else the wages are checked, "Ships away" renewed and
+# the next check scheduled; a charter goes on in afl_charter_check_effect.
 # Scope: the borrower.
 afl_monthly_check_effect = {
 	event_target:afl_lender = { save_event_target_as = afl_old_lender }
@@ -311,7 +321,12 @@ afl_monthly_check_effect = {
 		event_target:afl_old_lender = {
 			clr_character_flag = afl_lending
 			clr_character_flag = afl_recalling
+			clr_character_flag = afl_charter
 			afl_ships_home_effect = yes
+		}
+		if = {
+			limit = { has_character_flag = afl_charter }
+			event_target:afl_lender = { set_character_flag = afl_charter }
 		}
 		event_target:afl_lender = {
 			set_character_flag = afl_lending
@@ -319,6 +334,10 @@ afl_monthly_check_effect = {
 		}
 	}
 	if = {
+		limit = { has_character_flag = afl_charter }
+		afl_charter_check_effect = yes
+	}
+	else_if = {
 		limit = { afl_war_loan_over_trigger = yes }
 		afl_end_war_loan_effect = yes
 	}
@@ -353,6 +372,270 @@ afl_end_war_loan_effect = {
 	event_target:afl_lender = {
 		clr_character_flag = afl_lending
 		clr_character_flag = afl_recalling
+		afl_ships_home_effect = yes
+		character_event = { id = afl.23 }
+	}
+	character_event = { id = afl.23 }
+}
+
+# Charters (step 2). A ruler hires galleys with their crews for a year, from anyone it is not at
+# war with (owner, 2026-11-14; README.md, "Charter"). Either the ruler hiring asks (afl_hire_ships,
+# afl_ask_charter_effect) or the lender offers (afl_offer_ships, afl_offer_charter_effect). On
+# signing the borrower pays two months' wages; the ships gather in the lender's port for 30 days;
+# then they serve twelve months, for the crews' wages and a quarter more to the lender each month
+# (owner, 2026-11-15). Peace does not end a charter, and the lender cannot recall it.
+
+# afl_ask_charter_effect: the ruler hiring chooses how many galleys to hire (afl.40), out of what
+# the lender's own holdings hold.
+# Scope: the ruler hiring; event_target:afl_lender saved by the decision.
+afl_ask_charter_effect = {
+	save_event_target_as = afl_borrower
+	set_character_flag = afl_request_pending
+	set_character_flag = afl_charter
+	event_target:afl_lender = {
+		set_character_flag = afl_request_incoming
+		afl_count_base_effect = yes
+		event_target:afl_borrower = { set_variable = { which = afl_base which = PREV } }
+	}
+	log = "afl: charter request from [afl_borrower.GetBestName] ([afl_borrower.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID]), who can spare [This.afl_base.GetValue]"
+	character_event = { id = afl.40 }
+}
+
+# afl_send_charter_request_effect: the ruler hiring has chosen afl_ask; the lender learns the terms
+# (afl_set_charter_terms_effect) and answers (afl.43).
+# Scope: the ruler hiring.
+afl_send_charter_request_effect = {
+	afl_set_charter_terms_effect = yes
+	event_target:afl_lender = { character_event = { id = afl.43 } }
+}
+
+# afl_set_charter_terms_effect: the terms for afl_ask galleys: wages of about 0.3 gold a galley a
+# month (afl_wages, for the texts; the game charges them as upkeep), a margin of a quarter of them,
+# 0.075 a galley (afl_margin), and two months' wages on signing, 0.6 a galley (afl_lump), all on
+# both rulers (owner, 2026-11-15); the lender's port (afl_port_effect) and the cut it would take.
+# Scope: the ruler hiring, with afl_ask set.
+afl_set_charter_terms_effect = {
+	set_variable = { which = afl_wages which = afl_ask }
+	multiply_variable = { which = afl_wages value = 0.3 }
+	set_variable = { which = afl_margin which = afl_ask }
+	multiply_variable = { which = afl_margin value = 0.075 }
+	set_variable = { which = afl_lump which = afl_ask }
+	multiply_variable = { which = afl_lump value = 0.6 }
+	event_target:afl_lender = {
+		set_variable = { which = afl_ask which = PREV }
+		set_variable = { which = afl_wages which = PREV }
+		set_variable = { which = afl_margin which = PREV }
+		set_variable = { which = afl_lump which = PREV }
+		afl_count_base_effect = yes
+		afl_count_cut_effect = yes
+		afl_port_effect = yes
+	}
+}
+
+# afl_port_effect: event_target:afl_port, where a charter's ships gather: the lender's capital if it
+# has a port, else the province of one of its own holdings with ships, which a shipyard puts on
+# the coast. A fleet spawned at another ruler's coastal province waits at sea beside it (Allied
+# Fleets probes, docs/ck2-notes.md). Constructs: capital_scope with port
+# (vanilla/events/HFP_crusade_events.txt), location of a title (vanilla/events/HFP_eldership_events.txt,
+# .cwtools/links.cwt). Scope: the lender.
+afl_port_effect = {
+	if = {
+		limit = { capital_scope = { port = yes } }
+		capital_scope = { save_event_target_as = afl_port }
+	}
+	else = {
+		random_demesne_title = {
+			limit = { afl_has_ships_trigger = yes }
+			location = { save_event_target_as = afl_port }
+		}
+	}
+}
+
+# afl_offer_charter_effect: a lender offers galleys for hire; it chooses how many (afl.50), out of
+# what its own holdings hold.
+# Scope: the lender; event_target:afl_borrower saved by the decision.
+afl_offer_charter_effect = {
+	save_event_target_as = afl_lender
+	set_character_flag = afl_offer_out
+	afl_count_base_effect = yes
+	event_target:afl_borrower = {
+		set_character_flag = afl_offer_in
+		set_character_flag = afl_charter
+	}
+	log = "afl: charter offer from [afl_lender.GetBestName] ([afl_lender.GetID]) to [afl_borrower.GetBestName] ([afl_borrower.GetID]), who can spare [This.afl_base.GetValue]"
+	character_event = { id = afl.50 }
+}
+
+# afl_send_offer_effect: the lender has chosen afl_ask; the ruler offered the ships learns the terms
+# and answers (afl.53).
+# Scope: the lender, with afl_ask set.
+afl_send_offer_effect = {
+	event_target:afl_borrower = {
+		set_variable = { which = afl_ask which = PREV }
+		afl_set_charter_terms_effect = yes
+		character_event = { id = afl.53 }
+	}
+}
+
+# afl_withdraw_offer_effect: the lender thought better of its offer.
+# Scope: the lender.
+afl_withdraw_offer_effect = {
+	clr_character_flag = afl_offer_out
+	event_target:afl_borrower = {
+		clr_character_flag = afl_offer_in
+		clr_character_flag = afl_charter
+	}
+	log = "afl: charter offer withdrawn by [afl_lender.GetBestName] ([afl_lender.GetID])"
+}
+
+# afl_decline_offer_effect: the ruler offered the ships declines; the lender is told (afl.54).
+# Scope: the ruler offered the ships.
+afl_decline_offer_effect = {
+	clr_character_flag = afl_offer_in
+	clr_character_flag = afl_charter
+	log = "afl: charter offer declined by [afl_borrower.GetBestName] ([afl_borrower.GetID]) to [afl_lender.GetBestName] ([afl_lender.GetID])"
+	event_target:afl_lender = {
+		clr_character_flag = afl_offer_out
+		character_event = { id = afl.54 }
+	}
+}
+
+# afl_start_charter_effect: the charter is signed. The borrower pays the sum on signing; the
+# lender's own holdings lose afl_ask galleys from now, while the ships gather (afl_ships_away_effect);
+# the first monthly check, in 30 days, sails them (afl_charter_check_effect).
+# Scope: the lender.
+afl_start_charter_effect = {
+	clr_character_flag = afl_request_incoming
+	clr_character_flag = afl_offer_out
+	set_character_flag = afl_lending
+	set_character_flag = afl_charter
+	primary_title = { save_event_target_as = afl_lender_title }
+	event_target:afl_borrower = {
+		clr_character_flag = afl_request_pending
+		clr_character_flag = afl_offer_in
+		clr_character_flag = afl_charter_sailed
+		set_character_flag = afl_borrowing
+		set_character_flag = afl_charter
+		save_persistent_event_target = { name = afl_lender_title scope = event_target:afl_lender_title }
+		set_variable = { which = afl_missed value = 0 }
+		set_variable = { which = afl_months value = 0 }
+		set_variable = { which = afl_due which = afl_lump }
+		afl_pay_effect = yes
+	}
+	log = "afl: charter of [This.afl_ask.GetValue] galleys from [afl_lender.GetBestName] ([afl_lender.GetID]) to [afl_borrower.GetBestName] ([afl_borrower.GetID]): [This.afl_lump.GetValue] paid on signing, ships gathering in [afl_port.GetName]"
+	afl_ships_away_effect = yes
+	event_target:afl_borrower = {
+		character_event = { id = afl.20 days = 30 }
+	}
+}
+
+# afl_charter_sails_effect: the ships have gathered. The borrower's fleet waits at sea beside the
+# lender's port, for the borrower's army to march there and board, and its twelve months start.
+# Both rulers are told (afl.45).
+# Scope: the borrower.
+afl_charter_sails_effect = {
+	set_character_flag = afl_charter_sailed
+	set_variable = { which = afl_months value = 0 }
+	afl_spawn_charter_fleet_effect = yes
+	log = "afl: charter fleet of [This.afl_ask.GetValue] galleys ready in [afl_port.GetName] for [afl_borrower.GetBestName] ([afl_borrower.GetID])"
+	character_event = { id = afl.45 }
+	event_target:afl_lender = { character_event = { id = afl.45 } }
+}
+
+# afl_spawn_charter_fleet_effect: afl_ask galleys for the borrower at the lender's port, at the
+# usual crew wages, as afl_spawn_fleet_effect but without disband_on_peace, since a charter runs
+# its term in peace too.
+# Scope: the borrower.
+afl_spawn_charter_fleet_effect = {
+	if = {
+		limit = { is_variable_equal = { which = afl_ask value = 500 } }
+		spawn_fleet = { province = event_target:afl_port owner = event_target:afl_borrower troops = { galleys = { 500 500 } } maintenance_multiplier = 1 earmark = afl_charter }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 400 } }
+		spawn_fleet = { province = event_target:afl_port owner = event_target:afl_borrower troops = { galleys = { 400 400 } } maintenance_multiplier = 1 earmark = afl_charter }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 300 } }
+		spawn_fleet = { province = event_target:afl_port owner = event_target:afl_borrower troops = { galleys = { 300 300 } } maintenance_multiplier = 1 earmark = afl_charter }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 200 } }
+		spawn_fleet = { province = event_target:afl_port owner = event_target:afl_borrower troops = { galleys = { 200 200 } } maintenance_multiplier = 1 earmark = afl_charter }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 150 } }
+		spawn_fleet = { province = event_target:afl_port owner = event_target:afl_borrower troops = { galleys = { 150 150 } } maintenance_multiplier = 1 earmark = afl_charter }
+	}
+	else_if = {
+		limit = { is_variable_equal = { which = afl_ask value = 100 } }
+		spawn_fleet = { province = event_target:afl_port owner = event_target:afl_borrower troops = { galleys = { 100 100 } } maintenance_multiplier = 1 earmark = afl_charter }
+	}
+	else = {
+		spawn_fleet = { province = event_target:afl_port owner = event_target:afl_borrower troops = { galleys = { 50 50 } } maintenance_multiplier = 1 earmark = afl_charter }
+	}
+}
+
+# afl_charter_check_effect: the monthly check's part for a charter. It ends one that is over
+# (afl_charter_over_trigger); sails the ships at the first check, 30 days after signing; after that
+# takes the margin, warns both rulers a month before the term ends (afl.46) and ends it at the
+# twelfth check, or at a second unpaid month. Else it renews "Ships away" and schedules the next.
+# Scope: the borrower.
+afl_charter_check_effect = {
+	if = {
+		limit = { afl_charter_over_trigger = yes }
+		afl_end_charter_effect = yes
+	}
+	else_if = {
+		limit = { NOT = { has_character_flag = afl_charter_sailed } }
+		afl_charter_sails_effect = yes
+		event_target:afl_lender = { afl_ships_away_effect = yes }
+		character_event = { id = afl.20 days = 30 }
+	}
+	else = {
+		change_variable = { which = afl_months value = 1 }
+		afl_wages_check_effect = yes
+		if = {
+			limit = { check_variable = { which = afl_missed value = 2 } }
+			log = "afl: wages unpaid a second month: the ships go home"
+			afl_end_charter_effect = yes
+		}
+		else_if = {
+			limit = { check_variable = { which = afl_months value = 12 } }
+			log = "afl: charter's term over after [This.afl_months.GetValue] months"
+			afl_end_charter_effect = yes
+		}
+		else = {
+			if = {
+				limit = { check_variable = { which = afl_missed value = 1 } }
+				character_event = { id = afl.21 }
+				event_target:afl_lender = { character_event = { id = afl.21 } }
+			}
+			if = {
+				limit = { is_variable_equal = { which = afl_months value = 11 } }
+				character_event = { id = afl.46 }
+				event_target:afl_lender = { character_event = { id = afl.46 } }
+			}
+			event_target:afl_lender = { afl_ships_away_effect = yes }
+			character_event = { id = afl.20 days = 30 }
+		}
+	}
+}
+
+# afl_end_charter_effect: the charter is over. The fleet is disbanded, "Ships away" comes off the
+# lender's holdings, and both rulers are told (afl.23). The lender keeps the sum paid on signing.
+# Scope: the borrower.
+afl_end_charter_effect = {
+	log = "afl: charter ended: [afl_lender.GetBestName] ([afl_lender.GetID]) to [afl_borrower.GetBestName] ([afl_borrower.GetID])"
+	disband_event_forces = afl_charter
+	clr_character_flag = afl_borrowing
+	clr_character_flag = afl_charter
+	clr_character_flag = afl_charter_sailed
+	set_variable = { which = afl_missed value = 0 }
+	clear_persistent_event_target = afl_lender_title
+	event_target:afl_lender = {
+		clr_character_flag = afl_lending
+		clr_character_flag = afl_charter
 		afl_ships_home_effect = yes
 		character_event = { id = afl.23 }
 	}

@@ -577,7 +577,8 @@ character_event = {
 	immediate = {
 		if = { limit = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } log = "CK2TEST pass a borrower's death ends the loan" }
 		if = { limit = { NOT = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST fail a borrower's death ends the loan: [Root.GetBestName] ([Root.GetID]) still lends, or a holding keeps Ships away" }
-		log = "CK2TEST done"
+		# The charters' tests (afltest_charter_events.txt) log CK2TEST done.
+		character_event = { id = afltest.30 days = 1 }
 		random_independent_ruler = {
 			limit = { is_landed = yes age = 16 NOT = { age = 40 } }
 			character_event = { id = afltest.13 days = 240 }
@@ -639,5 +640,7 @@ character_event = {
 			limit = { NOT = { any_independent_ruler = { has_character_flag = afl_borrowing has_earmarked_regiments = afl_war_loan } } }
 			log = "CK2TEST fail a late loan runs into the year's last save: no pair of rulers could start one"
 		}
+		# A late charter too (afltest_charter_events.txt).
+		character_event = { id = afltest.38 }
 	}
 }

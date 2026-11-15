@@ -2,7 +2,13 @@
 # afl_ask_war_loan: a targeted decision in the other ruler's diplomacy menu. ROOT = the ruler asked
 # (the lender), FROM = the ruler asking. Pattern: break_non_aggression_pact
 # (vanilla/decisions/rip_various_decisions.txt), a decision targeting a character outside the realm.
-# afl_recall_ships: the lender's own decision. Pattern: vanilla/decisions/unit_decisions.txt.
+# afl_hire_ships: a charter asked of a ruler with ships of its own, in its diplomacy menu, as
+# afl_ask_war_loan. ROOT = the lender, FROM = the ruler hiring.
+# afl_offer_ships: a charter offered to another player, in its diplomacy menu. ROOT = the ruler
+# offered the ships, FROM = the lender. Only to players (ai = no in potential), since AI rulers
+# don't hire ships yet (#52).
+# afl_recall_ships: the lender's own decision, for a war loan; a charter runs its term.
+# Pattern: vanilla/decisions/unit_decisions.txt.
 # Players only for now: ai = no. AI rulers come with #52.
 
 targeted_decisions = {
@@ -43,6 +49,75 @@ targeted_decisions = {
 			factor = 0
 		}
 	}
+
+	afl_hire_ships = {
+		ai_target_filter = self
+		ai = no
+
+		from_potential = {
+			is_playable = yes
+		}
+		potential = {
+			is_landed = yes
+			NOT = { character = FROM }
+			any_demesne_title = { afl_has_ships_trigger = yes }
+		}
+		allow = {
+			FROM = { custom_tooltip = { text = afl_can_charter_tt afl_can_charter_trigger = yes } }
+			custom_tooltip = { text = afl_can_lend_tt afl_can_lend_trigger = yes }
+			NOT = { war_with = FROM }
+		}
+		effect = {
+			custom_tooltip = { text = afl_ask_war_loan_tt }
+			hidden_tooltip = {
+				save_event_target_as = afl_lender
+				FROM = {
+					afl_ask_charter_effect = yes # common/scripted_effects/afl_effects.txt
+				}
+			}
+		}
+		revoke_allowed = {
+			always = no
+		}
+		ai_will_do = {
+			factor = 0
+		}
+	}
+
+	afl_offer_ships = {
+		ai_target_filter = self
+		ai = no
+
+		from_potential = {
+			is_playable = yes
+			any_demesne_title = { afl_has_ships_trigger = yes }
+		}
+		potential = {
+			ai = no
+			is_landed = yes
+			NOT = { character = FROM }
+		}
+		allow = {
+			FROM = { custom_tooltip = { text = afl_can_offer_tt afl_can_lend_trigger = yes } }
+			custom_tooltip = { text = afl_can_hire_tt afl_can_charter_trigger = yes }
+			NOT = { war_with = FROM }
+		}
+		effect = {
+			custom_tooltip = { text = afl_offer_ships_tt }
+			hidden_tooltip = {
+				save_event_target_as = afl_borrower
+				FROM = {
+					afl_offer_charter_effect = yes # common/scripted_effects/afl_effects.txt
+				}
+			}
+		}
+		revoke_allowed = {
+			always = no
+		}
+		ai_will_do = {
+			factor = 0
+		}
+	}
 }
 
 decisions = {
@@ -51,6 +126,7 @@ decisions = {
 		potential = {
 			ai = no # players only, as conscript_merchant_ships's potential (vanilla/decisions/unit_decisions.txt)
 			has_character_flag = afl_lending
+			NOT = { has_character_flag = afl_charter }
 		}
 		allow = {
 			NOT = { has_character_flag = afl_recalling }
