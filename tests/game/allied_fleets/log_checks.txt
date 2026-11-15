@@ -32,8 +32,8 @@ count fired afl.53 == count ran afl_send_offer_effect         # every offer chos
 count fired afl.44 >= count chose afl.43 EVTOPTA_afl_43       # each signing tells the ruler who asked
 count fired afl.54 == count ran afl_decline_offer_effect      # each declined offer tells the lender
 count ran afl_spawn_charter_fleet_effect == count ran afl_charter_sails_effect  # each sailing spawns its fleet
-count ran afl_charter_sails_effect >= 3                       # the scenario's and the AI's ships sailed on their own
-count fired afl.45 >= count ran afl_charter_sails_effect      # each sailing tells both rulers
+count ran afl_charter_sails_effect == count ran afl_start_charter_effect  # each signing gives the fleet at once
+count ran afl_start_charter_effect >= 3                       # the scenario's and the AI's charters were signed
 count fired afl.46 >= 2                                       # the scenario's eleventh month warned both
 count line afl: charter fleet of >= 3
 count ran afl_ships_home_effect >= count ran afl_end_charter_effect  # each end restores the lender's holdings

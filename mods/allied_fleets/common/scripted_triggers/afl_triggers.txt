@@ -73,8 +73,8 @@ afl_can_pay_lump_trigger = {
 }
 
 # afl_charter_over_trigger: has the charter ended early? When the two are at war with each other,
-# when the lender's title has no landed holder, or once the ships have sailed, when the fleet is
-# gone. The term (twelve monthly checks after sailing) and unpaid wages end it in
+# when the lender's title has no landed holder, or when the fleet is gone. The term (twelve
+# monthly checks after signing) and unpaid wages end it in
 # afl_charter_check_effect. Scope: the borrower; event_target:afl_lender = the title's holder.
 afl_charter_over_trigger = {
 	OR = {
@@ -85,10 +85,7 @@ afl_charter_over_trigger = {
 				is_landed = no
 			}
 		}
-		AND = {
-			has_character_flag = afl_charter_sailed
-			NOT = { has_earmarked_regiments = afl_charter }
-		}
+		NOT = { has_earmarked_regiments = afl_charter }
 	}
 }
 

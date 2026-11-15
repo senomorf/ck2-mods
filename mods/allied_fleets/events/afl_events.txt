@@ -490,26 +490,6 @@ character_event = {
 	}
 }
 
-# afl.45: the ships have gathered in the lender's port; sent to both. ROOT = the borrower or the
-# lender.
-character_event = {
-	id = afl.45
-	desc = {
-		text = EVTDESC_afl_45
-		trigger = { has_character_flag = afl_borrowing }
-	}
-	desc = {
-		text = EVTDESC_afl_45_lender
-		trigger = { NOT = { has_character_flag = afl_borrowing } }
-	}
-	picture = GFX_evt_merchant_ship_at_sea_republic
-	is_triggered_only = yes
-
-	option = {
-		name = EVTOPTA_afl_45
-	}
-}
-
 # afl.46: a month before the term ends; sent to both. ROOT = the borrower or the lender.
 character_event = {
 	id = afl.46
