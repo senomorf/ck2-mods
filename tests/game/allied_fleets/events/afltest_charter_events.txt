@@ -1,0 +1,779 @@
+namespace = afltest
+
+# In-game tests for allied_fleets' charters (README.md, "Charter"), run by tools/campaign.sh
+# through tools/harness.py after the war loan's (afltest_events.txt): afltest.12 starts them.
+# Generated; every check is written as a pass line and a fail line.
+# Part 1 (afltest.30): a charter's steps on chosen rulers, checked at each step.
+# Part 2 (afltest.32): AI rulers ask AI lenders for charters as a player would, and AI answers;
+# each is checked when its ships should have sailed (afltest.33), then ended.
+# Part 3 (afltest.34): requests and offers whose ruler choosing the count has afl_base forced,
+# so every count and every "never mind" is chosen; checked 35 days on (afltest.35, afltest.36).
+# afltest.38 (from afltest.13, near the year's end): a charter whose ships sail before the
+# year's last save, for save_checks.txt.
+# Constructs as in afltest_events.txt; export_to_variable with wealth (this mod's war loan tests).
+
+# afltest.30: pick the rulers, check the conditions and the terms, then a 50-galley charter through
+# its signing, sailing, margin, warning and term, a change of the lender's title's holder, unpaid
+# wages, and a borrower's death. Event targets: afltest_cb, a free ruler at peace (hires);
+# afltest_cl, a free ruler whose own holdings can spare 50 galleys, not at war with afltest_cb
+# (lends); afltest_cp, another free ruler (stands in as an old lender).
+character_event = {
+	id = afltest.30
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		clear_event_target = afl_borrower
+		clear_event_target = afl_lender
+		clear_event_target = afl_lender_title
+		clear_event_target = afl_port
+		any_independent_ruler = {
+			limit = { is_landed = yes afl_can_lend_trigger = yes }
+			afl_count_base_effect = yes
+		}
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				war = no
+				afl_can_charter_trigger = yes
+				NOT = { has_character_flag = afl_test_requester }
+				any_independent_ruler = {
+					is_landed = yes
+					afl_can_lend_trigger = yes
+					check_variable = { which = afl_base value = 50 }
+					NOT = { character = PREV }
+					NOT = { war_with = PREV }
+				}
+			}
+			save_event_target_as = afltest_cb
+			set_character_flag = afl_test_requester
+			random_independent_ruler = {
+				limit = {
+					is_landed = yes
+					afl_can_lend_trigger = yes
+					check_variable = { which = afl_base value = 50 }
+					NOT = { character = PREV }
+					NOT = { war_with = PREV }
+				}
+				save_event_target_as = afltest_cl
+			}
+		}
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				NOT = { afl_in_contract_trigger = yes }
+				NOT = { character = event_target:afltest_cb }
+				NOT = { character = event_target:afltest_cl }
+			}
+			save_event_target_as = afltest_cp
+		}
+		if = {
+			limit = {
+				OR = {
+					NOT = { event_target:afltest_cb = { always = yes } }
+					NOT = { event_target:afltest_cl = { always = yes } }
+					NOT = { event_target:afltest_cp = { always = yes } }
+				}
+			}
+			log = "CK2TEST fail charter scenario setup: missing a free ruler at peace with a lender who can spare 50 galleys"
+		}
+		if = {
+			limit = {
+				event_target:afltest_cb = { always = yes }
+				event_target:afltest_cl = { always = yes }
+				event_target:afltest_cp = { always = yes }
+			}
+			log = "CK2TEST pass charter scenario setup"
+			log = "afltest: charter scenario borrower [afltest_cb.GetBestName] ([afltest_cb.GetID]), lender [afltest_cl.GetBestName] ([afltest_cl.GetID]), stand-in [afltest_cp.GetBestName] ([afltest_cp.GetID])"
+			event_target:afltest_cb = {
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 500
+			}
+
+			# The conditions (common/scripted_triggers/afl_triggers.txt).
+			if = { limit = { event_target:afltest_cb = { afl_can_charter_trigger = yes NOT = { afl_can_borrow_trigger = yes } } } log = "CK2TEST pass a ruler at peace may hire ships by charter" }
+			if = { limit = { NOT = { event_target:afltest_cb = { afl_can_charter_trigger = yes NOT = { afl_can_borrow_trigger = yes } } } } log = "CK2TEST fail a ruler at peace may hire ships by charter: [afltest_cb.GetBestName] ([afltest_cb.GetID]) may not, or may borrow for a war" }
+			event_target:afltest_cb = { set_character_flag = afl_offer_in }
+			if = { limit = { event_target:afltest_cb = { NOT = { afl_can_charter_trigger = yes } } } log = "CK2TEST pass an offer out blocks another contract" }
+			if = { limit = { NOT = { event_target:afltest_cb = { NOT = { afl_can_charter_trigger = yes } } } } log = "CK2TEST fail an offer out blocks another contract: it does not" }
+			event_target:afltest_cb = { clr_character_flag = afl_offer_in }
+
+			# The sum on signing (afl_can_pay_lump_trigger): 30 gold for 50 galleys, 300 for 500.
+			event_target:afltest_cb = { set_variable = { which = afl_ask value = 500 } }
+			if = { limit = { event_target:afltest_cb = { afl_can_pay_lump_trigger = yes } } log = "CK2TEST pass a treasury of 500 pays the sum on signing for 500 galleys" }
+			if = { limit = { NOT = { event_target:afltest_cb = { afl_can_pay_lump_trigger = yes } } } log = "CK2TEST fail a treasury of 500 pays the sum on signing for 500 galleys: it does not" }
+			event_target:afltest_cb = {
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 20
+				set_variable = { which = afl_ask value = 50 }
+			}
+			if = { limit = { event_target:afltest_cb = { NOT = { afl_can_pay_lump_trigger = yes } } } log = "CK2TEST pass a treasury of 20 can't pay the sum on signing for 50 galleys" }
+			if = { limit = { NOT = { event_target:afltest_cb = { NOT = { afl_can_pay_lump_trigger = yes } } } } log = "CK2TEST fail a treasury of 20 can't pay the sum on signing for 50 galleys: it can" }
+			event_target:afltest_cb = {
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 500
+			}
+
+			# A 50-galley charter, signed.
+			event_target:afltest_cb = {
+				save_event_target_as = afl_borrower
+				set_character_flag = afl_request_pending
+				set_character_flag = afl_charter
+				set_variable = { which = afl_ask value = 50 }
+			}
+			event_target:afltest_cl = { save_event_target_as = afl_lender set_character_flag = afl_request_incoming }
+			event_target:afltest_cb = { afl_set_charter_terms_effect = yes }
+			event_target:afltest_cb = { export_to_variable = { which = global_afltest_b_before value = wealth } }
+			event_target:afltest_cl = { export_to_variable = { which = global_afltest_l_before value = wealth } }
+			event_target:afltest_cl = { afl_start_charter_effect = yes }
+			if = { limit = { event_target:afltest_cb = { is_variable_equal = { which = afl_lump value = 30 } is_variable_equal = { which = afl_margin value = 3.75 } is_variable_equal = { which = afl_wages value = 15 } } event_target:afltest_cl = { is_variable_equal = { which = afl_lump value = 30 } is_variable_equal = { which = afl_margin value = 3.75 } is_variable_equal = { which = afl_wages value = 15 } } } log = "CK2TEST pass the terms for 50 galleys: 30 gold on signing, 3.75 a month, wages about 15, on both" }
+			if = { limit = { NOT = { event_target:afltest_cb = { is_variable_equal = { which = afl_lump value = 30 } is_variable_equal = { which = afl_margin value = 3.75 } is_variable_equal = { which = afl_wages value = 15 } } event_target:afltest_cl = { is_variable_equal = { which = afl_lump value = 30 } is_variable_equal = { which = afl_margin value = 3.75 } is_variable_equal = { which = afl_wages value = 15 } } } } log = "CK2TEST fail the terms for 50 galleys: 30 gold on signing, 3.75 a month, wages about 15, on both: [afltest_cb.afl_lump.GetValue], [afltest_cb.afl_margin.GetValue], [afltest_cb.afl_wages.GetValue] and [afltest_cl.afl_lump.GetValue], [afltest_cl.afl_margin.GetValue], [afltest_cl.afl_wages.GetValue]" }
+			if = { limit = { event_target:afl_port = { port = yes } } log = "CK2TEST pass the ships gather in a port of the lender's" }
+			if = { limit = { NOT = { event_target:afl_port = { port = yes } } } log = "CK2TEST fail the ships gather in a port of the lender's: [afl_port.GetName] has no port" }
+			event_target:afltest_cb = { export_to_variable = { which = global_afltest_b_after value = wealth } }
+			event_target:afltest_cl = { export_to_variable = { which = global_afltest_l_after value = wealth } }
+			set_variable = { which = global_afltest_paid which = global_afltest_b_before }
+			subtract_variable = { which = global_afltest_paid which = global_afltest_b_after }
+			set_variable = { which = global_afltest_got which = global_afltest_l_after }
+			subtract_variable = { which = global_afltest_got which = global_afltest_l_before }
+			if = { limit = { check_variable = { which = global_afltest_paid value = 29.999 } NOT = { check_variable = { which = global_afltest_paid value = 30.001 } } check_variable = { which = global_afltest_got value = 29.999 } NOT = { check_variable = { which = global_afltest_got value = 30.001 } } } log = "CK2TEST pass signing pays the lender 30 gold" }
+			if = { limit = { NOT = { check_variable = { which = global_afltest_paid value = 29.999 } NOT = { check_variable = { which = global_afltest_paid value = 30.001 } } check_variable = { which = global_afltest_got value = 29.999 } NOT = { check_variable = { which = global_afltest_got value = 30.001 } } } } log = "CK2TEST fail signing pays the lender 30 gold: the borrower paid [global_afltest_paid.GetValue], the lender got [global_afltest_got.GetValue], not 30" }
+			if = { limit = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cb = { NOT = { has_character_flag = afl_request_pending } } event_target:afltest_cl = { NOT = { has_character_flag = afl_request_incoming } } } log = "CK2TEST pass a charter marks both rulers" }
+			if = { limit = { NOT = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cb = { NOT = { has_character_flag = afl_request_pending } } event_target:afltest_cl = { NOT = { has_character_flag = afl_request_incoming } } } } log = "CK2TEST fail a charter marks both rulers: flags not as expected" }
+			if = { limit = { event_target:afltest_cb = { NOT = { has_earmarked_regiments = afl_charter } NOT = { has_character_flag = afl_charter_sailed } } } log = "CK2TEST pass the ships are not there before they gather" }
+			if = { limit = { NOT = { event_target:afltest_cb = { NOT = { has_earmarked_regiments = afl_charter } NOT = { has_character_flag = afl_charter_sailed } } } } log = "CK2TEST fail the ships are not there before they gather: [afltest_cb.GetBestName] ([afltest_cb.GetID]) already has them" }
+			if = { limit = { event_target:afltest_cl = { any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } log = "CK2TEST pass signing puts Ships away on the lender's holdings while the ships gather" }
+			if = { limit = { NOT = { event_target:afltest_cl = { any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST fail signing puts Ships away on the lender's holdings while the ships gather: none carries it" }
+			if = { limit = { event_target:afltest_cl = { NOT = { any_vassal = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } log = "CK2TEST pass the lender's vassals keep their ships under a charter" }
+			if = { limit = { NOT = { event_target:afltest_cl = { NOT = { any_vassal = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } } log = "CK2TEST fail the lender's vassals keep their ships under a charter: a vassal's holding carries the cut" }
+
+			# The first monthly check, 30 days on: the ships sail; no margin yet.
+			event_target:afltest_cb = { export_to_variable = { which = global_afltest_b_before value = wealth } }
+			event_target:afltest_cl = { export_to_variable = { which = global_afltest_l_before value = wealth } }
+			event_target:afltest_cb = { afl_monthly_check_effect = yes }
+			if = { limit = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cb = { has_character_flag = afl_charter_sailed has_earmarked_regiments = afl_charter is_variable_equal = { which = afl_months value = 0 } } event_target:afltest_cl = { any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } log = "CK2TEST pass the first check sails the ships at the lender's port" }
+			if = { limit = { NOT = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cb = { has_character_flag = afl_charter_sailed has_earmarked_regiments = afl_charter is_variable_equal = { which = afl_months value = 0 } } event_target:afltest_cl = { any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST fail the first check sails the ships at the lender's port: no fleet, or the count of months is [afltest_cb.afl_months.GetValue]" }
+			event_target:afltest_cb = { export_to_variable = { which = global_afltest_b_after value = wealth } }
+			event_target:afltest_cl = { export_to_variable = { which = global_afltest_l_after value = wealth } }
+			set_variable = { which = global_afltest_paid which = global_afltest_b_before }
+			subtract_variable = { which = global_afltest_paid which = global_afltest_b_after }
+			set_variable = { which = global_afltest_got which = global_afltest_l_after }
+			subtract_variable = { which = global_afltest_got which = global_afltest_l_before }
+			if = { limit = { check_variable = { which = global_afltest_paid value = -0.001 } NOT = { check_variable = { which = global_afltest_paid value = 0.001 } } check_variable = { which = global_afltest_got value = -0.001 } NOT = { check_variable = { which = global_afltest_got value = 0.001 } } } log = "CK2TEST pass sailing moves no gold" }
+			if = { limit = { NOT = { check_variable = { which = global_afltest_paid value = -0.001 } NOT = { check_variable = { which = global_afltest_paid value = 0.001 } } check_variable = { which = global_afltest_got value = -0.001 } NOT = { check_variable = { which = global_afltest_got value = 0.001 } } } } log = "CK2TEST fail sailing moves no gold: the borrower paid [global_afltest_paid.GetValue], the lender got [global_afltest_got.GetValue], not 0" }
+
+			# A month on: the margin. The borrower is at peace, which does not end a charter.
+			event_target:afltest_cb = { export_to_variable = { which = global_afltest_b_before value = wealth } }
+			event_target:afltest_cl = { export_to_variable = { which = global_afltest_l_before value = wealth } }
+			event_target:afltest_cb = { afl_monthly_check_effect = yes }
+			if = { limit = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cb = { war = no has_earmarked_regiments = afl_charter is_variable_equal = { which = afl_months value = 1 } } } log = "CK2TEST pass peace does not end a charter, and the month counts" }
+			if = { limit = { NOT = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cb = { war = no has_earmarked_regiments = afl_charter is_variable_equal = { which = afl_months value = 1 } } } } log = "CK2TEST fail peace does not end a charter, and the month counts: it ended, or the count of months is [afltest_cb.afl_months.GetValue]" }
+			event_target:afltest_cb = { export_to_variable = { which = global_afltest_b_after value = wealth } }
+			event_target:afltest_cl = { export_to_variable = { which = global_afltest_l_after value = wealth } }
+			set_variable = { which = global_afltest_paid which = global_afltest_b_before }
+			subtract_variable = { which = global_afltest_paid which = global_afltest_b_after }
+			set_variable = { which = global_afltest_got which = global_afltest_l_after }
+			subtract_variable = { which = global_afltest_got which = global_afltest_l_before }
+			if = { limit = { check_variable = { which = global_afltest_paid value = 3.749 } NOT = { check_variable = { which = global_afltest_paid value = 3.751 } } check_variable = { which = global_afltest_got value = 3.749 } NOT = { check_variable = { which = global_afltest_got value = 3.751 } } } log = "CK2TEST pass the monthly check pays the lender the 3.75 margin" }
+			if = { limit = { NOT = { check_variable = { which = global_afltest_paid value = 3.749 } NOT = { check_variable = { which = global_afltest_paid value = 3.751 } } check_variable = { which = global_afltest_got value = 3.749 } NOT = { check_variable = { which = global_afltest_got value = 3.751 } } } } log = "CK2TEST fail the monthly check pays the lender the 3.75 margin: the borrower paid [global_afltest_paid.GetValue], the lender got [global_afltest_got.GetValue], not 3.75" }
+
+# The lender's title passes: the contract names someone else as lender, and the check
+# finds the title's holder (afltest_cl) and hands the charter to it (afl.24).
+event_target:afltest_cp = { set_character_flag = afl_lending set_character_flag = afl_charter }
+event_target:afltest_cb = {
+	event_target:afltest_cp = { save_event_target_as = afl_lender }
+	afl_monthly_check_effect = yes
+}
+			if = { limit = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cp = { NOT = { has_character_flag = afl_lending } NOT = { has_character_flag = afl_charter } } event_target:afltest_cb = { is_variable_equal = { which = afl_months value = 2 } } } log = "CK2TEST pass a new holder of the lender's title takes over the charter" }
+			if = { limit = { NOT = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cp = { NOT = { has_character_flag = afl_lending } NOT = { has_character_flag = afl_charter } } event_target:afltest_cb = { is_variable_equal = { which = afl_months value = 2 } } } } log = "CK2TEST fail a new holder of the lender's title takes over the charter: flags or months not as expected" }
+
+# Month eleven warns both (afl.46); month twelve ends the term, with its margin paid.
+event_target:afltest_cb = { set_variable = { which = afl_months value = 10 } afl_monthly_check_effect = yes }
+			if = { limit = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cb = { is_variable_equal = { which = afl_months value = 11 } } } log = "CK2TEST pass the eleventh month warns and goes on" }
+			if = { limit = { NOT = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cb = { is_variable_equal = { which = afl_months value = 11 } } } } log = "CK2TEST fail the eleventh month warns and goes on: it ended, or months is [afltest_cb.afl_months.GetValue]" }
+			event_target:afltest_cb = { export_to_variable = { which = global_afltest_b_before value = wealth } }
+			event_target:afltest_cl = { export_to_variable = { which = global_afltest_l_before value = wealth } }
+			event_target:afltest_cb = { afl_monthly_check_effect = yes }
+			if = { limit = { event_target:afltest_cb = { NOT = { has_character_flag = afl_borrowing } NOT = { has_character_flag = afl_charter } NOT = { has_character_flag = afl_charter_sailed } NOT = { has_earmarked_regiments = afl_charter } } event_target:afltest_cl = { NOT = { has_character_flag = afl_lending } NOT = { has_character_flag = afl_charter } } event_target:afltest_cl = { NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST pass the twelfth month ends the term and sends the ships home" }
+			if = { limit = { NOT = { event_target:afltest_cb = { NOT = { has_character_flag = afl_borrowing } NOT = { has_character_flag = afl_charter } NOT = { has_character_flag = afl_charter_sailed } NOT = { has_earmarked_regiments = afl_charter } } event_target:afltest_cl = { NOT = { has_character_flag = afl_lending } NOT = { has_character_flag = afl_charter } } event_target:afltest_cl = { NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } log = "CK2TEST fail the twelfth month ends the term and sends the ships home: the charter or a holding's modifier is still on" }
+			event_target:afltest_cb = { export_to_variable = { which = global_afltest_b_after value = wealth } }
+			event_target:afltest_cl = { export_to_variable = { which = global_afltest_l_after value = wealth } }
+			set_variable = { which = global_afltest_paid which = global_afltest_b_before }
+			subtract_variable = { which = global_afltest_paid which = global_afltest_b_after }
+			set_variable = { which = global_afltest_got which = global_afltest_l_after }
+			subtract_variable = { which = global_afltest_got which = global_afltest_l_before }
+			if = { limit = { check_variable = { which = global_afltest_paid value = 3.749 } NOT = { check_variable = { which = global_afltest_paid value = 3.751 } } check_variable = { which = global_afltest_got value = 3.749 } NOT = { check_variable = { which = global_afltest_got value = 3.751 } } } log = "CK2TEST pass the last month's margin is paid" }
+			if = { limit = { NOT = { check_variable = { which = global_afltest_paid value = 3.749 } NOT = { check_variable = { which = global_afltest_paid value = 3.751 } } check_variable = { which = global_afltest_got value = 3.749 } NOT = { check_variable = { which = global_afltest_got value = 3.751 } } } } log = "CK2TEST fail the last month's margin is paid: the borrower paid [global_afltest_paid.GetValue], the lender got [global_afltest_got.GetValue], not 3.75" }
+
+			# Unpaid wages: a second unpaid month ends a charter too.
+			event_target:afltest_cb = {
+				save_event_target_as = afl_borrower
+				set_character_flag = afl_request_pending
+				set_character_flag = afl_charter
+				set_variable = { which = afl_ask value = 50 }
+			}
+			event_target:afltest_cl = { save_event_target_as = afl_lender set_character_flag = afl_request_incoming }
+			event_target:afltest_cb = { afl_set_charter_terms_effect = yes }
+			event_target:afltest_cb = { export_to_variable = { which = global_afltest_b_before value = wealth } }
+			event_target:afltest_cl = { export_to_variable = { which = global_afltest_l_before value = wealth } }
+			event_target:afltest_cl = { afl_start_charter_effect = yes }
+			event_target:afltest_cb = { afl_monthly_check_effect = yes }
+			event_target:afltest_cb = { while = { count = 400 limit = { wealth = 0 } wealth = -25 } }
+			event_target:afltest_cb = { afl_monthly_check_effect = yes }
+			if = { limit = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cb = { is_variable_equal = { which = afl_missed value = 1 } } } log = "CK2TEST pass a charter borrower in debt keeps the ships a month" }
+			if = { limit = { NOT = { event_target:afltest_cb = { has_character_flag = afl_borrowing has_character_flag = afl_charter } event_target:afltest_cl = { has_character_flag = afl_lending has_character_flag = afl_charter } event_target:afltest_cb = { is_variable_equal = { which = afl_missed value = 1 } } } } log = "CK2TEST fail a charter borrower in debt keeps the ships a month: missed is [afltest_cb.afl_missed.GetValue]" }
+			event_target:afltest_cb = { afl_monthly_check_effect = yes }
+			if = { limit = { event_target:afltest_cb = { NOT = { has_character_flag = afl_borrowing } NOT = { has_character_flag = afl_charter } NOT = { has_character_flag = afl_charter_sailed } NOT = { has_earmarked_regiments = afl_charter } } event_target:afltest_cl = { NOT = { has_character_flag = afl_lending } NOT = { has_character_flag = afl_charter } } event_target:afltest_cl = { NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST pass a second unpaid month ends a charter" }
+			if = { limit = { NOT = { event_target:afltest_cb = { NOT = { has_character_flag = afl_borrowing } NOT = { has_character_flag = afl_charter } NOT = { has_character_flag = afl_charter_sailed } NOT = { has_earmarked_regiments = afl_charter } } event_target:afltest_cl = { NOT = { has_character_flag = afl_lending } NOT = { has_character_flag = afl_charter } } event_target:afltest_cl = { NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } log = "CK2TEST fail a second unpaid month ends a charter: it is still on" }
+			event_target:afltest_cb = {
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 500
+			}
+
+			# A charter whose borrower dies while the ships gather (afl.30, on_death); afltest.31 checks.
+			event_target:afltest_cb = {
+				save_event_target_as = afl_borrower
+				set_character_flag = afl_request_pending
+				set_character_flag = afl_charter
+				set_variable = { which = afl_ask value = 50 }
+			}
+			event_target:afltest_cl = { save_event_target_as = afl_lender set_character_flag = afl_request_incoming }
+			event_target:afltest_cb = { afl_set_charter_terms_effect = yes }
+			event_target:afltest_cb = { export_to_variable = { which = global_afltest_b_before value = wealth } }
+			event_target:afltest_cl = { export_to_variable = { which = global_afltest_l_before value = wealth } }
+			event_target:afltest_cl = { afl_start_charter_effect = yes }
+			event_target:afltest_cl = { character_event = { id = afltest.31 days = 3 } }
+			event_target:afltest_cb = { death = { death_reason = death_accident_drowning } }
+		}
+		character_event = { id = afltest.32 days = 5 }
+	}
+}
+
+# afltest.31: three days after the charter borrower died. ROOT = afltest_cl.
+character_event = {
+	id = afltest.31
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = { limit = { NOT = { has_character_flag = afl_lending } NOT = { has_character_flag = afl_charter } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } log = "CK2TEST pass a charter borrower's death ends the charter, the sum on signing kept" }
+		if = { limit = { NOT = { NOT = { has_character_flag = afl_lending } NOT = { has_character_flag = afl_charter } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST fail a charter borrower's death ends the charter, the sum on signing kept: [Root.GetBestName] ([Root.GetID]) still lends, or a holding keeps Ships away" }
+	}
+}
+
+# afltest.32: one charter request from an AI ruler to an AI lender, as the decision makes it, then
+# the next a day later, twelve in all; then part 3 (afltest.34). Two in three go to a lender
+# whose own holdings can spare 50 galleys, the rest to any lender with ships. The ruler asking
+# gets 100 gold, so it can pay the sum on signing for 50.
+character_event = {
+	id = afltest.32
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		clear_event_target = afl_borrower
+		clear_event_target = afl_lender
+		clear_event_target = afl_lender_title
+		clear_event_target = afl_port
+		change_variable = { which = global_afltest_cr value = 1 }
+		any_independent_ruler = {
+			limit = { is_landed = yes afl_can_lend_trigger = yes }
+			afl_count_base_effect = yes
+		}
+		random_independent_ruler = {
+			limit = {
+				afl_can_charter_trigger = yes
+				NOT = { has_character_flag = afl_test_requester }
+				any_independent_ruler = {
+					is_landed = yes
+					afl_can_lend_trigger = yes
+					NOT = { character = PREV }
+					NOT = { war_with = PREV }
+				}
+			}
+			save_event_target_as = afltest_asker
+			set_character_flag = afl_test_requester
+			wealth = 100
+			random_independent_ruler = {
+				limit = {
+					is_landed = yes
+					afl_can_lend_trigger = yes
+					NOT = { character = PREV }
+					NOT = { war_with = PREV }
+					OR = {
+						check_variable = { which = afl_base value = 50 }
+						ROOT = { is_variable_equal = { which = global_afltest_cr value = 3 } }
+						ROOT = { is_variable_equal = { which = global_afltest_cr value = 6 } }
+						ROOT = { is_variable_equal = { which = global_afltest_cr value = 9 } }
+						ROOT = { is_variable_equal = { which = global_afltest_cr value = 12 } }
+					}
+				}
+				save_event_target_as = afl_lender
+			}
+			if = {
+				limit = { event_target:afl_lender = { always = yes } }
+				log = "afltest: [Root.GetBestName] ([Root.GetID]) asks [afl_lender.GetBestName] ([afl_lender.GetID]) for a charter"
+				afl_ask_charter_effect = yes
+				character_event = { id = afltest.33 days = 35 }
+			}
+		}
+		if = {
+			limit = { NOT = { check_variable = { which = global_afltest_cr value = 12 } } }
+			character_event = { id = afltest.32 days = 1 }
+		}
+		else = {
+			character_event = { id = afltest.34 days = 1 }
+		}
+	}
+}
+
+# afltest.33: 35 days after an AI charter request, for the ruler who asked. A charter signed then
+# has sailed: it is checked, then ended. The lender is looked up from the contract's title.
+character_event = {
+	id = afltest.33
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = {
+			limit = { has_character_flag = afl_charter has_character_flag = afl_borrowing }
+			save_event_target_as = afl_borrower
+			persistent_event_target:afl_lender_title = { holder_scope = { save_event_target_as = afl_lender } }
+			if = { limit = { has_character_flag = afl_charter_sailed has_earmarked_regiments = afl_charter } log = "CK2TEST pass an AI charter's ships have sailed after 30 days" }
+			if = { limit = { NOT = { has_character_flag = afl_charter_sailed has_earmarked_regiments = afl_charter } } log = "CK2TEST fail an AI charter's ships have sailed after 30 days: [Root.GetBestName] ([Root.GetID]) has no fleet" }
+			if = { limit = { event_target:afl_lender = { has_character_flag = afl_charter any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } log = "CK2TEST pass an AI charter puts Ships away on the lender's own holdings" }
+			if = { limit = { NOT = { event_target:afl_lender = { has_character_flag = afl_charter any_demesne_title = { afl_has_ships_trigger = yes OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST fail an AI charter puts Ships away on the lender's own holdings: none on [afl_lender.GetBestName] ([afl_lender.GetID])" }
+			afl_end_charter_effect = yes
+			if = { limit = { NOT = { has_earmarked_regiments = afl_charter } event_target:afl_lender = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST pass ending an AI charter takes Ships away off the lender's holdings" }
+			if = { limit = { NOT = { NOT = { has_earmarked_regiments = afl_charter } event_target:afl_lender = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } log = "CK2TEST fail ending an AI charter takes Ships away off the lender's holdings: the fleet or a modifier is still there" }
+		}
+		if = {
+			limit = { NOT = { has_character_flag = afl_borrowing } }
+			log = "afltest: [Root.GetBestName] ([Root.GetID]) has no charter: withdrawn or refused"
+		}
+	}
+}
+
+# afltest.34: one request and one offer whose ruler choosing the count has afl_base forced, by
+# case (global_afltest_ci, 1 to 10, in turn), so each count and each "never mind" is chosen;
+# thirty runs, a day apart; then afltest.37. Each runs the steps of afl_ask_charter_effect or
+# afl_offer_charter_effect, but sets afl_base instead of counting it. The ruler who pays gets the
+# case's treasury. afltest.35 and afltest.36 check each 35 days on.
+character_event = {
+	id = afltest.34
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		change_variable = { which = global_afltest_cs value = 1 }
+		change_variable = { which = global_afltest_ci value = 1 }
+		if = {
+			limit = { check_variable = { which = global_afltest_ci value = 11 } }
+			set_variable = { which = global_afltest_ci value = 1 }
+		}
+		# A request.
+		clear_event_target = afl_borrower
+		clear_event_target = afl_lender
+		clear_event_target = afl_lender_title
+		clear_event_target = afl_port
+		random_independent_ruler = {
+			limit = {
+				afl_can_charter_trigger = yes
+				NOT = { has_character_flag = afl_test_requester }
+				any_independent_ruler = {
+					is_landed = yes
+					afl_can_lend_trigger = yes
+					NOT = { character = PREV }
+					NOT = { war_with = PREV }
+				}
+			}
+			save_event_target_as = afl_borrower
+			set_character_flag = afl_test_requester
+			random_independent_ruler = {
+				limit = {
+					is_landed = yes
+					afl_can_lend_trigger = yes
+					NOT = { character = PREV }
+					NOT = { war_with = PREV }
+				}
+				save_event_target_as = afl_lender
+				set_character_flag = afl_request_incoming
+			}
+			set_character_flag = afl_request_pending
+			set_character_flag = afl_charter
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 1 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 100
+				set_variable = { which = afl_base value = 50 }
+				log = "afltest: [Root.GetBestName] ([Root.GetID]) hires from [afl_lender.GetBestName] ([afl_lender.GetID]) with 50 offered and [This.afl_base.GetValue] set, a treasury for: 50"
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 2 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 100
+				set_variable = { which = afl_base value = 100 }
+				log = "afltest: [Root.GetBestName] ([Root.GetID]) hires from [afl_lender.GetBestName] ([afl_lender.GetID]) with 100 offered and [This.afl_base.GetValue] set, a treasury for: 100"
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 3 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 200
+				set_variable = { which = afl_base value = 150 }
+				log = "afltest: [Root.GetBestName] ([Root.GetID]) hires from [afl_lender.GetBestName] ([afl_lender.GetID]) with 150 offered and [This.afl_base.GetValue] set, a treasury for: 150"
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 4 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 200
+				set_variable = { which = afl_base value = 200 }
+				log = "afltest: [Root.GetBestName] ([Root.GetID]) hires from [afl_lender.GetBestName] ([afl_lender.GetID]) with 200 offered and [This.afl_base.GetValue] set, a treasury for: 200"
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 5 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 400
+				set_variable = { which = afl_base value = 300 }
+				log = "afltest: [Root.GetBestName] ([Root.GetID]) hires from [afl_lender.GetBestName] ([afl_lender.GetID]) with 300 offered and [This.afl_base.GetValue] set, a treasury for: 300"
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 6 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 400
+				set_variable = { which = afl_base value = 400 }
+				log = "afltest: [Root.GetBestName] ([Root.GetID]) hires from [afl_lender.GetBestName] ([afl_lender.GetID]) with 400 offered and [This.afl_base.GetValue] set, a treasury for: 400"
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 7 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 400
+				set_variable = { which = afl_base value = 500 }
+				log = "afltest: [Root.GetBestName] ([Root.GetID]) hires from [afl_lender.GetBestName] ([afl_lender.GetID]) with 500 offered and [This.afl_base.GetValue] set, a treasury for: 500"
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 8 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 10
+				set_variable = { which = afl_base value = 50 }
+				log = "afltest: [Root.GetBestName] ([Root.GetID]) hires from [afl_lender.GetBestName] ([afl_lender.GetID]) with 50 offered and [This.afl_base.GetValue] set, a treasury for: never, first page"
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 9 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 50
+				set_variable = { which = afl_base value = 150 }
+				log = "afltest: [Root.GetBestName] ([Root.GetID]) hires from [afl_lender.GetBestName] ([afl_lender.GetID]) with 150 offered and [This.afl_base.GetValue] set, a treasury for: never, second page"
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 10 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 150
+				set_variable = { which = afl_base value = 300 }
+				log = "afltest: [Root.GetBestName] ([Root.GetID]) hires from [afl_lender.GetBestName] ([afl_lender.GetID]) with 300 offered and [This.afl_base.GetValue] set, a treasury for: never, third page"
+			}
+			character_event = { id = afl.40 }
+			character_event = { id = afltest.35 days = 35 }
+		}
+		character_event = { id = afltest.39 }
+	}
+}
+
+# afltest.39: the offer of afltest.34's run, in an event of its own so each keeps its own event
+# targets.
+character_event = {
+	id = afltest.39
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		clear_event_target = afl_borrower
+		clear_event_target = afl_lender
+		clear_event_target = afl_lender_title
+		clear_event_target = afl_port
+		random_independent_ruler = {
+			limit = {
+				afl_can_charter_trigger = yes
+				NOT = { has_character_flag = afl_test_requester }
+				any_independent_ruler = {
+					is_landed = yes
+					afl_can_lend_trigger = yes
+					NOT = { character = PREV }
+					NOT = { war_with = PREV }
+				}
+			}
+			save_event_target_as = afl_borrower
+			set_character_flag = afl_test_requester
+			set_character_flag = afl_offer_in
+			set_character_flag = afl_charter
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 1 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 100
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 2 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 100
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 3 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 200
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 4 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 200
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 5 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 400
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 6 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 400
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 7 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 400
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 8 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 10
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 9 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 50
+			}
+			if = {
+				limit = { is_variable_equal = { which = global_afltest_ci value = 10 } }
+				while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+				while = { count = 30 limit = { NOT = { wealth = 0 } } wealth = 1 }
+				wealth = 150
+			}
+random_independent_ruler = {
+	limit = {
+		is_landed = yes
+		afl_can_lend_trigger = yes
+		NOT = { character = PREV }
+		NOT = { war_with = PREV }
+	}
+	save_event_target_as = afl_lender
+	set_character_flag = afl_offer_out
+				if = {
+					limit = { is_variable_equal = { which = global_afltest_ci value = 1 } }
+					set_variable = { which = afl_base value = 50 }
+					log = "afltest: [Root.GetBestName] ([Root.GetID]) offers [afl_borrower.GetBestName] ([afl_borrower.GetID]) ships with 50 set, a treasury for: 50"
+				}
+				if = {
+					limit = { is_variable_equal = { which = global_afltest_ci value = 2 } }
+					set_variable = { which = afl_base value = 100 }
+					log = "afltest: [Root.GetBestName] ([Root.GetID]) offers [afl_borrower.GetBestName] ([afl_borrower.GetID]) ships with 100 set, a treasury for: 100"
+				}
+				if = {
+					limit = { is_variable_equal = { which = global_afltest_ci value = 3 } }
+					set_variable = { which = afl_base value = 150 }
+					log = "afltest: [Root.GetBestName] ([Root.GetID]) offers [afl_borrower.GetBestName] ([afl_borrower.GetID]) ships with 150 set, a treasury for: 150"
+				}
+				if = {
+					limit = { is_variable_equal = { which = global_afltest_ci value = 4 } }
+					set_variable = { which = afl_base value = 200 }
+					log = "afltest: [Root.GetBestName] ([Root.GetID]) offers [afl_borrower.GetBestName] ([afl_borrower.GetID]) ships with 200 set, a treasury for: 200"
+				}
+				if = {
+					limit = { is_variable_equal = { which = global_afltest_ci value = 5 } }
+					set_variable = { which = afl_base value = 300 }
+					log = "afltest: [Root.GetBestName] ([Root.GetID]) offers [afl_borrower.GetBestName] ([afl_borrower.GetID]) ships with 300 set, a treasury for: 300"
+				}
+				if = {
+					limit = { is_variable_equal = { which = global_afltest_ci value = 6 } }
+					set_variable = { which = afl_base value = 400 }
+					log = "afltest: [Root.GetBestName] ([Root.GetID]) offers [afl_borrower.GetBestName] ([afl_borrower.GetID]) ships with 400 set, a treasury for: 400"
+				}
+				if = {
+					limit = { is_variable_equal = { which = global_afltest_ci value = 7 } }
+					set_variable = { which = afl_base value = 500 }
+					log = "afltest: [Root.GetBestName] ([Root.GetID]) offers [afl_borrower.GetBestName] ([afl_borrower.GetID]) ships with 500 set, a treasury for: 500"
+				}
+				if = {
+					limit = { is_variable_equal = { which = global_afltest_ci value = 8 } }
+					set_variable = { which = afl_base value = 50 }
+					log = "afltest: [Root.GetBestName] ([Root.GetID]) offers [afl_borrower.GetBestName] ([afl_borrower.GetID]) ships with 50 set, a treasury for: never, first page"
+				}
+				if = {
+					limit = { is_variable_equal = { which = global_afltest_ci value = 9 } }
+					set_variable = { which = afl_base value = 150 }
+					log = "afltest: [Root.GetBestName] ([Root.GetID]) offers [afl_borrower.GetBestName] ([afl_borrower.GetID]) ships with 150 set, a treasury for: never, second page"
+				}
+				if = {
+					limit = { is_variable_equal = { which = global_afltest_ci value = 10 } }
+					set_variable = { which = afl_base value = 300 }
+					log = "afltest: [Root.GetBestName] ([Root.GetID]) offers [afl_borrower.GetBestName] ([afl_borrower.GetID]) ships with 300 set, a treasury for: never, third page"
+				}
+				character_event = { id = afl.50 }
+			}
+			character_event = { id = afltest.36 days = 35 }
+		}
+		if = {
+			limit = { NOT = { check_variable = { which = global_afltest_cs value = 30 } } }
+			character_event = { id = afltest.34 days = 1 }
+		}
+		else = {
+			character_event = { id = afltest.37 days = 40 }
+		}
+	}
+}
+
+# afltest.35: 35 days after a charter request with afl_base forced, for the ruler who would hire.
+# A charter signed then has sailed: it is checked, then ended.
+character_event = {
+	id = afltest.35
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = {
+			limit = { has_character_flag = afl_charter has_character_flag = afl_borrowing }
+			save_event_target_as = afl_borrower
+			persistent_event_target:afl_lender_title = { holder_scope = { save_event_target_as = afl_lender } }
+			if = { limit = { has_character_flag = afl_charter_sailed has_earmarked_regiments = afl_charter } log = "CK2TEST pass a charter by request: the ships have sailed after 30 days" }
+			if = { limit = { NOT = { has_character_flag = afl_charter_sailed has_earmarked_regiments = afl_charter } } log = "CK2TEST fail a charter by request: the ships have sailed after 30 days: [Root.GetBestName] ([Root.GetID]) has no fleet" }
+			set_variable = { which = afltest_lump which = afl_ask }
+			multiply_variable = { which = afltest_lump value = 0.6 }
+			if = { limit = { check_variable = { which = afl_ask value = 50 } NOT = { check_variable = { which = afl_ask value = 501 } } is_variable_equal = { which = afl_lump which = afltest_lump } } log = "CK2TEST pass a charter by request is for 50 to 500 galleys, 0.6 gold each on signing" }
+			if = { limit = { NOT = { check_variable = { which = afl_ask value = 50 } NOT = { check_variable = { which = afl_ask value = 501 } } is_variable_equal = { which = afl_lump which = afltest_lump } } } log = "CK2TEST fail a charter by request is for 50 to 500 galleys, 0.6 gold each on signing: afl_ask [Root.afl_ask.GetValue], afl_lump [Root.afl_lump.GetValue]" }
+			afl_end_charter_effect = yes
+			if = { limit = { NOT = { has_earmarked_regiments = afl_charter } NOT = { has_character_flag = afl_borrowing } event_target:afl_lender = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST pass ending a charter by request takes the fleet and Ships away" }
+			if = { limit = { NOT = { NOT = { has_earmarked_regiments = afl_charter } NOT = { has_character_flag = afl_borrowing } event_target:afl_lender = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } log = "CK2TEST fail ending a charter by request takes the fleet and Ships away: the fleet, a flag or a modifier is still there" }
+		}
+		if = {
+			limit = { NOT = { has_character_flag = afl_borrowing } }
+			log = "afltest: [Root.GetBestName] ([Root.GetID]) has no charter from the request: never mind, refused or declined"
+		}
+	}
+}
+
+# afltest.36: 35 days after a charter offer with afl_base forced, for the ruler who would hire.
+# A charter signed then has sailed: it is checked, then ended.
+character_event = {
+	id = afltest.36
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = {
+			limit = { has_character_flag = afl_charter has_character_flag = afl_borrowing }
+			save_event_target_as = afl_borrower
+			persistent_event_target:afl_lender_title = { holder_scope = { save_event_target_as = afl_lender } }
+			if = { limit = { has_character_flag = afl_charter_sailed has_earmarked_regiments = afl_charter } log = "CK2TEST pass a charter by offer: the ships have sailed after 30 days" }
+			if = { limit = { NOT = { has_character_flag = afl_charter_sailed has_earmarked_regiments = afl_charter } } log = "CK2TEST fail a charter by offer: the ships have sailed after 30 days: [Root.GetBestName] ([Root.GetID]) has no fleet" }
+			set_variable = { which = afltest_lump which = afl_ask }
+			multiply_variable = { which = afltest_lump value = 0.6 }
+			if = { limit = { check_variable = { which = afl_ask value = 50 } NOT = { check_variable = { which = afl_ask value = 501 } } is_variable_equal = { which = afl_lump which = afltest_lump } } log = "CK2TEST pass a charter by offer is for 50 to 500 galleys, 0.6 gold each on signing" }
+			if = { limit = { NOT = { check_variable = { which = afl_ask value = 50 } NOT = { check_variable = { which = afl_ask value = 501 } } is_variable_equal = { which = afl_lump which = afltest_lump } } } log = "CK2TEST fail a charter by offer is for 50 to 500 galleys, 0.6 gold each on signing: afl_ask [Root.afl_ask.GetValue], afl_lump [Root.afl_lump.GetValue]" }
+			afl_end_charter_effect = yes
+			if = { limit = { NOT = { has_earmarked_regiments = afl_charter } NOT = { has_character_flag = afl_borrowing } event_target:afl_lender = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST pass ending a charter by offer takes the fleet and Ships away" }
+			if = { limit = { NOT = { NOT = { has_earmarked_regiments = afl_charter } NOT = { has_character_flag = afl_borrowing } event_target:afl_lender = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } log = "CK2TEST fail ending a charter by offer takes the fleet and Ships away: the fleet, a flag or a modifier is still there" }
+		}
+		if = {
+			limit = { NOT = { has_character_flag = afl_borrowing } }
+			log = "afltest: [Root.GetBestName] ([Root.GetID]) has no charter from the offer: never mind, refused or declined"
+		}
+	}
+}
+
+# afltest.37: the charter tests are done, but for the late charter (afltest.38).
+character_event = {
+	id = afltest.37
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		log = "CK2TEST done"
+	}
+}
+
+# afltest.38 (from afltest.13, near the year's end): a 50-galley charter, signed through its steps,
+# whose ships sail 30 days on, before the year's last save (save_checks.txt).
+character_event = {
+	id = afltest.38
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		clear_event_target = afl_borrower
+		clear_event_target = afl_lender
+		clear_event_target = afl_lender_title
+		clear_event_target = afl_port
+		any_independent_ruler = {
+			limit = { is_landed = yes afl_can_lend_trigger = yes }
+			afl_count_base_effect = yes
+		}
+		random_independent_ruler = {
+			limit = {
+				afl_can_charter_trigger = yes
+				any_independent_ruler = {
+					is_landed = yes
+					afl_can_lend_trigger = yes
+					check_variable = { which = afl_base value = 50 }
+					NOT = { character = PREV }
+					NOT = { war_with = PREV }
+				}
+			}
+			save_event_target_as = afl_borrower
+			wealth = 100
+			set_character_flag = afl_request_pending
+			set_character_flag = afl_charter
+			set_variable = { which = afl_ask value = 50 }
+			random_independent_ruler = {
+				limit = {
+					is_landed = yes
+					afl_can_lend_trigger = yes
+					check_variable = { which = afl_base value = 50 }
+					NOT = { character = PREV }
+					NOT = { war_with = PREV }
+				}
+				save_event_target_as = afl_lender
+				set_character_flag = afl_request_incoming
+			}
+			afl_set_charter_terms_effect = yes
+			event_target:afl_lender = { afl_start_charter_effect = yes }
+		}
+		if = {
+			limit = { any_independent_ruler = { has_character_flag = afl_borrowing has_character_flag = afl_charter } }
+			log = "CK2TEST pass a late charter runs into the year's last save"
+		}
+		if = {
+			limit = { NOT = { any_independent_ruler = { has_character_flag = afl_borrowing has_character_flag = afl_charter } } }
+			log = "CK2TEST fail a late charter runs into the year's last save: no pair of rulers could start one"
+		}
+	}
+}

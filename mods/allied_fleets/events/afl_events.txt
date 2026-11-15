@@ -233,11 +233,18 @@ character_event = {
 	}
 }
 
-# afl.24: a new holder of the lender's title learns of the loan, and that it may recall the ships.
-# ROOT = the new lender.
+# afl.24: a new holder of the lender's title learns of the war loan, and that it may recall the
+# ships, or of the charter, which runs its term. ROOT = the new lender.
 character_event = {
 	id = afl.24
-	desc = EVTDESC_afl_24
+	desc = {
+		text = EVTDESC_afl_24
+		trigger = { NOT = { has_character_flag = afl_charter } }
+	}
+	desc = {
+		text = EVTDESC_afl_24_charter
+		trigger = { has_character_flag = afl_charter }
+	}
 	picture = GFX_evt_council
 	is_triggered_only = yes
 
@@ -246,7 +253,7 @@ character_event = {
 	}
 }
 
-# afl.30 (on_death): a borrower's death ends the loan. ROOT = the dying borrower, who still has
+# afl.30 (on_death): a borrower's death ends the war loan or charter. ROOT = the dying borrower, who still has
 # flags and titles; the lender comes from the title saved on the borrower.
 character_event = {
 	id = afl.30
@@ -263,6 +270,449 @@ character_event = {
 			holder_scope = { save_event_target_as = afl_lender }
 		}
 		log = "afl: borrower [afl_borrower.GetBestName] ([afl_borrower.GetID]) died"
-		afl_end_war_loan_effect = yes
+		if = {
+			limit = { has_character_flag = afl_charter }
+			afl_end_charter_effect = yes
+		}
+		else = {
+			afl_end_war_loan_effect = yes
+		}
+	}
+}
+
+# afl.40, afl.41 and afl.42: the ruler hiring chooses how many galleys to hire, as afl.10 to afl.15
+# for a war loan; a count is shown only if the lender's own holdings hold that many before
+# bonuses (afl_base) and the ruler hiring can pay its sum on signing, 0.6 gold a galley. Only
+# players take the decision; the AI chances serve the in-game tests, as on afl.10: the largest
+# count offered, or "never mind" when the treasury can't pay the page's smallest. ROOT = the ruler
+# hiring.
+character_event = {
+	id = afl.40
+	desc = {
+		text = EVTDESC_afl_40
+		trigger = { check_variable = { which = afl_base value = 50 } }
+	}
+	desc = {
+		text = EVTDESC_afl_40_none
+		trigger = { NOT = { check_variable = { which = afl_base value = 50 } } }
+	}
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_40 # 50 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 50 }
+			wealth = 30
+		}
+		custom_tooltip = { text = afl_send_request_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 50 }
+			afl_send_charter_request_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 100 } } } }
+	}
+	option = {
+		name = EVTOPTB_afl_40 # 100 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 100 }
+			wealth = 60
+		}
+		custom_tooltip = { text = afl_send_request_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 100 }
+			afl_send_charter_request_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 150 } } } }
+	}
+	option = {
+		name = EVTOPTC_afl_40 # more: afl.41
+		trigger = { check_variable = { which = afl_base value = 150 } }
+		character_event = { id = afl.41 }
+		ai_chance = { factor = 30 modifier = { factor = 100 always = yes } }
+	}
+	option = {
+		name = EVTOPTD_afl_40 # never mind
+		hidden_tooltip = { afl_withdraw_request_effect = yes }
+		ai_chance = { factor = 10 modifier = { factor = 10000 NOT = { wealth = 30 } } }
+	}
+}
+
+# afl.41: the second page, 150 or 200 galleys. ROOT = the ruler hiring.
+character_event = {
+	id = afl.41
+	desc = EVTDESC_afl_40
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_41 # 150 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 150 }
+			wealth = 90
+		}
+		custom_tooltip = { text = afl_send_request_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 150 }
+			afl_send_charter_request_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 200 } } } }
+	}
+	option = {
+		name = EVTOPTB_afl_41 # 200 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 200 }
+			wealth = 120
+		}
+		custom_tooltip = { text = afl_send_request_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 200 }
+			afl_send_charter_request_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 300 } } } }
+	}
+	option = {
+		name = EVTOPTC_afl_41 # more: afl.42
+		trigger = { check_variable = { which = afl_base value = 300 } }
+		character_event = { id = afl.42 }
+		ai_chance = { factor = 30 modifier = { factor = 100 always = yes } }
+	}
+	option = {
+		name = EVTOPTD_afl_41 # never mind
+		hidden_tooltip = { afl_withdraw_request_effect = yes }
+		ai_chance = { factor = 10 modifier = { factor = 10000 NOT = { wealth = 90 } } }
+	}
+}
+
+# afl.42: the third page, 300 to 500 galleys. ROOT = the ruler hiring.
+character_event = {
+	id = afl.42
+	desc = EVTDESC_afl_40
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_42 # 300 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 300 }
+			wealth = 180
+		}
+		custom_tooltip = { text = afl_send_request_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 300 }
+			afl_send_charter_request_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 400 } } } }
+	}
+	option = {
+		name = EVTOPTB_afl_42 # 400 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 400 }
+			wealth = 240
+		}
+		custom_tooltip = { text = afl_send_request_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 400 }
+			afl_send_charter_request_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 500 } } } }
+	}
+	option = {
+		name = EVTOPTC_afl_42 # 500 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 500 }
+			wealth = 300
+		}
+		custom_tooltip = { text = afl_send_request_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 500 }
+			afl_send_charter_request_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 always = yes } }
+	}
+	option = {
+		name = EVTOPTD_afl_42 # never mind
+		hidden_tooltip = { afl_withdraw_request_effect = yes }
+		ai_chance = { factor = 10 modifier = { factor = 10000 NOT = { wealth = 180 } } }
+	}
+}
+
+# afl.43: the lender answers a charter request. ROOT = the lender, with the terms set
+# (afl_set_charter_terms_effect). It can sign only while the ruler hiring can pay the sum on signing.
+character_event = {
+	id = afl.43
+	desc = {
+		text = EVTDESC_afl_43
+		trigger = { event_target:afl_borrower = { afl_can_pay_lump_trigger = yes } }
+	}
+	desc = {
+		text = EVTDESC_afl_43_poor
+		trigger = { event_target:afl_borrower = { NOT = { afl_can_pay_lump_trigger = yes } } }
+	}
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_43 # sign
+		trigger = { event_target:afl_borrower = { afl_can_pay_lump_trigger = yes } }
+		custom_tooltip = { text = afl_sign_lender_tt }
+		hidden_tooltip = {
+			afl_start_charter_effect = yes
+			event_target:afl_borrower = { character_event = { id = afl.44 } }
+		}
+		ai_chance = { factor = 75 }
+	}
+	option = {
+		name = EVTOPTB_afl_43 # refuse
+		hidden_tooltip = { afl_refuse_war_loan_effect = yes }
+		ai_chance = { factor = 25 }
+	}
+}
+
+# afl.44: the charter is signed; tells the ruler who did not sign it last: the ruler hiring when
+# the lender signed (afl.43), the lender when the ruler offered the ships signed (afl.53).
+# ROOT = that ruler.
+character_event = {
+	id = afl.44
+	desc = {
+		text = EVTDESC_afl_44
+		trigger = { has_character_flag = afl_borrowing }
+	}
+	desc = {
+		text = EVTDESC_afl_44_lender
+		trigger = { NOT = { has_character_flag = afl_borrowing } }
+	}
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_44
+	}
+}
+
+# afl.45: the ships have gathered in the lender's port; sent to both. ROOT = the borrower or the
+# lender.
+character_event = {
+	id = afl.45
+	desc = {
+		text = EVTDESC_afl_45
+		trigger = { has_character_flag = afl_borrowing }
+	}
+	desc = {
+		text = EVTDESC_afl_45_lender
+		trigger = { NOT = { has_character_flag = afl_borrowing } }
+	}
+	picture = GFX_evt_merchant_ship_at_sea_republic
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_45
+	}
+}
+
+# afl.46: a month before the term ends; sent to both. ROOT = the borrower or the lender.
+character_event = {
+	id = afl.46
+	desc = EVTDESC_afl_46
+	picture = GFX_evt_merchant_ship_at_sea_republic
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_46
+	}
+}
+
+# afl.50, afl.51 and afl.52: the lender chooses how many galleys to offer, out of what its own
+# holdings hold (afl_base). Only players take the decision; the AI chances serve the in-game tests:
+# the largest count, or "never mind" when the ruler offered the ships can't pay the page's smallest
+# sum on signing. ROOT = the lender.
+character_event = {
+	id = afl.50
+	desc = {
+		text = EVTDESC_afl_50
+		trigger = { check_variable = { which = afl_base value = 50 } }
+	}
+	desc = {
+		text = EVTDESC_afl_50_none
+		trigger = { NOT = { check_variable = { which = afl_base value = 50 } } }
+	}
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_50 # 50 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 50 }
+		}
+		custom_tooltip = { text = afl_send_offer_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 50 }
+			afl_send_offer_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 100 } } } }
+	}
+	option = {
+		name = EVTOPTB_afl_50 # 100 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 100 }
+		}
+		custom_tooltip = { text = afl_send_offer_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 100 }
+			afl_send_offer_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 150 } } } }
+	}
+	option = {
+		name = EVTOPTC_afl_50 # more: afl.51
+		trigger = { check_variable = { which = afl_base value = 150 } }
+		character_event = { id = afl.51 }
+		ai_chance = { factor = 30 modifier = { factor = 100 always = yes } }
+	}
+	option = {
+		name = EVTOPTD_afl_50 # never mind
+		hidden_tooltip = { afl_withdraw_offer_effect = yes }
+		ai_chance = { factor = 10 modifier = { factor = 10000 event_target:afl_borrower = { NOT = { wealth = 30 } } } }
+	}
+}
+
+# afl.51: the second page, 150 or 200 galleys. ROOT = the lender.
+character_event = {
+	id = afl.51
+	desc = EVTDESC_afl_50
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_51 # 150 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 150 }
+		}
+		custom_tooltip = { text = afl_send_offer_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 150 }
+			afl_send_offer_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 200 } } } }
+	}
+	option = {
+		name = EVTOPTB_afl_51 # 200 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 200 }
+		}
+		custom_tooltip = { text = afl_send_offer_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 200 }
+			afl_send_offer_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 300 } } } }
+	}
+	option = {
+		name = EVTOPTC_afl_51 # more: afl.52
+		trigger = { check_variable = { which = afl_base value = 300 } }
+		character_event = { id = afl.52 }
+		ai_chance = { factor = 30 modifier = { factor = 100 always = yes } }
+	}
+	option = {
+		name = EVTOPTD_afl_51 # never mind
+		hidden_tooltip = { afl_withdraw_offer_effect = yes }
+		ai_chance = { factor = 10 modifier = { factor = 10000 event_target:afl_borrower = { NOT = { wealth = 90 } } } }
+	}
+}
+
+# afl.52: the third page, 300 to 500 galleys. ROOT = the lender.
+character_event = {
+	id = afl.52
+	desc = EVTDESC_afl_50
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_52 # 300 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 300 }
+		}
+		custom_tooltip = { text = afl_send_offer_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 300 }
+			afl_send_offer_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 400 } } } }
+	}
+	option = {
+		name = EVTOPTB_afl_52 # 400 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 400 }
+		}
+		custom_tooltip = { text = afl_send_offer_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 400 }
+			afl_send_offer_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 NOT = { check_variable = { which = afl_base value = 500 } } } }
+	}
+	option = {
+		name = EVTOPTC_afl_52 # 500 galleys
+		trigger = {
+			check_variable = { which = afl_base value = 500 }
+		}
+		custom_tooltip = { text = afl_send_offer_tt }
+		hidden_tooltip = {
+			set_variable = { which = afl_ask value = 500 }
+			afl_send_offer_effect = yes
+		}
+		ai_chance = { factor = 30 modifier = { factor = 100 always = yes } }
+	}
+	option = {
+		name = EVTOPTD_afl_52 # never mind
+		hidden_tooltip = { afl_withdraw_offer_effect = yes }
+		ai_chance = { factor = 10 modifier = { factor = 10000 event_target:afl_borrower = { NOT = { wealth = 180 } } } }
+	}
+}
+
+# afl.53: the ruler offered the ships answers. ROOT = that ruler, with the terms set
+# (afl_set_charter_terms_effect). It can sign only while it can pay the sum on signing. The AI
+# chances serve the in-game tests: the decision offers ships to players only.
+character_event = {
+	id = afl.53
+	desc = {
+		text = EVTDESC_afl_53
+		trigger = { afl_can_pay_lump_trigger = yes }
+	}
+	desc = {
+		text = EVTDESC_afl_53_poor
+		trigger = { NOT = { afl_can_pay_lump_trigger = yes } }
+	}
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_53 # sign
+		trigger = { afl_can_pay_lump_trigger = yes }
+		custom_tooltip = { text = afl_sign_borrower_tt }
+		hidden_tooltip = {
+			event_target:afl_lender = {
+				afl_start_charter_effect = yes
+				character_event = { id = afl.44 }
+			}
+		}
+		ai_chance = { factor = 75 }
+	}
+	option = {
+		name = EVTOPTB_afl_53 # decline
+		hidden_tooltip = { afl_decline_offer_effect = yes }
+		ai_chance = { factor = 25 }
+	}
+}
+
+# afl.54: tells the lender its offer was declined. ROOT = the lender.
+character_event = {
+	id = afl.54
+	desc = EVTDESC_afl_54
+	picture = GFX_evt_council
+	is_triggered_only = yes
+
+	option = {
+		name = EVTOPTA_afl_54
 	}
 }

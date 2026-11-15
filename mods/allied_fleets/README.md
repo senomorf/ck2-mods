@@ -2,7 +2,7 @@
 
 Lets a ruler borrow galleys from another ruler: for crusades and other wars overseas, and above all for landlocked players in multiplayer. CK2 lets an army board only its own ruler's ships (engine behaviour, per player reports in #8), so the borrower gets a fleet of its own, and the lender's own holdings raise as many fewer galleys while it is away.
 
-**Status:** this is the design for v0.1, agreed with the owner on 2026-11-14 and 2026-11-15 (issue #8; discussion and sources in the design doc linked there). Step 1, the war loan, is built; step 2, charters, is not. Nothing below has been tested in game by a player; the campaign test's in-game tests run each step on AI rulers.
+**Status:** this is the design for v0.1, agreed with the owner on 2026-11-14 and 2026-11-15 (issue #8; discussion and sources in the design doc linked there). Step 1, the war loan, and step 2, charters, are built. Nothing below has been tested in game by a player; the campaign test's in-game tests run each step on AI rulers.
 
 ## How it worked in reality
 
@@ -17,7 +17,7 @@ Option C of the design doc: one contract, with war-loan terms for allies and war
 - **Borrower:** any playable ruler. No port is needed: armies board ships at sea from any coast.
 - **Lender:** a ruler with a holding of its own whose buildings give galleys (a shipyard, an arsenal, a nomad harbour, or a family palace). It lends from its own holdings only (owner's choice, 2026-11-15): its vassals' ships are theirs, and serve their liege, not the liege's ally.
 - **War loan (step 1):** the two are allied, or on the same side of a war (crusade partners are temporary war allies, whom `is_allied_with` misses).
-- **Charter (step 2):** anyone not at war with the lender.
+- **Charter (step 2):** anyone not at war with the lender. A player asks for one, or a player with ships offers one to another player (owner, 2026-11-14).
 - One contract per ruler at a time, as borrower or as lender. Nobody lends and borrows at once, so two allies can't trade fleets to avoid paying for their own. A lender considers one request at a time, so two askers can't overwrite each other's terms.
 - No lending while the lender's own fleet is raised, so the same ships can't serve twice. This needs a trigger that sees a raised fleet: in probes neither `any_army` nor `has_raised_levies` saw a spawned fleet, and whether `has_raised_levies` sees a raised one is still to test. If nothing does, this rule goes.
 
@@ -25,7 +25,7 @@ Option C of the design doc: one contract, with war-loan terms for allies and war
 
 - **A number of galleys:** 50, 100, 150, 200, 300, 400 or 500 (owner, 2026-11-14 and 2026-11-15: multiples of 50, since armies in play run from about 5,000 men to 50,000 and more, and a galley carries 100, `NUMBER_OF_TROOPS_PER_GALLEY` in `vanilla/common/defines.lua`). The borrower picks the count in an event of three pages: 50 or 100 (afl.10), 150 or 200 (afl.14), 300, 400 or 500 (afl.15), each page with "more galleys" and "never mind", since an event window has four option slots (`vanilla/interface/eventwindow.gui`; a box UI probe showed four of eight options at 1280x720 and 1920x1080). Only the counts the lender's own holdings hold are offered, each with its men and its monthly cost. Its fleet is spawned with exactly that many (`troops = { galleys = { N N } }`).
 - **What the lender holds:** the galleys its own holdings' buildings give before bonuses, counted in script: each building's `galleys` (every level counts: `ct_shipyard_1` 7, `ct_shipyard_2` 8, an arsenal 15 a level, and so on, `vanilla/common/buildings/`), and 25 for a family palace (`vanilla/common/static_modifiers.txt`). On the test box this gave the Doge of Venice 73 in 1067 (Venezia 30, the Contarini palace 43), which the game raises as about 88 (box probe 6, `docs/ck2-notes.md`). The game adds percentage bonuses to that base, so a lender keeps at least those while its ships are away.
-- **Where it appears:** a war loan appears at once, near the borrower; a charter, after assembly, in the lender's port.
+- **Where it appears:** a war loan appears at once, near the borrower; a charter, 30 days after signing, at the lender's port.
 - **Ships away:** each of the lender's own holdings with ships carries the same percentage cut, so together they lose the count lent: 100 x count / base, rounded up, so up to 1% of the base more. The cut is stacked copies of two holding modifiers, −10% and −1% `galleys_perc`, at most 19 on a holding. A percentage takes that share of the holding's base whatever its other bonuses (in probe 6, ten −1% copies took Venezia from 36 galleys to 33). Earlier probes ruled out the alternatives: a flat `galleys = -10` took 10 off each holding and emptied the small ones, `galleys_max_levy` is not a modifier the game accepts, and no script can read a fleet's size.
 - **Vassals keep their ships.** Their holdings carry no cut, so they have nothing to mind.
 - **The lent fleet keeps its size.** If the lender loses holdings, its remaining ones take the cut, up to 100% of their base, and the borrower keeps the count it was lent.
@@ -35,33 +35,42 @@ Option C of the design doc: one contract, with war-loan terms for allies and war
 - **Crew wages:** the fleet's upkeep, charged by the game to the borrower as for its own ships (`spawn_fleet` with `maintenance_multiplier = 1`). Galley upkeep is a fixed rate, `GALLEYS_MAINTENANCE = 300` in `vanilla/common/defines.lua`; in a probe, 50 galleys cost their owner 15.4 gold a month (about 0.3 a galley), and a fleet spawned without the multiplier cost nothing. Seafarer religions pay less (`LOOTER_SHIP_MAINT_MULT = 0.1`).
 - **The lender's margin:** each month the borrower also pays the lender a tenth of the usual wages, 0.03 gold a galley (owner, 2026-11-14: "a percentage over ship wages", 10% chosen; 2026-11-15: the margin goes to the lender). That is 1.5 gold a month for 50 galleys and 15 for 500.
 - **Unpaid crews:** a borrower in debt at the monthly check pays no margin and leaves the wages unpaid; the first month warns both rulers, and a second in a row sends the ships home.
-- Term lengths and a payment up front come with charters (step 2): a war loan runs until peace.
+- A war loan runs until peace and has no payment up front; a charter has both (below).
 
 ### The contract
 
 - **The monthly check:** a monthly event on the borrower carries the lender and the lender's main title as event targets. Each month it checks whether the contract ends, takes the margin, counts the lender's holdings again and renews "Ships away" on them for 45 days. Renewing means removing every copy (`remove_holding_modifier` removes them all, probe 6) and adding them again.
 - **Reloads:** modifiers with their expiry dates, flags, earmarks and delayed events with their targets are all kept in the save. A probe saved, reloaded, and its delayed event fired on its day with both its character and title targets.
 - **Holdings and shipyards change:** a new shipyard on a holding with ships is cut by the percentage from the day it is built, and the next check counts it in the base, so the cut shrinks. A new holding with ships is cut from the next check. A holding the lender loses keeps its copies until they lapse after their 45 days; the game removed an expired province modifier between 14 and 42 days after its date, and holding modifiers are not yet observed.
-- **A ruler dies:** after the lender's death or a new doge, the contract stays with the main title: the monthly check finds the title's holder, who is told of the loan and may recall the ships. The cut moves to the new holder's holdings, and the old holder's, if still landed, are cleared. In step 1 the borrower's death ends the loan (on_death, before succession); an heir keeping the fleet to the term is for later. A fleet that disbands with troops aboard may lose them [Unverified].
-- **It ends** at the term, at peace for a war loan, on recall, after a second missed payment, or if the two go to war with each other. A recall takes effect at the next monthly check, so the ships leave within the month. Then the fleet is disbanded (`disband_event_forces`) and "Ships away" is removed from the lender's holdings. At peace the game disbands the fleet itself (`disband_on_peace`), and the next check ends the contract.
+- **A ruler dies:** after the lender's death or a new doge, the contract stays with the main title: the monthly check finds the title's holder, who is told of the loan and may recall the ships. The cut moves to the new holder's holdings, and the old holder's, if still landed, are cleared. The borrower's death ends a war loan or a charter (on_death, before succession); an heir keeping the fleet to the term is for later. A fleet that disbands with troops aboard may lose them [Unverified].
+- **It ends** at the term, at peace for a war loan, on recall of a war loan, after a second missed payment, or if the two go to war with each other. A recall takes effect at the next monthly check, so the ships leave within the month. Then the fleet is disbanded (`disband_event_forces`) and "Ships away" is removed from the lender's holdings. At peace the game disbands the fleet itself (`disband_on_peace`), and the next check ends the contract.
 - **If the monthly event ever stopped,** "Ships away" would lapse by itself, a few weeks after its 45 days. The in-game tests check the chain on every run.
+
+### Charters (step 2)
+
+- **Asking:** Hire Ships, in the lender's diplomacy menu, for a player in no other contract, of a ruler with ships of its own who is not at war with them. The asker picks the count on three pages as for a war loan (afl.40, afl.41, afl.42); only the counts the lender's own holdings hold and the asker can pay on signing are offered. The lender signs or refuses (afl.43).
+- **Offering:** Offer Ships for Hire, in another player's diplomacy menu, for a ruler with ships of its own (owner, 2026-11-14: "I offer contract for 50, 100, 150 ships etc."). The lender picks the count (afl.50, afl.51, afl.52), and the player signs or declines (afl.53). Players only: AI rulers don't hire ships yet (#52).
+- **Price** (owner, 2026-11-15): the crews' wages through the game's upkeep, as for a war loan; a margin of a quarter of the wages to the lender each month, 0.075 gold a galley; and two months' wages on signing, 0.6 gold a galley, which the lender keeps however the charter ends. For 50 galleys: 30 gold on signing, then about 15 in wages and 3.75 to the lender a month.
+- **Gathering:** the ships gather in the lender's port, its capital if that has one, else one of its own holdings with ships (`capital_scope = { port = yes }`; holding: `location`). They are ready 30 days after signing, whatever the count or the season (owner, 2026-11-15: "simplify assembly"). Meanwhile the lender's holdings already carry "Ships away", and the borrower pays nothing more. Then the fleet appears there under the borrower's command.
+- **Term:** a year from sailing, counted by the monthly check: twelve checks, each taking the margin; the eleventh warns both rulers (afl.46). Peace doesn't end it, and the lender can't recall the ships: the fleet is spawned without `disband_on_peace`, and Recall Our Ships is for war loans only.
+- **It ends early** if the two go to war with each other, after a second unpaid month, at the borrower's death, or if the fleet is gone. After the lender's death the title's new holder takes the contract over, as for a war loan.
 
 ### Later
 
-- Step 2: charters (assembly time, the lender's port, sailing season).
+- A borrower's heir keeping the ships to the end of the term.
 - After the first stable release: AI rulers borrow and lend like players (#52).
 
 ## Files
 
-- `decisions/afl_decisions.txt`: Ask for Ships (`afl_ask_war_loan`, in the other ruler's diplomacy menu) and Recall Our Ships (`afl_recall_ships`).
-- `events/afl_events.txt`: the choice of count (afl.10, afl.14, afl.15), the lender's answer (afl.11), notices (afl.12, afl.13, afl.21, afl.23, afl.24), the monthly check (afl.20) and the borrower's death (afl.30).
+- `decisions/afl_decisions.txt`: Ask for Ships (`afl_ask_war_loan`), Hire Ships (`afl_hire_ships`) and Offer Ships for Hire (`afl_offer_ships`), all in the other ruler's diplomacy menu, and Recall Our Ships (`afl_recall_ships`).
+- `events/afl_events.txt`: the choice of count (afl.10, afl.14, afl.15), the lender's answer (afl.11), notices (afl.12, afl.13, afl.21, afl.23, afl.24), the monthly check (afl.20) and the borrower's death (afl.30); for charters, the asker's count (afl.40, afl.41, afl.42), the lender's answer (afl.43), the lender's count for an offer (afl.50, afl.51, afl.52), the answer to it (afl.53) and notices (afl.44, afl.45, afl.46, afl.54).
 - `common/scripted_triggers/afl_triggers.txt` and `common/scripted_effects/afl_effects.txt`: every condition and step, so the in-game tests in `tests/game/allied_fleets/` run the same code players do (#38).
 - `common/event_modifiers/afl_modifiers.txt` ("Ships away", two holding modifiers), `common/on_actions/afl_on_actions.txt`, `localisation/afl_localisation.csv`.
 - No vanilla file is overridden.
 
 ## Log lines
 
-Each step writes an `afl:` line to `game.log`: `request from ... to ..., who can spare N`, `request withdrawn by`, `refused by`, `war loan of N galleys from ... to ...`, `margin of M paid by ... to ...`, `wages unpaid by`, `... passed from ... to ...; the loan goes on`, `recalls the ships`, `borrower ... died`, `war loan ended`. [Unverified] They appear only when the game runs with `-debugscripts` or `-scriptlog` (per `vanilla/ChangeLog.txt`), so normal play shows nothing. To include them in a bug report, add `-scriptlog` to the game's Steam launch options and send `Documents/Paradox Interactive/Crusader Kings II/logs/game.log`.
+Each step writes an `afl:` line to `game.log`: `request from ... to ..., who can spare N`, `request withdrawn by`, `refused by`, `war loan of N galleys from ... to ...`, `margin of M paid by ... to ...`, `wages unpaid by`, `... passed from ... to ...; the loan goes on`, `recalls the ships`, `borrower ... died`, `war loan ended`; for charters, `charter request from`, `charter offer from`, `charter offer withdrawn by`, `charter offer declined by`, `charter of N galleys from ... to ...: L paid on signing, ships gathering in P`, `charter fleet of N galleys ready in P`, `charter's term over after 12 months`, `charter ended`. [Unverified] They appear only when the game runs with `-debugscripts` or `-scriptlog` (per `vanilla/ChangeLog.txt`), so normal play shows nothing. To include them in a bug report, add `-scriptlog` to the game's Steam launch options and send `Documents/Paradox Interactive/Crusader Kings II/logs/game.log`.
 
 ## Save compatibility
 
@@ -69,4 +78,4 @@ v0.1 adds decisions, events, localisation, modifiers, flags and earmarks, and re
 
 ## Multiplayer
 
-Every player needs the same version, because the checksum changes. Both players see the terms, a note when the ships arrive, a warning after a missed payment, and a note when they go home.
+Every player needs the same version, because the checksum changes. Both players see the terms, a note when the ships arrive, a warning after a missed payment, and a note when they go home. Only multiplayer shows Offer Ships for Hire, since it is offered to players only.

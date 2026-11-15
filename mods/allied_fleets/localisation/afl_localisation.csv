@@ -36,7 +36,65 @@ EVTDESC_afl_13;[afl_lender.GetTitledName] has refused to lend us ships.;;;;;;;;;
 EVTOPTA_afl_13;So be it.;;;;;;;;;;;;;x
 EVTDESC_afl_21;The crews of the galleys [afl_lender.GetTitledName] lent [afl_borrower.GetTitledName] went unpaid this month: the treasury is in debt. If they go unpaid next month too, the ships will sail home.;;;;;;;;;;;;;x
 EVTOPTA_afl_21;Noted.;;;;;;;;;;;;;x
-EVTDESC_afl_23;The galleys [afl_lender.GetTitledName] lent [afl_borrower.GetTitledName] have sailed home.;;;;;;;;;;;;;x
+EVTDESC_afl_23;The galleys of [afl_lender.GetTitledName] serving [afl_borrower.GetTitledName] have gone home, and their contract is over.;;;;;;;;;;;;;x
 EVTOPTA_afl_23;So ends the loan.;;;;;;;;;;;;;x
 EVTDESC_afl_24;Our predecessor lent [Root.afl_ask.GetValue] galleys to [afl_borrower.GetTitledName] for their war, and those ships still serve them, for their wages and a tenth more to us. We may let the loan run until peace, or recall the ships.;;;;;;;;;;;;;x
 EVTOPTA_afl_24;Let them serve.;;;;;;;;;;;;;x
+afl_hire_ships;Hire Ships;;;;;;;;;;;;;x
+afl_hire_ships_desc;Hire galleys with their crews from the ports of [Root.GetTitledName], not its vassals', for a year from the day they sail. They gather in the port of [Root.GetTitledName] within 30 days, then sail at your command. You pay two months' wages on signing, then the crews' wages and a quarter more to [Root.GetTitledName] each month.;;;;;;;;;;;;;x
+afl_offer_ships;Offer Ships for Hire;;;;;;;;;;;;;x
+afl_offer_ships_desc;Offer [Root.GetTitledName] galleys with their crews from your own ports, for a year from the day they sail. They gather in your port within 30 days, then sail at the command of [Root.GetTitledName]. [Root.GetTitledName] pays you two months' wages on signing, then the crews' wages, and a quarter more to you each month.;;;;;;;;;;;;;x
+afl_can_charter_tt;We hold land, and neither borrow nor lend ships now;;;;;;;;;;;;;x
+afl_can_hire_tt;They hold land, and neither borrow nor lend ships now;;;;;;;;;;;;;x
+afl_can_offer_tt;We have a shipyard, arsenal, harbour or family palace in a holding of our own, and neither borrow nor lend ships now;;;;;;;;;;;;;x
+afl_offer_ships_tt;We choose how many galleys to offer;;;;;;;;;;;;;x
+afl_send_offer_tt;[afl_borrower.GetTitledName] will consider our offer;;;;;;;;;;;;;x
+afl_sign_lender_tt;We receive [Root.afl_lump.GetValue] gold now, and our ships gather in [afl_port.GetName];;;;;;;;;;;;;x
+afl_sign_borrower_tt;We pay [Root.afl_lump.GetValue] gold now, and the ships gather in [afl_port.GetName];;;;;;;;;;;;;x
+EVTDESC_afl_24_charter;Our predecessor hired out [Root.afl_ask.GetValue] galleys to [afl_borrower.GetTitledName] for a year, and those ships still serve them, for the crews' wages and a quarter more to us. The charter runs its term.;;;;;;;;;;;;;x
+EVTDESC_afl_40;How many galleys should we hire from [afl_lender.GetTitledName]? Their own ports can spare up to [Root.afl_base.GetValue]. The ships would gather in their port within 30 days, and serve us a year from the day they sail. We would pay two months' wages on signing, then the crews' wages and a quarter more to them each month. Only what we can pay on signing is offered.;;;;;;;;;;;;;x
+EVTDESC_afl_40_none;[afl_lender.GetTitledName] has only [Root.afl_base.GetValue] galleys in their own ports, too few to spare fifty. Their vassals' ships are not theirs to hire out.;;;;;;;;;;;;;x
+EVTOPTA_afl_40;50 galleys, for 5,000 men: 30 gold now, then about 18.75 a month;;;;;;;;;;;;;x
+EVTOPTB_afl_40;100 galleys, for 10,000 men: 60 gold now, then about 37.5 a month;;;;;;;;;;;;;x
+EVTOPTA_afl_41;150 galleys, for 15,000 men: 90 gold now, then about 56.25 a month;;;;;;;;;;;;;x
+EVTOPTB_afl_41;200 galleys, for 20,000 men: 120 gold now, then about 75 a month;;;;;;;;;;;;;x
+EVTOPTA_afl_42;300 galleys, for 30,000 men: 180 gold now, then about 112.5 a month;;;;;;;;;;;;;x
+EVTOPTB_afl_42;400 galleys, for 40,000 men: 240 gold now, then about 150 a month;;;;;;;;;;;;;x
+EVTOPTC_afl_42;500 galleys, for 50,000 men: 300 gold now, then about 187.5 a month;;;;;;;;;;;;;x
+EVTOPTC_afl_40;More galleys: 150 or 200;;;;;;;;;;;;;x
+EVTOPTD_afl_40;On second thought, we will manage without.;;;;;;;;;;;;;x
+EVTOPTC_afl_41;More galleys: 300 to 500;;;;;;;;;;;;;x
+EVTOPTD_afl_41;On second thought, we will manage without.;;;;;;;;;;;;;x
+EVTOPTD_afl_42;On second thought, we will manage without.;;;;;;;;;;;;;x
+EVTDESC_afl_43;[afl_borrower.GetTitledName] asks to hire [Root.afl_ask.GetValue] of our galleys, with their crews, for a year from the day they sail. They would pay us [Root.afl_lump.GetValue] gold on signing, the crews' wages, and [Root.afl_margin.GetValue] gold a month more. The ships would gather in [afl_port.GetName] within 30 days. While they are away, each of our own holdings with a shipyard would raise [Root.afl_k.GetValue]% fewer galleys. Our vassals keep theirs.;;;;;;;;;;;;;x
+EVTDESC_afl_43_poor;[afl_borrower.GetTitledName] asks to hire [Root.afl_ask.GetValue] of our galleys, but can no longer pay the [Root.afl_lump.GetValue] gold due on signing.;;;;;;;;;;;;;x
+EVTOPTA_afl_43;Sign the charter.;;;;;;;;;;;;;x
+EVTOPTB_afl_43;We need our ships.;;;;;;;;;;;;;x
+EVTDESC_afl_44;[afl_lender.GetTitledName] has signed the charter: [Root.afl_ask.GetValue] galleys with their crews, for a year from the day they sail. We have paid [Root.afl_lump.GetValue] gold. The ships are gathering in [afl_port.GetName] and will be ready within 30 days, under our command.;;;;;;;;;;;;;x
+EVTDESC_afl_44_lender;[afl_borrower.GetTitledName] has signed our charter for [Root.afl_ask.GetValue] galleys and paid us [Root.afl_lump.GetValue] gold. The ships are gathering in [afl_port.GetName] and will sail within 30 days.;;;;;;;;;;;;;x
+EVTOPTA_afl_44;Very well.;;;;;;;;;;;;;x
+EVTDESC_afl_45;The [Root.afl_ask.GetValue] galleys hired from [afl_lender.GetTitledName] have gathered off [afl_port.GetName] and are ours to command. They serve us for a year.;;;;;;;;;;;;;x
+EVTDESC_afl_45_lender;Our [Root.afl_ask.GetValue] galleys have gathered off [afl_port.GetName], and now serve [afl_borrower.GetTitledName] for a year.;;;;;;;;;;;;;x
+EVTOPTA_afl_45;Excellent.;;;;;;;;;;;;;x
+EVTDESC_afl_46;The charter of the galleys [afl_lender.GetTitledName] hired out to [afl_borrower.GetTitledName] ends next month, and the ships will sail home. Any army aboard should be put ashore before then.;;;;;;;;;;;;;x
+EVTOPTA_afl_46;Noted.;;;;;;;;;;;;;x
+EVTDESC_afl_50;How many galleys should we offer [afl_borrower.GetTitledName]? Our own ports can spare up to [Root.afl_base.GetValue]. They would gather in our port within 30 days, and serve a year from the day they sail. [afl_borrower.GetTitledName] would pay us two months' wages on signing, then the crews' wages and a quarter more to us each month.;;;;;;;;;;;;;x
+EVTDESC_afl_50_none;Our own ports hold only [Root.afl_base.GetValue] galleys, too few to spare fifty. Our vassals' ships are not ours to hire out.;;;;;;;;;;;;;x
+EVTOPTA_afl_50;50 galleys, for 5,000 men: 30 gold on signing, 3.75 a month to us;;;;;;;;;;;;;x
+EVTOPTB_afl_50;100 galleys, for 10,000 men: 60 gold on signing, 7.5 a month to us;;;;;;;;;;;;;x
+EVTOPTA_afl_51;150 galleys, for 15,000 men: 90 gold on signing, 11.25 a month to us;;;;;;;;;;;;;x
+EVTOPTB_afl_51;200 galleys, for 20,000 men: 120 gold on signing, 15 a month to us;;;;;;;;;;;;;x
+EVTOPTA_afl_52;300 galleys, for 30,000 men: 180 gold on signing, 22.5 a month to us;;;;;;;;;;;;;x
+EVTOPTB_afl_52;400 galleys, for 40,000 men: 240 gold on signing, 30 a month to us;;;;;;;;;;;;;x
+EVTOPTC_afl_52;500 galleys, for 50,000 men: 300 gold on signing, 37.5 a month to us;;;;;;;;;;;;;x
+EVTOPTC_afl_50;More galleys: 150 or 200;;;;;;;;;;;;;x
+EVTOPTD_afl_50;On second thought, we keep our ships.;;;;;;;;;;;;;x
+EVTOPTC_afl_51;More galleys: 300 to 500;;;;;;;;;;;;;x
+EVTOPTD_afl_51;On second thought, we keep our ships.;;;;;;;;;;;;;x
+EVTOPTD_afl_52;On second thought, we keep our ships.;;;;;;;;;;;;;x
+EVTDESC_afl_53;[afl_lender.GetTitledName] offers to hire us [Root.afl_ask.GetValue] galleys with their crews, for a year from the day they sail. We would pay [Root.afl_lump.GetValue] gold on signing, then the crews' wages of about [Root.afl_wages.GetValue] gold a month and [Root.afl_margin.GetValue] more to them. The ships would gather in [afl_port.GetName] within 30 days, then sail at our command.;;;;;;;;;;;;;x
+EVTDESC_afl_53_poor;[afl_lender.GetTitledName] offers to hire us [Root.afl_ask.GetValue] galleys, but we can't pay the [Root.afl_lump.GetValue] gold due on signing.;;;;;;;;;;;;;x
+EVTOPTA_afl_53;Sign the charter.;;;;;;;;;;;;;x
+EVTOPTB_afl_53;We have no need of them.;;;;;;;;;;;;;x
+EVTDESC_afl_54;[afl_borrower.GetTitledName] has declined our offer of ships.;;;;;;;;;;;;;x
+EVTOPTA_afl_54;So be it.;;;;;;;;;;;;;x

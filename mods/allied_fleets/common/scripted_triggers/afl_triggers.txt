@@ -6,9 +6,9 @@
 # has_earmarked_regiments (this mod's tests), any_demesne_title with tier, has_building and
 # holding_type in title scope (box probe 6, docs/ck2-notes.md).
 
-# afl_in_contract_trigger: lends or borrows ships now, or has a request out or in. One contract
-# per ruler at a time, so two allies can't trade fleets to avoid paying for their own, and one
-# request per lender at a time, so two askers can't overwrite each other's terms.
+# afl_in_contract_trigger: lends or borrows ships now, or has a request or a charter offer out or
+# in. One contract per ruler at a time, so two allies can't trade fleets to avoid paying for their
+# own, and one request per lender at a time, so two askers can't overwrite each other's terms.
 # Scope: a character.
 afl_in_contract_trigger = {
 	OR = {
@@ -16,6 +16,8 @@ afl_in_contract_trigger = {
 		has_character_flag = afl_lending
 		has_character_flag = afl_request_pending
 		has_character_flag = afl_request_incoming
+		has_character_flag = afl_offer_out
+		has_character_flag = afl_offer_in
 	}
 }
 
@@ -45,6 +47,49 @@ afl_war_partner_trigger = {
 afl_can_borrow_trigger = {
 	war = yes
 	NOT = { afl_in_contract_trigger = yes }
+}
+
+# afl_can_charter_trigger: may this ruler hire ships by charter now? Any landed ruler, at war or at
+# peace, outside another contract (owner, 2026-11-14: allies, war partners and anyone friendly).
+# Scope: the ruler hiring.
+afl_can_charter_trigger = {
+	is_landed = yes
+	NOT = { afl_in_contract_trigger = yes }
+}
+
+# afl_can_pay_lump_trigger: can the ruler hiring pay the sum on signing for afl_ask galleys now? Two
+# months' wages, 0.6 gold a galley (owner, 2026-11-15; afl_set_charter_terms_effect). `wealth`
+# takes a number, so each count has its line. Scope: the ruler hiring, with afl_ask set.
+afl_can_pay_lump_trigger = {
+	OR = {
+		AND = { is_variable_equal = { which = afl_ask value = 50 } wealth = 30 }
+		AND = { is_variable_equal = { which = afl_ask value = 100 } wealth = 60 }
+		AND = { is_variable_equal = { which = afl_ask value = 150 } wealth = 90 }
+		AND = { is_variable_equal = { which = afl_ask value = 200 } wealth = 120 }
+		AND = { is_variable_equal = { which = afl_ask value = 300 } wealth = 180 }
+		AND = { is_variable_equal = { which = afl_ask value = 400 } wealth = 240 }
+		AND = { is_variable_equal = { which = afl_ask value = 500 } wealth = 300 }
+	}
+}
+
+# afl_charter_over_trigger: has the charter ended early? When the two are at war with each other,
+# when the lender's title has no landed holder, or once the ships have sailed, when the fleet is
+# gone. The term (twelve monthly checks after sailing) and unpaid wages end it in
+# afl_charter_check_effect. Scope: the borrower; event_target:afl_lender = the title's holder.
+afl_charter_over_trigger = {
+	OR = {
+		war_with = event_target:afl_lender
+		event_target:afl_lender = {
+			OR = {
+				is_alive = no
+				is_landed = no
+			}
+		}
+		AND = {
+			has_character_flag = afl_charter_sailed
+			NOT = { has_earmarked_regiments = afl_charter }
+		}
+	}
 }
 
 # afl_has_ships_trigger: a holding whose buildings give galleys. Every vanilla building with

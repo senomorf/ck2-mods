@@ -20,3 +20,20 @@ count fired afl.24 >= 1                                       # the scenario's n
 count fired afl.30 >= 1                                       # the scenario's borrower died
 count line afl: margin of >= 1                                # a margin was paid
 count pass afl.10 and afl.11 answer the request >= 20         # the AI requests were answered; an asker can die first (afltest.5 logs it)
+# Charters (afltest_charter_events.txt).
+count ran afl_ask_charter_effect >= 8                         # most of the 12 AI charter requests found an asker and a lender
+count line afl: charter request from == count ran afl_ask_charter_effect
+count fired afl.41 == count chose afl.40 EVTOPTC_afl_40      # "more galleys" opens the second page
+count fired afl.42 == count chose afl.41 EVTOPTC_afl_41      # and the third
+count fired afl.51 == count chose afl.50 EVTOPTC_afl_50      # the same on the lender's pages
+count fired afl.52 == count chose afl.51 EVTOPTC_afl_51
+count fired afl.43 == count ran afl_send_charter_request_effect  # every request chosen reached the lender
+count fired afl.53 == count ran afl_send_offer_effect         # every offer chosen reached the ruler offered the ships
+count fired afl.44 >= count chose afl.43 EVTOPTA_afl_43       # each signing tells the ruler who asked
+count fired afl.54 == count ran afl_decline_offer_effect      # each declined offer tells the lender
+count ran afl_spawn_charter_fleet_effect == count ran afl_charter_sails_effect  # each sailing spawns its fleet
+count ran afl_charter_sails_effect >= 3                       # the scenario's and the AI's ships sailed on their own
+count fired afl.45 >= count ran afl_charter_sails_effect      # each sailing tells both rulers
+count fired afl.46 >= 2                                       # the scenario's eleventh month warned both
+count line afl: charter fleet of >= 3
+count ran afl_ships_home_effect >= count ran afl_end_charter_effect  # each end restores the lender's holdings
