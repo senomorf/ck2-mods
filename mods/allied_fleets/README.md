@@ -2,7 +2,7 @@
 
 Lets a ruler borrow galleys from another ruler: for crusades and other wars overseas, and above all for landlocked players in multiplayer. CK2 lets an army board only its own ruler's ships (engine behaviour, per player reports in #8), so the borrower gets a fleet of its own, and the lender's own holdings raise as many fewer galleys while it is away.
 
-**Status:** this is the design for v0.1, agreed with the owner on 2026-11-14 and 2026-11-15 (issue #8; discussion and sources in the design doc linked there). Step 1, the war loan, step 2, charters, and step 3, galley companies, are built. Nothing below has been tested in game by a player; the campaign test's in-game tests run each step on AI rulers.
+**Status:** this is the design for v0.1, agreed with the owner on 2026-11-14 and 2026-11-15 (issue #8; discussion and sources in the design doc linked there). Step 1, the war loan, step 2, charters, and step 3, galley companies, are built. Nothing below has been tested in game by a player; the campaign test's in-game tests run each step on AI rulers. v0.2 (AI rulers using the mod, #52; owner's choice of design, 2026-11-15) is built in steps on branches that stay unmerged until `allied_fleets-v0.1.0` is tagged; step 1, the lender's score, is below.
 
 ## How it worked in reality
 
@@ -67,6 +67,34 @@ Option C of the design doc: one contract, with war-loan terms for allies and war
 - **Its end:** Disband Our Galley Company, only while nobody has hired it, since destroying a hired company left its hirer a fleet that named a missing title in a probe. The founder's death ends it too (afl.68): at once if idle, otherwise the day after its hirer dismisses it (afl.69). "Ships away" is removed, and the founder is told (afl.67). A founder who loses all its land loses the company at the next monthly check.
 - **Limits:** one company per player; while it exists the founder can't lend or hire ships. AI rulers don't found companies (#52). [Unverified] How often AI rulers hire one, and what the founder earns in a year, are for the owner's round.
 
+### The lender's score (v0.2, step 1)
+
+- **Why:** in v0.1 an AI lender agrees three times in four, whatever is asked. In the cases the design doc for v0.2 found, maritime powers hired out their fleets for pay (Genoa to Castile in 1147, to France in 1190, 1246 and 1340), and lenders refused for reasons beyond gold: the Almohad caliph probably turned down Saladin's request for ships around 1190 (disputed). A borrower's credit mattered too: the Fourth Crusade's leaders owed Venice 85,000 silver marks, "could only initially pay 35,000", collected 14,000 more under threat, and paid the rest by attacking Zara for Venice (Wikipedia, "Fourth Crusade", read 2026-11-15).
+- **How:** one score, built from the reasons below. An AI lender answers a war loan request (afl.11) or a charter request (afl.43) by it: 20 or more always agrees, 10 to 19 two times in three, 1 to 9 one in three, 0 or less never. A player sees the same score on Ask for Ships and Hire Ships before asking, as the game shows its own diplomacy: "yes", "maybe" or "no" with each reason and its value (`ai_acceptance`, `vanilla/decisions/00_decisions.info`). A "no" greys out the decision. A player lender gets +100, so the decision stays open to them, and answers for themselves as before.
+- **The reasons** (Root = the lender, From = the ruler asking; `common/scripted_triggers/afl_score_triggers.txt`):
+
+| Reason | Value |
+|---|---|
+| Base: war loan / charter | -5 / 10 |
+| A merchant republic (charters only) | +15 |
+| Opinion of the asker 50 or more / 25 to 49 | +25 / +10 |
+| Opinion -25 to -49 / -50 or less | -15 / -40 |
+| Allied with the asker | +15 |
+| In the asker's realm | +10 |
+| On the asker's side of a war | +10 |
+| At war in a war without the asker on its side | -20 |
+| Has a fleet raised: its galleys are at sea | -20 |
+| Of another religion group | -40 |
+| The asker is pledged to or fights a crusade of the lender's religion | +15 |
+| The asker is at war with the lender's ally | -50 |
+| The lender is in debt and wants the pay | +10 |
+| The asker is in debt | -20 |
+| The lender is a player | +100 |
+
+- [Inference] The base of -5 for a war loan follows the design doc's finding: no case was found of a king lending his own fleet to an ally, so an AI ally lends readily only when it likes the asker or shares its war. No source was found for the faith reason (a Church ban on selling galleys to Muslims was looked for and not confirmed); it rests on every case found being between rulers of one faith, or of Rome and Byzantium.
+- **One list, written twice:** the game can't compute an `ai_acceptance` from an effect, so the reasons are in the decisions (what a player sees) and in `common/scripted_effects/afl_score_effects.txt` (what the AI answers by). `tests/test_afl_score.py` fails if the two differ, and a decision taken logs `score shown differs` if the score it showed is not the one computed (box probe 20 found the shown score readable as `local_ai_acceptance_score`).
+- **Unchanged:** a player's own answers, the counts, the prices and the contracts. AI rulers still don't ask for ships (step 2).
+
 ### Later
 
 - A borrower's heir keeping the ships to the end of the term.
@@ -76,18 +104,18 @@ Option C of the design doc: one contract, with war-loan terms for allies and war
 
 - `decisions/afl_decisions.txt`: Ask for Ships (`afl_ask_war_loan`), Hire Ships (`afl_hire_ships`) and Offer Ships for Hire (`afl_offer_ships`), all in the other ruler's diplomacy menu, and Recall Our Ships (`afl_recall_ships`); Found a Galley Company (`afl_found_company`) and Disband Our Galley Company (`afl_dissolve_company`), in the decisions list.
 - `events/afl_events.txt`: the choice of count (afl.10, afl.14, afl.15), the lender's answer (afl.11), notices (afl.12, afl.13, afl.21, afl.23, afl.24), the monthly check (afl.20) and the borrower's death (afl.30); for charters, the asker's count (afl.40, afl.41, afl.42), the lender's answer (afl.43), the lender's count for an offer (afl.50, afl.51, afl.52), the answer to it (afl.53) and notices (afl.44, afl.46, afl.54); for galley companies, the founder's count (afl.60, afl.61, afl.62), notices (afl.63, afl.67), the monthly check (afl.65), a dismissal (afl.66), the founder's death (afl.68) and the end after a dismissal (afl.69).
-- `common/scripted_triggers/afl_triggers.txt` and `common/scripted_effects/afl_effects.txt`: every condition and step, so the in-game tests in `tests/game/allied_fleets/` run the same code players do (#38).
+- `common/scripted_triggers/afl_triggers.txt` and `common/scripted_effects/afl_effects.txt`: every condition and step, so the in-game tests in `tests/game/allied_fleets/` run the same code players do (#38). The lender's score (v0.2): `common/scripted_triggers/afl_score_triggers.txt`, `common/scripted_effects/afl_score_effects.txt` and `localisation/afl_score.csv`.
 - `common/event_modifiers/afl_modifiers.txt` ("Ships away", two holding modifiers), `common/on_actions/afl_on_actions.txt` (on_death, on_mercenary_dismissed), `localisation/afl_localisation.csv`.
 - No vanilla file is overridden.
 
 ## Log lines
 
-Each step writes an `afl:` line to `game.log`: `request from ... to ..., who can spare N`, `request withdrawn by`, `refused by`, `war loan of N galleys from ... to ...`, `margin of M paid by ... to ...`, `wages unpaid by`, `... passed from ... to ...; the loan goes on`, `recalls the ships`, `borrower ... died`, `war loan ended`; for charters, `charter request from`, `charter offer from`, `charter offer withdrawn by`, `charter offer declined by`, `charter of N galleys from ... to ...: L paid on signing`, `charter fleet of N galleys ready in P`, `charter's term over after 12 months`, `charter ended`; for galley companies, `company of N galleys founded by ...: NAME, captain ...`, `company not founded by`, `NAME based at P`, `NAME serves HIRER`, `NAME dismissed by HIRER`, `founder ... died`, `... has no company any more`, `NAME dissolved`, `NAME dissolves when its hirer dismisses it`. [Unverified] They appear only when the game runs with `-debugscripts` or `-scriptlog` (per `vanilla/ChangeLog.txt`), so normal play shows nothing. To include them in a bug report, add `-scriptlog` to the game's Steam launch options and send `Documents/Paradox Interactive/Crusader Kings II/logs/game.log`.
+Each step writes an `afl:` line to `game.log`: `request from ... to ..., who can spare N`, `request withdrawn by`, `refused by`, `war loan of N galleys from ... to ...`, `margin of M paid by ... to ...`, `wages unpaid by`, `... passed from ... to ...; the loan goes on`, `recalls the ships`, `borrower ... died`, `war loan ended`; for charters, `charter request from`, `charter offer from`, `charter offer withdrawn by`, `charter offer declined by`, `charter of N galleys from ... to ...: L paid on signing`, `charter fleet of N galleys ready in P`, `charter's term over after 12 months`, `charter ended`; for galley companies, `company of N galleys founded by ...: NAME, captain ...`, `company not founded by`, `NAME based at P`, `NAME serves HIRER`, `NAME dismissed by HIRER`, `founder ... died`, `... has no company any more`, `NAME dissolved`, `NAME dissolves when its hirer dismisses it`; for the lender's score (v0.2), `war loan score N by ... for ...`, `charter score N by ... for ...`, and `score shown differs from the score computed by D`. [Unverified] They appear only when the game runs with `-debugscripts` or `-scriptlog` (per `vanilla/ChangeLog.txt`), so normal play shows nothing. To include them in a bug report, add `-scriptlog` to the game's Steam launch options and send `Documents/Paradox Interactive/Crusader Kings II/logs/game.log`.
 
 ## Save compatibility
 
-v0.1 adds decisions, events, localisation, modifiers, flags, earmarks and, with galley companies, created mercenary titles (`d_dyn_N` in the save, flag `afl_company`), and removes the prototype's (decision `afl_request_ships`, events `afl.1`, `afl.2` and `afl.3`, earmark `afl_lent_ships`, event targets `afl_requester` and `afl_ally`). The prototype was never released, so no player save holds its state. [Inference] A save made with v0.1 should load without it, leaving at most stray flags, timed modifiers that lapse, and earmarked fleets. Not yet tested.
+v0.1 adds decisions, events, localisation, modifiers, flags, earmarks and, with galley companies, created mercenary titles (`d_dyn_N` in the save, flag `afl_company`), and removes the prototype's (decision `afl_request_ships`, events `afl.1`, `afl.2` and `afl.3`, earmark `afl_lent_ships`, event targets `afl_requester` and `afl_ally`). The prototype was never released, so no player save holds its state. [Inference] A save made with v0.1 should load without it, leaving at most stray flags, timed modifiers that lapse, and earmarked fleets. Not yet tested. v0.2's lender score adds the variables `afl_score` (on the lender and on the ruler asking) and `afl_shown` (on the lender) and removes nothing.
 
 ## Multiplayer
 
-Every player needs the same version, because the checksum changes. Both players see the terms, a note when the ships arrive, a warning after a missed payment, and a note when they go home. Only multiplayer shows Offer Ships for Hire, since it is offered to players only, and a player hiring another player's galley company.
+Every player needs the same version, because the checksum changes. Both players see the terms, a note when the ships arrive, a warning after a missed payment, and a note when they go home. Only multiplayer shows Offer Ships for Hire, since it is offered to players only, and a player hiring another player's galley company. With v0.2's lender score, a player asking another player sees "maybe" with the reasons (`show_maybe_for_human`), [Unverified] never "no", since a player lender adds 100.

@@ -1,0 +1,45 @@
+# Allied Fleets: the lender's score (v0.2, README.md, "The lender's score"). An AI lender answers a
+# war loan request (afl.11) or a charter request (afl.43) by it; a player sees the same reasons and
+# values on Ask for Ships and Hire Ships (ai_acceptance, decisions/afl_decisions.txt), and
+# tests/test_afl_score.py checks that the two lists match. 20 or more is "yes", 1 to 19 "maybe",
+# 0 or less "no".
+# Scope: the lender; ROOT: the lender; FROM: the ruler asking (afl_score_triggers.txt). Both end
+# with afl_score on the ruler asking too: the last score it was given.
+
+# afl_war_loan_score_effect: the score for a war loan, from -5 (no case found of a king lending his
+# own fleet to an ally, README.md), into afl_score.
+afl_war_loan_score_effect = {
+	set_variable = { which = afl_score value = -5 }
+	afl_score_reasons_effect = yes
+	FROM = { set_variable = { which = afl_score which = PREV } }
+	log = "afl: war loan score [This.afl_score.GetValue] by [Root.GetBestName] ([Root.GetID]) for [From.GetBestName] ([From.GetID])"
+}
+
+# afl_charter_score_effect: the score for a charter, from 10, and 15 more for a merchant republic,
+# into afl_score.
+afl_charter_score_effect = {
+	set_variable = { which = afl_score value = 10 }
+	if = { limit = { afl_score_republic_trigger = yes } change_variable = { which = afl_score value = 15 } }
+	afl_score_reasons_effect = yes
+	FROM = { set_variable = { which = afl_score which = PREV } }
+	log = "afl: charter score [This.afl_score.GetValue] by [Root.GetBestName] ([Root.GetID]) for [From.GetBestName] ([From.GetID])"
+}
+
+# afl_score_reasons_effect: the reasons both share, added to afl_score.
+afl_score_reasons_effect = {
+	if = { limit = { afl_score_likes_trigger = yes } change_variable = { which = afl_score value = 25 } }
+	if = { limit = { afl_score_friendly_trigger = yes } change_variable = { which = afl_score value = 10 } }
+	if = { limit = { afl_score_dislikes_trigger = yes } change_variable = { which = afl_score value = -15 } }
+	if = { limit = { afl_score_hates_trigger = yes } change_variable = { which = afl_score value = -40 } }
+	if = { limit = { afl_score_allied_trigger = yes } change_variable = { which = afl_score value = 15 } }
+	if = { limit = { afl_score_vassal_trigger = yes } change_variable = { which = afl_score value = 10 } }
+	if = { limit = { afl_same_war_trigger = yes } change_variable = { which = afl_score value = 10 } }
+	if = { limit = { afl_score_own_war_trigger = yes } change_variable = { which = afl_score value = -20 } }
+	if = { limit = { afl_score_at_sea_trigger = yes } change_variable = { which = afl_score value = -20 } }
+	if = { limit = { afl_score_faith_trigger = yes } change_variable = { which = afl_score value = -40 } }
+	if = { limit = { afl_score_crusade_trigger = yes } change_variable = { which = afl_score value = 15 } }
+	if = { limit = { afl_score_enemy_ally_trigger = yes } change_variable = { which = afl_score value = -50 } }
+	if = { limit = { afl_score_needs_money_trigger = yes } change_variable = { which = afl_score value = 10 } }
+	if = { limit = { afl_score_asker_debt_trigger = yes } change_variable = { which = afl_score value = -20 } }
+	if = { limit = { afl_score_player_trigger = yes } change_variable = { which = afl_score value = 100 } }
+}

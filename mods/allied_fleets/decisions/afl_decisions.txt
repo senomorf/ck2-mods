@@ -37,6 +37,14 @@ targeted_decisions = {
 			# (vanilla/decisions/HFP_realm_decisions.txt, create_the_hansa)
 			custom_tooltip = { text = afl_ask_war_loan_tt }
 			hidden_tooltip = {
+				# The score shown (local_ai_acceptance_score, box probe 20) against the one computed.
+				set_variable = { which = afl_shown which = local_ai_acceptance_score }
+				afl_war_loan_score_effect = yes # common/scripted_effects/afl_score_effects.txt
+				subtract_variable = { which = afl_shown which = afl_score }
+				if = {
+					limit = { NOT = { is_variable_equal = { which = afl_shown value = 0 } } }
+					log = "afl: score shown differs from the score computed by [This.afl_shown.GetValue]"
+				}
 				save_event_target_as = afl_lender
 				FROM = {
 					afl_ask_war_loan_effect = yes # common/scripted_effects/afl_effects.txt
@@ -45,6 +53,28 @@ targeted_decisions = {
 		}
 		revoke_allowed = {
 			always = no
+		}
+		ai_acceptance = {
+			# The lender's score, as afl_war_loan_score_effect (common/scripted_effects/afl_score_effects.txt),
+			# by which an AI lender answers; tests/test_afl_score.py checks that they match.
+			factor = -5
+			yes_threshold = 20
+			show_maybe_for_human = yes
+			additive_modifier = { value = 25 localisation_key = afl_reason_likes afl_score_likes_trigger = yes }
+			additive_modifier = { value = 10 localisation_key = afl_reason_friendly afl_score_friendly_trigger = yes }
+			additive_modifier = { value = -15 localisation_key = afl_reason_dislikes afl_score_dislikes_trigger = yes }
+			additive_modifier = { value = -40 localisation_key = afl_reason_hates afl_score_hates_trigger = yes }
+			additive_modifier = { value = 15 localisation_key = afl_reason_allied afl_score_allied_trigger = yes }
+			additive_modifier = { value = 10 localisation_key = afl_reason_vassal afl_score_vassal_trigger = yes }
+			additive_modifier = { value = 10 localisation_key = afl_reason_same_war afl_same_war_trigger = yes }
+			additive_modifier = { value = -20 localisation_key = afl_reason_own_war afl_score_own_war_trigger = yes }
+			additive_modifier = { value = -20 localisation_key = afl_reason_at_sea afl_score_at_sea_trigger = yes }
+			additive_modifier = { value = -40 localisation_key = afl_reason_faith afl_score_faith_trigger = yes }
+			additive_modifier = { value = 15 localisation_key = afl_reason_crusade afl_score_crusade_trigger = yes }
+			additive_modifier = { value = -50 localisation_key = afl_reason_enemy_ally afl_score_enemy_ally_trigger = yes }
+			additive_modifier = { value = 10 localisation_key = afl_reason_needs_money afl_score_needs_money_trigger = yes }
+			additive_modifier = { value = -20 localisation_key = afl_reason_asker_debt afl_score_asker_debt_trigger = yes }
+			additive_modifier = { value = 100 localisation_key = afl_reason_player afl_score_player_trigger = yes }
 		}
 		ai_will_do = {
 			factor = 0
@@ -71,6 +101,14 @@ targeted_decisions = {
 		effect = {
 			custom_tooltip = { text = afl_ask_war_loan_tt }
 			hidden_tooltip = {
+				# The score shown (local_ai_acceptance_score, box probe 20) against the one computed.
+				set_variable = { which = afl_shown which = local_ai_acceptance_score }
+				afl_charter_score_effect = yes # common/scripted_effects/afl_score_effects.txt
+				subtract_variable = { which = afl_shown which = afl_score }
+				if = {
+					limit = { NOT = { is_variable_equal = { which = afl_shown value = 0 } } }
+					log = "afl: score shown differs from the score computed by [This.afl_shown.GetValue]"
+				}
 				save_event_target_as = afl_lender
 				FROM = {
 					afl_ask_charter_effect = yes # common/scripted_effects/afl_effects.txt
@@ -79,6 +117,29 @@ targeted_decisions = {
 		}
 		revoke_allowed = {
 			always = no
+		}
+		ai_acceptance = {
+			# The lender's score, as afl_charter_score_effect (common/scripted_effects/afl_score_effects.txt),
+			# by which an AI lender answers; tests/test_afl_score.py checks that they match.
+			factor = 10
+			yes_threshold = 20
+			show_maybe_for_human = yes
+			additive_modifier = { value = 15 localisation_key = afl_reason_republic afl_score_republic_trigger = yes }
+			additive_modifier = { value = 25 localisation_key = afl_reason_likes afl_score_likes_trigger = yes }
+			additive_modifier = { value = 10 localisation_key = afl_reason_friendly afl_score_friendly_trigger = yes }
+			additive_modifier = { value = -15 localisation_key = afl_reason_dislikes afl_score_dislikes_trigger = yes }
+			additive_modifier = { value = -40 localisation_key = afl_reason_hates afl_score_hates_trigger = yes }
+			additive_modifier = { value = 15 localisation_key = afl_reason_allied afl_score_allied_trigger = yes }
+			additive_modifier = { value = 10 localisation_key = afl_reason_vassal afl_score_vassal_trigger = yes }
+			additive_modifier = { value = 10 localisation_key = afl_reason_same_war afl_same_war_trigger = yes }
+			additive_modifier = { value = -20 localisation_key = afl_reason_own_war afl_score_own_war_trigger = yes }
+			additive_modifier = { value = -20 localisation_key = afl_reason_at_sea afl_score_at_sea_trigger = yes }
+			additive_modifier = { value = -40 localisation_key = afl_reason_faith afl_score_faith_trigger = yes }
+			additive_modifier = { value = 15 localisation_key = afl_reason_crusade afl_score_crusade_trigger = yes }
+			additive_modifier = { value = -50 localisation_key = afl_reason_enemy_ally afl_score_enemy_ally_trigger = yes }
+			additive_modifier = { value = 10 localisation_key = afl_reason_needs_money afl_score_needs_money_trigger = yes }
+			additive_modifier = { value = -20 localisation_key = afl_reason_asker_debt afl_score_asker_debt_trigger = yes }
+			additive_modifier = { value = 100 localisation_key = afl_reason_player afl_score_player_trigger = yes }
 		}
 		ai_will_do = {
 			factor = 0

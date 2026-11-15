@@ -1,0 +1,139 @@
+# Allied Fleets: the reasons in the lender's score (v0.2, README.md, "The lender's score"). One
+# trigger a reason, used twice with the same value: by the ai_acceptance of Ask for Ships and Hire
+# Ships (decisions/afl_decisions.txt), which a player sees, and by afl_score_effect
+# (common/scripted_effects/afl_score_effects.txt), by which an AI lender answers (afl.11, afl.43).
+# tests/test_afl_score.py checks that the two lists match.
+# Scope: the lender; ROOT: the lender; FROM: the ruler asking. In a targeted decision ROOT is the
+# ruler asked and FROM the ruler taking it (vanilla/decisions/00_decisions.info); in afl.11 and
+# afl.43 FROM is the ROOT of the asker's count page that sent them (box probe 20).
+# Constructs: opinion with who and value (vanilla/decisions/HF_baptism_decisions.txt and
+# .cwtools/triggers.cwt; true at or above value), is_vassal_or_below = FROM
+# (vanilla/decisions/HF_bloodline_decisions.txt), religion_group = FROM and religion = FROM
+# (vanilla/events/HFP_crusade_events.txt), any_current_enemy (vanilla/events/religious_events.txt),
+# has_pledged_crusade_participation and any_war with using_cb = crusade or new_crusade, the two
+# casus belli with is_crusade = yes (vanilla/common/scripted_triggers/03_crusades.txt,
+# vanilla/common/cb_types/00_cb_types.txt), any_fleet (.cwtools/scopes.cwt; box probe 20),
+# is_merchant_republic (vanilla/events/wol_business_events.txt), ai = no (decisions/afl_decisions.txt).
+
+# afl_score_likes_trigger: thinks well of the ruler asking: opinion 50 or more.
+afl_score_likes_trigger = {
+	opinion = { who = FROM value = 50 }
+}
+
+# afl_score_friendly_trigger: opinion 25 to 49.
+afl_score_friendly_trigger = {
+	opinion = { who = FROM value = 25 }
+	NOT = { opinion = { who = FROM value = 50 } }
+}
+
+# afl_score_dislikes_trigger: opinion -25 to -49.
+afl_score_dislikes_trigger = {
+	NOT = { opinion = { who = FROM value = -24 } }
+	opinion = { who = FROM value = -49 }
+}
+
+# afl_score_hates_trigger: opinion -50 or less.
+afl_score_hates_trigger = {
+	NOT = { opinion = { who = FROM value = -49 } }
+}
+
+# afl_score_allied_trigger: an alliance between the two.
+afl_score_allied_trigger = {
+	is_allied_with = FROM
+}
+
+# afl_score_vassal_trigger: the lender is in the asker's realm.
+afl_score_vassal_trigger = {
+	is_vassal_or_below = FROM
+}
+
+# afl_same_war_trigger: the two are on the same side of a war. Crusade partners are war allies
+# only, which is_allied_with misses. Also part of afl_war_partner_trigger (afl_triggers.txt).
+afl_same_war_trigger = {
+	any_war = {
+		OR = {
+			AND = {
+				any_attacker = { character = ROOT }
+				any_attacker = { character = FROM }
+			}
+			AND = {
+				any_defender = { character = ROOT }
+				any_defender = { character = FROM }
+			}
+		}
+	}
+}
+
+# afl_score_own_war_trigger: the lender fights a war in which the asker is not on its side, and
+# needs its galleys there.
+afl_score_own_war_trigger = {
+	any_war = {
+		NOR = {
+			AND = {
+				any_attacker = { character = ROOT }
+				any_attacker = { character = FROM }
+			}
+			AND = {
+				any_defender = { character = ROOT }
+				any_defender = { character = FROM }
+			}
+		}
+	}
+}
+
+# afl_score_at_sea_trigger: the lender has a fleet raised, so its galleys are already at sea.
+afl_score_at_sea_trigger = {
+	any_fleet = { always = yes }
+}
+
+# afl_score_faith_trigger: the two are of different religion groups.
+afl_score_faith_trigger = {
+	NOT = { religion_group = FROM }
+}
+
+# afl_score_crusade_trigger: the asker has pledged to a crusade or fights one, and the lender
+# shares its religion.
+afl_score_crusade_trigger = {
+	religion = FROM
+	FROM = {
+		OR = {
+			has_pledged_crusade_participation = yes
+			any_war = {
+				OR = {
+					using_cb = crusade
+					using_cb = new_crusade
+				}
+			}
+		}
+	}
+}
+
+# afl_score_enemy_ally_trigger: the asker is at war with an ally of the lender.
+afl_score_enemy_ally_trigger = {
+	FROM = {
+		any_current_enemy = { is_allied_with = ROOT }
+	}
+}
+
+# afl_score_needs_money_trigger: the lender is in debt and wants the pay.
+afl_score_needs_money_trigger = {
+	NOT = { wealth = 0 }
+}
+
+# afl_score_asker_debt_trigger: the asker is in debt, so the pay is at risk.
+afl_score_asker_debt_trigger = {
+	FROM = { NOT = { wealth = 0 } }
+}
+
+# afl_score_republic_trigger: a merchant republic, which hires out its galleys for pay. Charters
+# only.
+afl_score_republic_trigger = {
+	is_merchant_republic = yes
+}
+
+# afl_score_player_trigger: a player answers for themselves. Keeps the decision open to a player
+# lender whatever the rest of the score (a score of 0 or less greys out a decision's button,
+# vanilla/decisions/00_decisions.info).
+afl_score_player_trigger = {
+	ai = no
+}

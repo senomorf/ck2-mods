@@ -32,3 +32,6 @@
 ^Expecting value scoped\[province\]$
 # activate_title = { title = THIS status = no } in title scope: vanilla/events/ze_mercenary_events_02.txt (ZE.11030)
 ^Expected value of type title$
+# has_pledged_crusade_participation (a Holy Fury trigger the 2019 rules lack): vanilla/common/scripted_triggers/03_crusades.txt
+# (check_if_crusader_trigger, inside an OR)
+^has_pledged_crusade_participation is unexpected in
