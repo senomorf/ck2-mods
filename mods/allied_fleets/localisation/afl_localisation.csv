@@ -41,7 +41,7 @@ EVTOPTA_afl_23;So ends the loan.;;;;;;;;;;;;;x
 EVTDESC_afl_24;Our predecessor lent [Root.afl_ask.GetValue] galleys to [afl_borrower.GetTitledName] for their war, and those ships still serve them, for their wages and a tenth more to us. We may let the loan run until peace, or recall the ships.;;;;;;;;;;;;;x
 EVTOPTA_afl_24;Let them serve.;;;;;;;;;;;;;x
 afl_hire_ships;Hire Ships;;;;;;;;;;;;;x
-afl_hire_ships_desc;Hire galleys with their crews from the ports of [Root.GetTitledName], not its vassals', for a year. They wait off a port of [Root.GetTitledName] from the day the charter is signed, under your command. You pay two months' wages on signing, then the crews' wages and a quarter more to [Root.GetTitledName] each month.;;;;;;;;;;;;;x
+afl_hire_ships_desc;Hire galleys with their crews from the ports of [Root.GetTitledName], not their vassals', for a year. They wait off a port of [Root.GetTitledName] from the day the charter is signed, under your command. You pay two months' wages on signing, then the crews' wages and a quarter more to [Root.GetTitledName] each month.;;;;;;;;;;;;;x
 afl_offer_ships;Offer Ships for Hire;;;;;;;;;;;;;x
 afl_offer_ships_desc;Offer [Root.GetTitledName] galleys with their crews from your own ports, for a year. They wait off one of your ports from the day the charter is signed, under the command of [Root.GetTitledName]. [Root.GetTitledName] pays you two months' wages on signing, then the crews' wages, and a quarter more to you each month.;;;;;;;;;;;;;x
 afl_can_charter_tt;We hold land, and neither borrow nor lend ships now;;;;;;;;;;;;;x
