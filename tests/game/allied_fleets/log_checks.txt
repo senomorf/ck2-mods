@@ -21,7 +21,9 @@ count fired afl.30 >= 1                                       # the scenario's b
 count line afl: margin of >= 1                                # a margin was paid
 count pass afl.10 and afl.11 answer the request >= 20         # the AI requests were answered; an asker can die first (afltest.5 logs it)
 # Charters (afltest_charter_events.txt).
-count ran afl_ask_charter_effect >= 8                         # most of the 12 AI charter requests found an asker and a lender
+count ran afl_ask_charter_effect >= 4                         # half the 8 AI charter requests found an asker and a free lender
+count ran afl_offer_charter_effect >= 1                       # and at least one of the 4 AI charter offers
+count line afl: charter offer from == count ran afl_offer_charter_effect
 count line afl: charter request from == count ran afl_ask_charter_effect
 count fired afl.41 == count chose afl.40 EVTOPTC_afl_40      # "more galleys" opens the second page
 count fired afl.42 == count chose afl.41 EVTOPTC_afl_41      # and the third
