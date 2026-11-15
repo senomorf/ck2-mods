@@ -7,7 +7,7 @@ namespace = afltest
 # companies on their own; the year's log shows it (afl.65, afl.66).
 # Part 1 (afltest.60 to afltest.63): a company founded, its base pinned and moved back, a
 # founder's death, the monthly check, and dissolving.
-# Part 2 (afltest.64, afltest.65, afltest.67): founding pages with afl_base and war chosen, so
+# Part 2 (afltest.64, afltest.65): founding pages with afl_base and war chosen, so
 # every count and every "never mind" is chosen; the first company found dissolves the way a
 # hired one does after its hirer dismisses it (afl.66, afl.69).
 # afltest.69 (from afltest.38, near the year's end): a company in the year's last save.
@@ -55,6 +55,7 @@ character_event = {
 			# The conditions (common/scripted_triggers/afl_triggers.txt).
 			if = { limit = { event_target:afltest_f = { afl_can_found_trigger = yes } } log = "CK2TEST pass a free ruler with ships may found a galley company" }
 			if = { limit = { NOT = { event_target:afltest_f = { afl_can_found_trigger = yes } } } log = "CK2TEST fail a free ruler with ships may found a galley company: it may not" }
+			event_target:afltest_f = { set_character_flag = afltest_ff }
 			event_target:afltest_f = { set_character_flag = afl_offer_in }
 			if = { limit = { event_target:afltest_f = { NOT = { afl_can_found_trigger = yes } } } log = "CK2TEST pass a ruler in a contract may not found one" }
 			if = { limit = { NOT = { event_target:afltest_f = { NOT = { afl_can_found_trigger = yes } } } } log = "CK2TEST fail a ruler in a contract may not found one: it may" }
@@ -101,6 +102,8 @@ character_event = {
 			if = { limit = { event_target:afltest_g = { has_character_flag = afl_company } any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_g } } } log = "CK2TEST pass a second founder has its company" }
 			if = { limit = { NOT = { event_target:afltest_g = { has_character_flag = afl_company } any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_g } } } } log = "CK2TEST fail a second founder has its company: it has none" }
 			event_target:afltest_g = { death = { death_reason = death_accident_drowning } }
+			clear_event_target = afl_company  # the dead founder's, destroyed (box probe 18)
+			clear_event_target = afl_captain
 			character_event = { id = afltest.61 days = 1 }
 		}
 	}
@@ -143,17 +146,31 @@ character_event = {
 			set_global_flag = afltest_company_hired
 		}
 		event_target:afltest_f = { afl_dissolve_company_effect = yes }
+		# No target for a title that may be destroyed goes to a queued event (box probe 18).
+		clear_event_target = afltest_co
+		clear_event_target = afl_company
+		clear_event_target = afl_captain
 		character_event = { id = afltest.63 days = 1 }
 	}
 }
 
 # afltest.63: the dissolved company is gone and its founder's ships home; then the founding pages.
+# In the first box run afltest_f was lost on the way here, so it is found again by its flag.
 character_event = {
 	id = afltest.63
 	hide_window = yes
 	is_triggered_only = yes
 
 	immediate = {
+		if = {
+			limit = { NOT = { event_target:afltest_f = { always = yes } } }
+			random_character = {
+				limit = { has_character_flag = afltest_ff }
+				save_event_target_as = afltest_f
+			}
+			log = "afltest: event target afltest_f lost on the way to afltest.63; found by its flag: [afltest_f.GetBestName]"
+		}
+		event_target:afltest_f = { clr_character_flag = afltest_ff }
 		if = {
 			limit = { has_global_flag = afltest_company_hired }
 			log = "afltest: skipping the dissolve checks: an AI ruler hired the company"
@@ -177,6 +194,15 @@ character_event = {
 	is_triggered_only = yes
 
 	immediate = {
+		# The first case's company, marked to dissolve and dismissed in afltest.65: afl.69 has
+		# dissolved it since. (A separate event three days on never ran in the first box run.)
+		random_character = {
+			limit = { has_character_flag = afltest_deferred }
+			clr_character_flag = afltest_deferred
+			save_event_target_as = afltest_dc
+			if = { limit = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_dc } } } NOT = { has_character_flag = afl_company } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } log = "CK2TEST pass a company marked to dissolve does once dismissed" }
+			if = { limit = { NOT = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_dc } } } NOT = { has_character_flag = afl_company } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST fail a company marked to dissolve does once dismissed: the company, the flag or Ships away is still there" }
+		}
 		change_variable = { which = global_afltest_ki value = 1 }
 		set_variable = { which = global_afltest_ci which = global_afltest_ki }
 		while = {
@@ -299,7 +325,7 @@ character_event = {
 
 # afltest.65: five days after a founding case. A company found has the size chosen, 50 to 500, and
 # its founder's holdings carry Ships away; then it dissolves: the first one found the way a hired
-# one does once dismissed (afl_dissolve, afl.66, afl.69; afltest.67 checks), the rest by the
+# one does once dismissed (afl_dissolve, afl.66, afl.69; the next afltest.64 checks), the rest by the
 # founder's decision. A founder who chose "never mind" has no company. ROOT = the case's ruler.
 character_event = {
 	id = afltest.65
@@ -319,14 +345,13 @@ character_event = {
 					set_title_flag = afl_dissolve
 					holder_scope = { character_event = { id = afl.66 } }
 				}
-				character_event = { id = afltest.67 days = 3 }
+				set_character_flag = afltest_deferred
 			}
 			else = {
 				afl_dissolve_company_effect = yes
 			}
 		}
-		if = {
-			limit = { NOT = { has_character_flag = afl_company } }
+		else = {
 			log = "afltest: [Root.GetBestName] ([Root.GetID]) founded no company: never mind"
 			if = { limit = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = ROOT } } } OR = { afl_in_contract_trigger = yes NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST pass a founder who changed its mind has no company" }
 			if = { limit = { NOT = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = ROOT } } } OR = { afl_in_contract_trigger = yes NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } log = "CK2TEST fail a founder who changed its mind has no company: it has a company or Ships away" }
@@ -342,19 +367,6 @@ character_event = {
 
 	immediate = {
 		log = "CK2TEST done"
-	}
-}
-
-# afltest.67: three days after the first case's company was marked to dissolve and afl.66 ran:
-# afl.69 dissolved it the next day. ROOT = its founder.
-character_event = {
-	id = afltest.67
-	hide_window = yes
-	is_triggered_only = yes
-
-	immediate = {
-		if = { limit = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = ROOT } } } NOT = { has_character_flag = afl_company } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } log = "CK2TEST pass a company marked to dissolve does once dismissed" }
-		if = { limit = { NOT = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = ROOT } } } NOT = { has_character_flag = afl_company } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST fail a company marked to dissolve does once dismissed: the company, the flag or Ships away is still there" }
 	}
 }
 
