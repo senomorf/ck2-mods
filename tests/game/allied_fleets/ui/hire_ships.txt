@@ -8,7 +8,7 @@
 #     tools/campaign.sh --steps tests/game/allied_fleets/ui/hire_ships.txt
 launch -startgame -start_save=%SAVE%
 until 300 Launching SINGLEPLAYER-game
-wait 10
+wait 25                 # at 10 s, a freshly started box lost the console key (twice, 2026-11-15)
 focus
 key grave              # the console
 wait 3
