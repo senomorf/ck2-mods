@@ -31,6 +31,9 @@ shot menu
 click 338 267          # the decision's window
 wait 4
 shot window
+move 606 500           # the acceptance ("Yes", "Maybe" or "No", v0.2): its tooltip lists the lender's score and reasons
+wait 3
+shot acceptance
 click 606 524          # Do it!
 until 20 CK2TEST took afl_ask_war_loan root=101515 from=122
 wait 3

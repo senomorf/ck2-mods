@@ -57,3 +57,10 @@ count fired afl.69 >= 1                                       # a company marked
 count line afl: company not founded by == count ran afl_withdraw_found_effect
 count ran afl_ships_home_effect >= count fired afl.67         # each dissolved company brings its ships home
 count fired afl.67 >= 6                                       # most page cases' companies dissolved and told their founders
+# The lender's score (v0.2; afltest_score_events.txt and the answer checks in afltest.3, .33, .35).
+count ran afl_war_loan_score_effect >= count fired afl.11        # every war loan answer scores the request
+count ran afl_charter_score_effect >= count fired afl.43         # and every charter answer
+count line afl: war loan score >= count fired afl.11
+count line afl: score shown differs == 0                         # only a decision taken logs it (UI tests)
+count chose afl.43 EVTOPTA_afl_43 >= 1                           # an AI lender signed a charter at least once
+count chose afl.43 EVTOPTB_afl_43 >= 1                           # and refused one

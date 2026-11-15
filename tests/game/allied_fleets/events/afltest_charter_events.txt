@@ -298,8 +298,29 @@ character_event = {
 						ROOT = { is_variable_equal = { which = global_afltest_cr value = 12 } }
 					}
 				}
+				preferred_limit = {
+					religion_group = PREV
+					war = no
+					NOT = { any_fleet = { always = yes } }
+				}
 				save_event_target_as = afl_lender
 			}
+			# The lender's score (v0.2): requests 1, 4, 7 and 10 come with the lender's opinion raised.
+			if = {
+				limit = {
+					event_target:afl_lender = { always = yes }
+					ROOT = {
+						OR = {
+							is_variable_equal = { which = global_afltest_cr value = 1 }
+							is_variable_equal = { which = global_afltest_cr value = 4 }
+							is_variable_equal = { which = global_afltest_cr value = 7 }
+							is_variable_equal = { which = global_afltest_cr value = 10 }
+						}
+					}
+				}
+				event_target:afl_lender = { opinion = { modifier = afltest_friendly who = PREV years = 1 } }
+			}
+			set_variable = { which = afl_score value = -1000 } # no answer yet (afltest.33)
 			if = {
 				limit = {
 					event_target:afl_lender = { always = yes }
@@ -342,6 +363,11 @@ character_event = {
 	is_triggered_only = yes
 
 	immediate = {
+		if = {
+			limit = { check_variable = { which = afl_score value = -999 } }
+			if = { limit = { NAND = { NOT = { check_variable = { which = afl_score value = 1 } } has_character_flag = afl_borrowing } } log = "CK2TEST pass an AI lender signs no charter it scores 0 or less" }
+			if = { limit = { NOT = { check_variable = { which = afl_score value = 1 } } has_character_flag = afl_borrowing } log = "CK2TEST fail an AI lender signs no charter it scores 0 or less: [Root.GetBestName] ([Root.GetID]) scored [Root.afl_score.GetValue]" }
+		}
 		if = {
 			limit = { has_character_flag = afl_charter has_character_flag = afl_borrowing }
 			save_event_target_as = afl_borrower
@@ -402,6 +428,11 @@ character_event = {
 					afl_can_lend_trigger = yes
 					NOT = { character = PREV }
 					NOT = { war_with = PREV }
+				}
+				preferred_limit = {
+					religion_group = PREV
+					war = no
+					NOT = { any_fleet = { always = yes } }
 				}
 				save_event_target_as = afl_lender
 				set_character_flag = afl_request_incoming
@@ -488,6 +519,32 @@ character_event = {
 				set_variable = { which = afl_base value = 300 }
 				log = "afltest: [Root.GetBestName] ([Root.GetID]) hires from [afl_lender.GetBestName] ([afl_lender.GetID]) with 300 offered and [This.afl_base.GetValue] set, a treasury for: never, third page"
 			}
+			# The lender's score (v0.2): every other run comes with the lender's opinion raised.
+			if = {
+				limit = {
+					ROOT = {
+						OR = {
+							is_variable_equal = { which = global_afltest_cs value = 1 }
+							is_variable_equal = { which = global_afltest_cs value = 3 }
+							is_variable_equal = { which = global_afltest_cs value = 5 }
+							is_variable_equal = { which = global_afltest_cs value = 7 }
+							is_variable_equal = { which = global_afltest_cs value = 9 }
+							is_variable_equal = { which = global_afltest_cs value = 11 }
+							is_variable_equal = { which = global_afltest_cs value = 13 }
+							is_variable_equal = { which = global_afltest_cs value = 15 }
+							is_variable_equal = { which = global_afltest_cs value = 17 }
+							is_variable_equal = { which = global_afltest_cs value = 19 }
+							is_variable_equal = { which = global_afltest_cs value = 21 }
+							is_variable_equal = { which = global_afltest_cs value = 23 }
+							is_variable_equal = { which = global_afltest_cs value = 25 }
+							is_variable_equal = { which = global_afltest_cs value = 27 }
+							is_variable_equal = { which = global_afltest_cs value = 29 }
+						}
+					}
+				}
+				event_target:afl_lender = { opinion = { modifier = afltest_friendly who = PREV years = 1 } }
+			}
+			set_variable = { which = afl_score value = -1000 } # no answer yet (afltest.35)
 			character_event = { id = afl.40 }
 			character_event = { id = afltest.35 days = 35 }
 		}
@@ -663,6 +720,11 @@ character_event = {
 	is_triggered_only = yes
 
 	immediate = {
+		if = {
+			limit = { check_variable = { which = afl_score value = -999 } }
+			if = { limit = { NAND = { NOT = { check_variable = { which = afl_score value = 1 } } has_character_flag = afl_borrowing } } log = "CK2TEST pass an AI lender signs no charter it scores 0 or less" }
+			if = { limit = { NOT = { check_variable = { which = afl_score value = 1 } } has_character_flag = afl_borrowing } log = "CK2TEST fail an AI lender signs no charter it scores 0 or less: [Root.GetBestName] ([Root.GetID]) scored [Root.afl_score.GetValue]" }
+		}
 		if = {
 			limit = { has_character_flag = afl_charter has_character_flag = afl_borrowing }
 			save_event_target_as = afl_borrower

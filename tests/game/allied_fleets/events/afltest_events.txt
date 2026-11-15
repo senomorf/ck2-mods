@@ -9,7 +9,11 @@ namespace = afltest
 # can spare 100 galleys in 1067. So every option comes up. Each loan is checked and ended
 # five days on, so the few rulers who can spare 50 galleys lend again. Part 2 (afltest.10 on)
 # runs each step on chosen rulers and checks it. Part 3 (afltest.13) leaves loans running into
-# the year's last save, for save_checks.txt.
+# the year's last save, for save_checks.txt. The lender's score (v0.2): every other request to a
+# lender who can spare 50 galleys, and every other one of afltest.6's, comes with the lender's
+# opinion of the asker raised (afltest_friendly), so some lenders agree; afltest.3 checks each
+# answer against the score (afltest_score_answer_wrong_trigger); afltest_score_events.txt tests
+# the score's sums.
 # Constructs, all in vanilla 3.3.5.1 or this mod: on_startup (fires for every character on load,
 # .cwtools/on_actions.cwt), set_global_flag, random_independent_ruler and any_independent_ruler,
 # change_variable, check_variable and is_variable_equal, while with count and limit
@@ -38,6 +42,7 @@ character_event = {
 		set_global_flag = afl_test_started
 		log = "CK2TEST start allied_fleets"
 		character_event = { id = afltest.2 days = 1 }
+		character_event = { id = afltest.80 days = 2 } # afltest_score_events.txt
 	}
 }
 
@@ -81,7 +86,17 @@ character_event = {
 					NOT = { character = event_target:afltest_asker }
 					NOT = { any_current_enemy = { character = event_target:afltest_asker } }
 				}
+				# one whose score has no "another faith", "a war of its own" or "galleys at sea"
+				preferred_limit = {
+					religion_group = event_target:afltest_asker
+					war = no
+					NOT = { any_fleet = { always = yes } }
+				}
 				save_event_target_as = afl_lender
+			}
+			if = {
+				limit = { is_variable_equal = { which = afl_test_third value = 1 } event_target:afl_lender = { always = yes } }
+				event_target:afl_lender = { opinion = { modifier = afltest_friendly who = event_target:afltest_asker years = 1 } }
 			}
 		}
 		if = {
@@ -111,6 +126,7 @@ character_event = {
 			event_target:afltest_asker = {
 				set_character_flag = afl_test_requester
 				set_character_flag = afl_test_awaiting_check
+				set_variable = { which = afl_score value = -1000 } # no answer yet (afltest.3)
 				# The decision's own effect: it saves afl_lender, then runs this for the ruler asking.
 				afl_ask_war_loan_effect = yes
 				character_event = { id = afltest.3 days = 5 }
@@ -135,6 +151,11 @@ character_event = {
 
 	immediate = {
 		clr_character_flag = afl_test_awaiting_check
+		if = {
+			limit = { check_variable = { which = afl_score value = -999 } }
+			if = { limit = { NOT = { afltest_score_answer_wrong_trigger = yes } } log = "CK2TEST pass an AI lender answers a war loan by its score" }
+			if = { limit = { afltest_score_answer_wrong_trigger = yes } log = "CK2TEST fail an AI lender answers a war loan by its score: [Root.GetBestName] ([Root.GetID]) scored [Root.afl_score.GetValue] by [afl_lender.GetBestName] ([afl_lender.GetID])" }
+		}
 		if = { limit = { NOT = { has_character_flag = afl_request_pending } event_target:afl_lender = { NOT = { has_character_flag = afl_request_incoming } } } log = "CK2TEST pass afl.10 and afl.11 answer the request" }
 		if = { limit = { NAND = { NOT = { has_character_flag = afl_request_pending } event_target:afl_lender = { NOT = { has_character_flag = afl_request_incoming } } } } log = "CK2TEST fail afl.10 and afl.11 answer the request: a request flag is still set five days later on [Root.GetBestName] ([Root.GetID]) or [afl_lender.GetBestName] ([afl_lender.GetID])" }
 if = {
@@ -201,6 +222,11 @@ character_event = {
 					NOT = { character = PREV }
 					NOT = { war_with = PREV }
 				}
+				preferred_limit = {
+					religion_group = PREV
+					war = no
+					NOT = { any_fleet = { always = yes } }
+				}
 				save_event_target_as = afl_lender
 			}
 		}
@@ -209,10 +235,22 @@ character_event = {
 				event_target:afltest_asker = { always = yes }
 				event_target:afl_lender = { always = yes }
 			}
+			if = {
+				limit = {
+					OR = {
+						is_variable_equal = { which = afl_test_ci value = 1 }
+						is_variable_equal = { which = afl_test_ci value = 3 }
+						is_variable_equal = { which = afl_test_ci value = 5 }
+						is_variable_equal = { which = afl_test_ci value = 7 }
+					}
+				}
+				event_target:afl_lender = { opinion = { modifier = afltest_friendly who = event_target:afltest_asker years = 1 } }
+			}
 			event_target:afltest_asker = {
 				set_character_flag = afl_test_requester
 				set_character_flag = afl_test_awaiting_check
 				save_event_target_as = afl_borrower
+				set_variable = { which = afl_score value = -1000 } # no answer yet (afltest.3)
 				set_character_flag = afl_request_pending
 				event_target:afl_lender = { set_character_flag = afl_request_incoming }
 				if = { limit = { ROOT = { is_variable_equal = { which = afl_test_ci value = 1 } } } set_variable = { which = afl_base value = 50 } wealth = 200 }
