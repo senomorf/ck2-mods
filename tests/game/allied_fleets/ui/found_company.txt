@@ -1,0 +1,72 @@
+# UI test (galley companies, v0.1 step 3): as King Svend II of Denmark, found a galley company of 50
+# from the decisions list (Intrigue, F7), as a player would; then as King Harold II of England hire it
+# from the Mercenaries list (F6) and dismiss it, which logs afl.66 (the company's base goes back to
+# Sjaelland). Coordinates were read off the live test box's screenshots (1280x720: Found a Galley
+# Company is the second decision; the Mercenaries list, sorted by cost twice, puts the 50-gold
+# company first, since the bottom of the unsorted list is below the screen). Run it on the box from
+# vanilla's 1067.1.1 save (docs/test-pipeline.md, "UI tests"), with found_company_effects.txt, which
+# gives Harold 100 gold:
+#   tools/box-run.sh env CAMPAIGN_PROBE_SAVE=.box/start.ck2 CAMPAIGN_PROBE_MOD=allied_fleets \
+#     CAMPAIGN_PROBE_TESTS=no CAMPAIGN_PROBE_EFFECTS=tests/game/allied_fleets/ui/found_company_effects.txt \
+#     tools/campaign.sh --steps tests/game/allied_fleets/ui/found_company.txt
+launch -startgame -start_save=%SAVE%
+until 300 Launching SINGLEPLAYER-game
+wait 10
+focus
+key grave              # the console
+wait 3
+type run ck2test_effects.txt
+key Return
+wait 3
+until 10 uitest: ready
+type play 101515       # play Svend
+key Return
+wait 3
+key grave
+wait 4
+key F7                 # Intrigue: the decisions list
+wait 4
+move 470 235           # Found a Galley Company's button; its tooltip
+wait 4
+shot decision
+click 470 235
+until 20 CK2TEST took afl_found_company root=101515
+wait 3
+shot counts            # afl.60: Svend's own ports spare 58, so only 50 is offered
+click 650 529          # the first option: 50 galleys
+until 20 afl: company of 50 galleys founded by King Svend II
+wait 3
+shot notice            # afl.63: the captain and the company, waiting off Sjaelland
+click 650 529          # its only option
+wait 3
+shot disband           # the list now offers Disband Our Galley Company instead
+key grave
+wait 3
+type play 122          # play Harold
+key Return
+wait 3
+key grave
+wait 4
+key F6                 # Military
+wait 4
+click 244 346          # the Mercenaries tab
+wait 3
+click 316 375          # sort by cost, dearest first
+wait 3
+click 316 375          # cheapest first: the galley company, 50 gold
+wait 3
+shot list
+move 429 406           # its Hire button; the tooltip
+wait 4
+shot hiretip
+click 429 406
+wait 4
+shot hired             # the button now reads Dismiss; Harold's treasury is 50 lower
+move 600 300
+wait 2
+move 429 406
+wait 4
+click 429 406          # dismiss it
+until 20 dismissed by King Harold II of England
+wait 3
+shot dismissed
