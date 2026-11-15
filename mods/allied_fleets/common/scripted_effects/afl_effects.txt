@@ -695,6 +695,10 @@ afl_found_company_effect = {
 	log = "afl: company of [This.afl_company_size.GetValue] galleys founded by [afl_founder.GetBestName] ([afl_founder.GetID]): [afl_company.GetName], captain [afl_captain.GetBestName] ([afl_captain.GetID])"
 	afl_ships_away_effect = yes
 	character_event = { id = afl.63 }
+	# The monthly check carries no target that may be destroyed before it fires: a queued event's
+	# targets go into the save, and a destroyed company's title does not (box probe 18).
+	clear_event_target = afl_company
+	clear_event_target = afl_captain
 	character_event = { id = afl.65 days = 30 }
 }
 
@@ -798,6 +802,8 @@ afl_company_check_effect = {
 				log = "afl: [This.GetName] serves [afl_hirer.GetBestName] ([afl_hirer.GetID])"
 			}
 		}
+		clear_event_target = afl_company
+		clear_event_target = afl_hirer
 		character_event = { id = afl.65 days = 30 }
 	}
 }
@@ -817,8 +823,11 @@ afl_dissolve_company_effect = {
 
 # afl_end_company_effect: an idle company is disbanded: its founder, if it still has the company,
 # gets its ships back and is told (afl.67), and the title is destroyed (vanilla ZE.11030,
-# vanilla/events/ze_mercenary_events_02.txt; its captain stays a courtier). A hired one is marked,
-# and dissolves when its hirer dismisses it (afl.66, afl.69). Scope: the company's title.
+# vanilla/events/ze_mercenary_events_02.txt; its captain stays a courtier). A destroyed company
+# stays in any_mercenary_band, inactive, holderless and with its flags, though a save made after
+# leaves it out (box probe 18), so its flags come off first (clr_title_flag:
+# vanilla/events/HF_crusade_events.txt). A hired one is marked, and dissolves when its hirer
+# dismisses it (afl.66, afl.69). Scope: the company's title.
 afl_end_company_effect = {
 	if = {
 		limit = { afl_company_idle_trigger = yes }
@@ -831,6 +840,8 @@ afl_end_company_effect = {
 			}
 		}
 		log = "afl: [This.GetName] dissolved"
+		clr_title_flag = afl_company
+		clr_title_flag = afl_dissolve
 		activate_title = { title = THIS status = no }
 		destroy_landed_title = THIS
 	}
