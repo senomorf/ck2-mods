@@ -1,0 +1,17 @@
+#CODE;ENGLISH;FRENCH;GERMAN;;SPANISH;;;;;;;;;x
+afl_reason_republic;[Root.GetTitledFirstName] hires out galleys for pay;;;;;;;;;;;;;x
+afl_reason_likes;[Root.GetTitledFirstName] thinks well of you;;;;;;;;;;;;;x
+afl_reason_friendly;[Root.GetTitledFirstName] is friendly to you;;;;;;;;;;;;;x
+afl_reason_dislikes;[Root.GetTitledFirstName] dislikes you;;;;;;;;;;;;;x
+afl_reason_hates;[Root.GetTitledFirstName] hates you;;;;;;;;;;;;;x
+afl_reason_allied;[Root.GetTitledFirstName] is your ally;;;;;;;;;;;;;x
+afl_reason_vassal;[Root.GetTitledFirstName] is in your realm;;;;;;;;;;;;;x
+afl_reason_same_war;[Root.GetTitledFirstName] fights on your side;;;;;;;;;;;;;x
+afl_reason_own_war;[Root.GetTitledFirstName] needs the galleys for a war of their own;;;;;;;;;;;;;x
+afl_reason_at_sea;[Root.GetTitledFirstName]'s galleys are already at sea;;;;;;;;;;;;;x
+afl_reason_faith;You are of another faith;;;;;;;;;;;;;x
+afl_reason_crusade;You fight a holy war of [Root.GetTitledFirstName]'s faith;;;;;;;;;;;;;x
+afl_reason_enemy_ally;You are at war with [Root.GetTitledFirstName]'s ally;;;;;;;;;;;;;x
+afl_reason_needs_money;[Root.GetTitledFirstName] is in debt and needs the pay;;;;;;;;;;;;;x
+afl_reason_asker_debt;You are in debt;;;;;;;;;;;;;x
+afl_reason_player;[Root.GetTitledFirstName] answers for themselves;;;;;;;;;;;;;x

@@ -28,23 +28,12 @@ afl_in_contract_trigger = {
 }
 
 # afl_war_partner_trigger: the scoped ruler (the lender) and FROM (the ruler asking) are allied,
-# or on the same side of a war. Crusade partners are war allies only, which is_allied_with misses.
+# or on the same side of a war (afl_same_war_trigger, afl_score_triggers.txt).
 # Scope: the lender; FROM: the ruler asking (afl_ask_war_loan).
 afl_war_partner_trigger = {
 	OR = {
 		is_allied_with = FROM
-		any_war = {
-			OR = {
-				AND = {
-					any_attacker = { character = ROOT }
-					any_attacker = { character = FROM }
-				}
-				AND = {
-					any_defender = { character = ROOT }
-					any_defender = { character = FROM }
-				}
-			}
-		}
+		afl_same_war_trigger = yes
 	}
 }
 

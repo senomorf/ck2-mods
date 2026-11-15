@@ -158,16 +158,28 @@ character_event = {
 	picture = GFX_evt_council
 	is_triggered_only = yes
 
+	immediate = {
+		afl_war_loan_score_effect = yes # common/scripted_effects/afl_score_effects.txt
+	}
 	option = {
 		name = EVTOPTA_afl_11 # lend
 		custom_tooltip = { text = afl_lend_tt }
 		hidden_tooltip = { afl_start_war_loan_effect = yes }
-		ai_chance = { factor = 75 }
+		# By the lender's score (afl_score, set in immediate; README.md, "The lender's score"):
+		# 20 or more always lends, 10 to 19 two times in three, 1 to 9 one in three, 0 or less never.
+		ai_chance = {
+			factor = 2
+			modifier = { factor = 0 NOT = { check_variable = { which = afl_score value = 1 } } }
+			modifier = { factor = 0.25 NOT = { check_variable = { which = afl_score value = 10 } } }
+		}
 	}
 	option = {
 		name = EVTOPTB_afl_11 # refuse
 		hidden_tooltip = { afl_refuse_war_loan_effect = yes }
-		ai_chance = { factor = 25 }
+		ai_chance = {
+			factor = 1
+			modifier = { factor = 0 check_variable = { which = afl_score value = 20 } }
+		}
 	}
 }
 
@@ -453,6 +465,9 @@ character_event = {
 	picture = GFX_evt_council
 	is_triggered_only = yes
 
+	immediate = {
+		afl_charter_score_effect = yes # common/scripted_effects/afl_score_effects.txt
+	}
 	option = {
 		name = EVTOPTA_afl_43 # sign
 		trigger = { event_target:afl_borrower = { afl_can_pay_lump_trigger = yes } }
@@ -461,12 +476,25 @@ character_event = {
 			afl_start_charter_effect = yes
 			event_target:afl_borrower = { character_event = { id = afl.44 } }
 		}
-		ai_chance = { factor = 75 }
+		# By the lender's score (afl_score, set in immediate; README.md, "The lender's score"):
+		# 20 or more always signs, 10 to 19 two times in three, 1 to 9 one in three, 0 or less never.
+		ai_chance = {
+			factor = 2
+			modifier = { factor = 0 NOT = { check_variable = { which = afl_score value = 1 } } }
+			modifier = { factor = 0.25 NOT = { check_variable = { which = afl_score value = 10 } } }
+		}
 	}
 	option = {
 		name = EVTOPTB_afl_43 # refuse
 		hidden_tooltip = { afl_refuse_war_loan_effect = yes }
-		ai_chance = { factor = 25 }
+		ai_chance = {
+			factor = 1
+			modifier = {
+				factor = 0
+				check_variable = { which = afl_score value = 20 }
+				event_target:afl_borrower = { afl_can_pay_lump_trigger = yes }
+			}
+		}
 	}
 }
 
