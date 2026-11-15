@@ -44,7 +44,8 @@ count ran afl_found_company_effect >= 8                       # afltest.60's two
 count line afl: company of == count ran afl_found_company_effect
 count fired afl.63 == count ran afl_found_company_effect      # each founding tells the founder
 count fired afl.61 == count chose afl.60 EVTOPTC_afl_60      # "more galleys" opens the second page
-count fired afl.62 == count chose afl.61 EVTOPTC_afl_61      # and the third
+count fired afl.62 > count chose afl.61 EVTOPTC_afl_61       # and the third, which the second 500 case opens directly
+count line afltest: founding case 7 opens the third page == 1
 count chose afl.60 EVTOPTD_afl_60 >= 1                        # a founder at war kept its ships on each page
 count chose afl.61 EVTOPTD_afl_61 >= 1
 count chose afl.62 EVTOPTD_afl_62 >= 1
