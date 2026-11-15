@@ -1,0 +1,8 @@
+# Allied Fleets tests: an opinion the tests give a lender of the ruler asking, so its score has
+# "thinks well of you" (opinion 50 or more, afl_score_likes_trigger) and some AI lenders agree.
+# Pattern: vanilla/common/opinion_modifiers/00_opinion_modifiers.txt (opinion_friend); the
+# effect: opinion with modifier, who and years (vanilla/decisions/HF_baptism_decisions.txt); the
+# tests give it for a year and let it lapse.
+afltest_friendly = {
+	opinion = 100
+}

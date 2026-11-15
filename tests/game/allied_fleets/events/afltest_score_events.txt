@@ -1,0 +1,102 @@
+namespace = afltest
+
+# In-game tests for allied_fleets' lender score (v0.2, README.md, "The lender's score";
+# common/scripted_effects/afl_score_effects.txt). afltest.80 picks an asker at peace and a lender
+# with none of the score's reasons: same religion, at peace, no fleet raised, out of debt, not a
+# merchant republic, not allied, opinion between -24 and 24. afltest.82 runs, as the lender and
+# with the asker as FROM (as in afl.11, box probe 20), each score effect, then turns one reason on
+# at a time and checks the sum. Started by afltest.1; it changes no one's contract, and leaves
+# the two with about no gold.
+# Constructs, all in vanilla 3.3.5.1 or this mod's tests: opinion
+# (common/opinion_modifiers/afltest_opinion_modifiers.txt), religion = PREV and opinion with
+# who = PREV (afl_score_triggers.txt), while with count and limit and wealth (afltest_events.txt),
+# spawn_fleet and disband_event_forces (mods/allied_fleets/common/scripted_effects/afl_effects.txt).
+
+# afltest.80: pick the two; the asker sends afltest.81 to itself, so the lender's event has it as FROM.
+character_event = {
+	id = afltest.80
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				wealth = 0
+				war = no
+				NOT = { has_pledged_crusade_participation = yes }
+				any_independent_ruler = { afltest_score_blank_lender_trigger = yes }
+			}
+			save_event_target_as = afltest_sb
+			random_independent_ruler = {
+				limit = { afltest_score_blank_lender_trigger = yes }
+				save_event_target_as = afltest_sl
+			}
+		}
+		if = {
+			limit = { event_target:afltest_sl = { always = yes } }
+			log = "afltest: score tests with [afltest_sl.GetBestName] ([afltest_sl.GetID]) asked by [afltest_sb.GetBestName] ([afltest_sb.GetID])"
+			event_target:afltest_sb = { character_event = { id = afltest.81 } }
+		}
+		if = {
+			limit = { NOT = { event_target:afltest_sl = { always = yes } } }
+			log = "CK2TEST fail the score tests find a lender with none of the score's reasons: none found"
+		}
+	}
+}
+
+# afltest.81: ROOT = the asker; sends afltest.82 to the lender.
+character_event = {
+	id = afltest.81
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		event_target:afltest_sl = { character_event = { id = afltest.82 } }
+	}
+}
+
+# afltest.82: ROOT = the lender, FROM = the asker.
+character_event = {
+	id = afltest.82
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		log = "CK2TEST pass the score tests find a lender with none of the score's reasons"
+		afl_war_loan_score_effect = yes
+		if = { limit = { is_variable_equal = { which = afl_score value = -5 } } log = "CK2TEST pass a war loan's score starts at -5" }
+		if = { limit = { NOT = { is_variable_equal = { which = afl_score value = -5 } } } log = "CK2TEST fail a war loan's score starts at -5: [Root.afl_score.GetValue]" }
+		afl_charter_score_effect = yes
+		if = { limit = { is_variable_equal = { which = afl_score value = 10 } } log = "CK2TEST pass a charter's score starts at 10" }
+		if = { limit = { NOT = { is_variable_equal = { which = afl_score value = 10 } } } log = "CK2TEST fail a charter's score starts at 10: [Root.afl_score.GetValue]" }
+		if = { limit = { FROM = { is_variable_equal = { which = afl_score value = 10 } } } log = "CK2TEST pass the asker gets the score too" }
+		if = { limit = { NOT = { FROM = { is_variable_equal = { which = afl_score value = 10 } } } } log = "CK2TEST fail the asker gets the score too: [From.afl_score.GetValue]" }
+
+		while = { count = 1000 limit = { wealth = 0 } wealth = -25 }
+		afl_war_loan_score_effect = yes
+		if = { limit = { is_variable_equal = { which = afl_score value = 5 } } log = "CK2TEST pass a lender in debt adds 10" }
+		if = { limit = { NOT = { is_variable_equal = { which = afl_score value = 5 } } } log = "CK2TEST fail a lender in debt adds 10: [Root.afl_score.GetValue]" }
+		while = { count = 1000 limit = { NOT = { wealth = 0 } } wealth = 25 }
+
+		FROM = { while = { count = 1000 limit = { wealth = 0 } wealth = -25 } }
+		afl_war_loan_score_effect = yes
+		if = { limit = { is_variable_equal = { which = afl_score value = -25 } } log = "CK2TEST pass an asker in debt takes 20" }
+		if = { limit = { NOT = { is_variable_equal = { which = afl_score value = -25 } } } log = "CK2TEST fail an asker in debt takes 20: [Root.afl_score.GetValue]" }
+		FROM = { while = { count = 1000 limit = { NOT = { wealth = 0 } } wealth = 25 } }
+
+		# The opinion lasts the event: remove_opinion did not take it away within one (box run,
+		# 2026-11-15), so it comes after the sums without it and lapses after its year.
+		opinion = { modifier = afltest_friendly who = FROM years = 1 }
+		afl_war_loan_score_effect = yes
+		if = { limit = { is_variable_equal = { which = afl_score value = 20 } } log = "CK2TEST pass a lender who thinks well of the asker adds 25" }
+		if = { limit = { NOT = { is_variable_equal = { which = afl_score value = 20 } } } log = "CK2TEST fail a lender who thinks well of the asker adds 25: [Root.afl_score.GetValue]" }
+
+		# Then a fleet raised: 20 off the 20, and disbanded at the end.
+		spawn_fleet = { province = closest owner = ROOT troops = { galleys = { 50 50 } } earmark = afltest_sea }
+		afl_war_loan_score_effect = yes
+		if = { limit = { is_variable_equal = { which = afl_score value = 0 } } log = "CK2TEST pass a lender with galleys at sea takes 20" }
+		if = { limit = { NOT = { is_variable_equal = { which = afl_score value = 0 } } } log = "CK2TEST fail a lender with galleys at sea takes 20: [Root.afl_score.GetValue]" }
+		disband_event_forces = afltest_sea
+	}
+}

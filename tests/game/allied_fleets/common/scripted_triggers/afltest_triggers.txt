@@ -32,3 +32,39 @@ afltest_cut_matches_trigger = {
 		AND = { event_target:afltest_l = { is_variable_equal = { which = afltest_ones value = 9 } } has_instances_of_holding_modifier = { modifier = afl_ships_away_1 amount = 9 } NOT = { has_instances_of_holding_modifier = { modifier = afl_ships_away_1 amount = 10 } } }
 	}
 }
+
+# afltest_score_answer_wrong_trigger: an AI lender's answer to a war loan request went against
+# its score (afl_score on the ruler asking, afl_score_effects.txt): it scored 20 or more ("yes")
+# and lent nothing, while the asker is still at war and the lender still landed, or it scored 0
+# or less ("no") and lent. From 1 to 19 ("maybe") either answer is right.
+# Scope: the ruler who asked; event_target:afl_lender = the lender.
+afltest_score_answer_wrong_trigger = {
+	OR = {
+		AND = {
+			check_variable = { which = afl_score value = 20 }
+			NOT = { has_character_flag = afl_borrowing }
+			war = yes
+			event_target:afl_lender = { is_alive = yes is_landed = yes }
+		}
+		AND = {
+			NOT = { check_variable = { which = afl_score value = 1 } }
+			has_character_flag = afl_borrowing
+		}
+	}
+}
+
+# afltest_score_blank_lender_trigger: a lender for PREV with none of the score's reasons
+# (afl_score_triggers.txt), for afltest.80. Scope: the lender; PREV: the asker, at peace and out
+# of debt.
+afltest_score_blank_lender_trigger = {
+	is_landed = yes
+	NOT = { character = PREV }
+	religion = PREV
+	war = no
+	NOT = { any_fleet = { always = yes } }
+	wealth = 0
+	is_merchant_republic = no
+	NOT = { is_allied_with = PREV }
+	opinion = { who = PREV value = -24 }
+	NOT = { opinion = { who = PREV value = 25 } }
+}
