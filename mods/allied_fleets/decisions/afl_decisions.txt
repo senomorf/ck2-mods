@@ -8,6 +8,7 @@
 # offered the ships, FROM = the lender. Only to players (ai = no in potential), since AI rulers
 # don't hire ships yet (#52).
 # afl_recall_ships: the lender's own decision, for a war loan; a charter runs its term.
+# afl_found_company and afl_dissolve_company: the founder's own decisions for a galley company.
 # Pattern: vanilla/decisions/unit_decisions.txt.
 # Players only for now: ai = no. AI rulers come with #52.
 
@@ -134,6 +135,58 @@ decisions = {
 		effect = {
 			set_character_flag = afl_recalling
 			log = "afl: [Root.GetBestName] ([Root.GetID]) recalls the ships"
+		}
+		revoke_allowed = {
+			always = no
+		}
+		ai_will_do = {
+			factor = 0
+		}
+	}
+
+	afl_found_company = {
+		potential = {
+			ai = no
+			is_playable = yes
+			any_demesne_title = { afl_has_ships_trigger = yes }
+			NOT = { has_character_flag = afl_company }
+		}
+		allow = {
+			custom_tooltip = { text = afl_can_found_tt afl_can_found_trigger = yes }
+		}
+		effect = {
+			custom_tooltip = { text = afl_found_company_tt }
+			hidden_tooltip = {
+				afl_count_base_effect = yes
+				character_event = { id = afl.60 }
+			}
+		}
+		revoke_allowed = {
+			always = no
+		}
+		ai_will_do = {
+			factor = 0
+		}
+	}
+
+	afl_dissolve_company = {
+		potential = {
+			ai = no
+			has_character_flag = afl_company
+		}
+		allow = {
+			custom_tooltip = {
+				text = afl_company_idle_tt
+				any_mercenary_band = {
+					afl_company_trigger = yes
+					band_creator = { character = ROOT }
+					afl_company_idle_trigger = yes
+				}
+			}
+		}
+		effect = {
+			custom_tooltip = { text = afl_dissolve_company_tt }
+			hidden_tooltip = { afl_dissolve_company_effect = yes }
 		}
 		revoke_allowed = {
 			always = no

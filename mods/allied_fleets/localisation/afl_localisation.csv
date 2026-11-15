@@ -95,3 +95,33 @@ EVTOPTA_afl_53;Sign the charter.;;;;;;;;;;;;;x
 EVTOPTB_afl_53;We have no need of them.;;;;;;;;;;;;;x
 EVTDESC_afl_54;[afl_borrower.GetTitledName] has declined our offer of ships.;;;;;;;;;;;;;x
 EVTOPTA_afl_54;So be it.;;;;;;;;;;;;;x
+afl_found_company;Found a Galley Company;;;;;;;;;;;;;x
+afl_found_company_desc;Raise a company of galleys from our own ports, under a captain of our own. Any ruler near our port may hire it through the Mercenaries list, at the price mercenaries ask, and a share of its pay comes to us. Our ports raise as many fewer galleys for as long as it exists. We can disband it only while nobody has hired it.;;;;;;;;;;;;;x
+afl_can_found_tt;We have a shipyard, arsenal, harbour or family palace in a holding of our own, no mercenary company, and neither borrow nor lend ships now;;;;;;;;;;;;;x
+afl_found_company_tt;We choose how many galleys the company takes;;;;;;;;;;;;;x
+afl_found_company_now_tt;The company is founded at once, and waits off our port for hire;;;;;;;;;;;;;x
+afl_dissolve_company;Disband Our Galley Company;;;;;;;;;;;;;x
+afl_dissolve_company_desc;Disband our galley company. Its galleys come home to our ports, and our shipyards raise them again.;;;;;;;;;;;;;x
+afl_company_idle_tt;Nobody has hired our galley company now;;;;;;;;;;;;;x
+afl_dissolve_company_tt;Our galley company is disbanded, and its galleys come home;;;;;;;;;;;;;x
+AFL_GALLEY_COMPANY;[Prev.Capital.County.GetAdjective] Galleys;;;;;;;;;;;;;x
+EVTDESC_afl_60;How many of our galleys should the company take? Our own ports can spare up to [Root.afl_base.GetValue]. Any ruler near our port may hire it, for a gold a galley and then nine tenths of a gold a galley each month, the price mercenaries ask, and a share of that pay comes to us. Our ports raise as many fewer galleys for as long as the company exists.;;;;;;;;;;;;;x
+EVTDESC_afl_60_none;Our own ports hold only [Root.afl_base.GetValue] galleys, too few for a company of fifty. Our vassals' ships are not ours to hire out.;;;;;;;;;;;;;x
+EVTDESC_afl_61;A larger company, then. Our own ports can spare up to [Root.afl_base.GetValue] galleys.;;;;;;;;;;;;;x
+EVTDESC_afl_62;A great company, then. Our own ports can spare up to [Root.afl_base.GetValue] galleys.;;;;;;;;;;;;;x
+EVTOPTA_afl_60;50 galleys, for 5,000 men: hirers pay 50 gold, then 45 a month;;;;;;;;;;;;;x
+EVTOPTB_afl_60;100 galleys, for 10,000 men: hirers pay 100 gold, then 90 a month;;;;;;;;;;;;;x
+EVTOPTC_afl_60;More galleys: 150 or 200;;;;;;;;;;;;;x
+EVTOPTD_afl_60;On second thought, we keep our ships.;;;;;;;;;;;;;x
+EVTOPTA_afl_61;150 galleys, for 15,000 men: hirers pay 150 gold, then 135 a month;;;;;;;;;;;;;x
+EVTOPTB_afl_61;200 galleys, for 20,000 men: hirers pay 200 gold, then 180 a month;;;;;;;;;;;;;x
+EVTOPTC_afl_61;More galleys: 300 to 500;;;;;;;;;;;;;x
+EVTOPTD_afl_61;On second thought, we keep our ships.;;;;;;;;;;;;;x
+EVTOPTA_afl_62;300 galleys, for 30,000 men: hirers pay 300 gold, then 270 a month;;;;;;;;;;;;;x
+EVTOPTB_afl_62;400 galleys, for 40,000 men: hirers pay 400 gold, then 360 a month;;;;;;;;;;;;;x
+EVTOPTC_afl_62;500 galleys, for 50,000 men: hirers pay 500 gold, then 450 a month;;;;;;;;;;;;;x
+EVTOPTD_afl_62;On second thought, we keep our ships.;;;;;;;;;;;;;x
+EVTDESC_afl_63;[afl_captain.GetBestName] takes command of the [afl_company.GetName]: [Root.afl_company_size.GetValue] of our galleys with their crews, waiting off [afl_port.GetName] for anyone who will pay. Rulers near our port can hire them through the Mercenaries list, and a share of their pay comes to us.;;;;;;;;;;;;;x
+EVTOPTA_afl_63;May they find good employers.;;;;;;;;;;;;;x
+EVTDESC_afl_67;Our galley company is disbanded. Its galleys are home in our ports, and our shipyards raise them again.;;;;;;;;;;;;;x
+EVTOPTA_afl_67;Welcome home.;;;;;;;;;;;;;x
