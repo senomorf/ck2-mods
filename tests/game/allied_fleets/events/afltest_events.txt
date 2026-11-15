@@ -17,7 +17,9 @@ namespace = afltest
 # (vanilla/common/scripted_effects/01_scripted_effects_duels.txt), set_variable,
 # subtract_variable and multiply_variable with which (.cwtools/variables_event_targets.cwt),
 # global_ variables and [global_<name>.GetValue], [This.<name>.GetValue] (vanilla/localisation),
-# any_war with end_war = whitepeace (vanilla/events/HF_sway_events.txt), death with death_reason
+# any_war with limit and end_war = whitepeace (vanilla/events/HF_sway_events.txt,
+# vanilla/events/rip_flavor_events.txt), controls_religion (vanilla/common/traits/00_traits.txt),
+# death with death_reason
 # (vanilla/events, death_accident_drowning), has_holding_modifier and
 # has_instances_of_holding_modifier (box probe 6, docs/ck2-notes.md).
 
@@ -276,6 +278,19 @@ character_event = {
 				is_landed = yes
 				afl_can_borrow_trigger = yes
 				NOT = { has_character_flag = afl_test_requester }
+				# The peace test (below) ends its war. Ending every war of the Fatimid caliph, a
+				# religious head in a war it did not lead, crashed the game in end_war (CI campaign,
+				# 2026-11-15), so as vanilla does (vanilla/events/rip_flavor_events.txt, EVTOPTA_RIP_30010)
+				# it ends one war the ruler leads: one war (count, as afl_ai_cap_trigger), led by it
+				# against a landed ruler, and no religious head.
+				NOT = { controls_religion = yes }
+				NOT = { any_war = { count = 2 always = yes } }
+				any_war = {
+					OR = {
+						AND = { attacker = { character = PREVPREV } defender = { is_landed = yes } }
+						AND = { defender = { character = PREVPREV } attacker = { is_landed = yes } }
+					}
+				}
 			}
 			save_event_target_as = afltest_b
 			# out of debt first: a borrower 100 gold in debt (the Fatimid caliph, box run 2026-11-15)
@@ -539,7 +554,15 @@ event_target:afltest_b = { afl_monthly_check_effect = yes }
 			event_target:afltest_l = { afl_start_war_loan_effect = yes }
 			afltest_expected_cut_effect = yes
 			event_target:afltest_b = {
-				any_war = { end_war = whitepeace }
+				any_war = {
+					limit = {
+						OR = {
+							attacker = { character = event_target:afltest_b }
+							defender = { character = event_target:afltest_b }
+						}
+					}
+					end_war = whitepeace
+				}
 				character_event = { id = afltest.11 days = 5 }
 			}
 		}
