@@ -713,19 +713,20 @@ character_event = {
 	}
 }
 
-# afltest.37: the charter tests are done, but for the late charter (afltest.38).
+# afltest.37: the charter tests are done, but for the late charter (afltest.38); the galley
+# company tests follow (afltest_company_events.txt), which log CK2TEST done.
 character_event = {
 	id = afltest.37
 	hide_window = yes
 	is_triggered_only = yes
 
 	immediate = {
-		log = "CK2TEST done"
+		character_event = { id = afltest.60 days = 1 }
 	}
 }
 
 # afltest.38 (from afltest.13, near the year's end): a 50-galley charter, signed through its steps,
-# whose fleet is in the year's last save (save_checks.txt).
+# whose fleet is in the year's last save (save_checks.txt); then a late galley company (afltest.69).
 character_event = {
 	id = afltest.38
 	hide_window = yes
@@ -778,5 +779,6 @@ character_event = {
 			limit = { NOT = { any_independent_ruler = { has_character_flag = afl_borrowing has_character_flag = afl_charter } } }
 			log = "CK2TEST fail a late charter runs into the year's last save: no pair of rulers could start one"
 		}
+		character_event = { id = afltest.69 }
 	}
 }
