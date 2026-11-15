@@ -6,3 +6,12 @@
 ^Missing earmark, expecting at least 1$
 # province = closest: vanilla/decisions/unit_decisions.txt (conscript_merchant_ships)
 ^closest is not a target\.
+# spawn_fleet sized by match_character, with no troops: vanilla/events/misc_old_gods_events.txt (prepared_invasion fleets)
+^Missing troops, expecting at least 1$
+# maintenance_multiplier in spawn_fleet: vanilla uses it on spawn_unit (vanilla/events/HF_reconquista_events.txt); on spawn_fleet
+# the live test box showed it changes the fleet's upkeep (docs/ck2-notes.md, Allied Fleets probe A)
+^maintenance_multiplier is unexpected in spawn_fleet$
+# persistent_event_target:<name> = { ... } in an immediate block: vanilla/events/hf_warrior_lodge_legends_events.txt (target_title)
+^persistent_event_target:[a-z_]+ is unexpected in
+# while = { count limit ... } in an effect: vanilla/events/game_rule_events.txt (county exclaves, count = 100 with limit)
+^while is unexpected in
