@@ -10,6 +10,6 @@ every character/*/dmn/navy/sub_unit[earmark=afl_war_loan]/troops/ga == 50   # ea
 count character/*/dmn/navy/sub_unit[earmark=afl_war_loan]/maintenance_multiplier == 0  # spawned at the usual wages: a multiplier of 1 writes no line (docs/ck2-notes.md)
 absent afl_offer_out                                # every charter offer was answered
 absent afl_offer_in
-count character/*/dmn/navy/sub_unit[earmark=afl_charter] >= 1   # afltest.38's late charter sails before the save
+count character/*/dmn/navy/sub_unit[earmark=afl_charter] >= 1   # afltest.38's late charter reaches the save
 every character/*/dmn/navy/sub_unit[earmark=afl_charter]/troops/ga == 50   # each chartered fleet is the 50 galleys asked for
 count character/*/dmn/navy/sub_unit[earmark=afl_charter]/maintenance_multiplier == 0  # at the usual wages

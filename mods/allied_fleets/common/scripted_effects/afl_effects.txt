@@ -18,9 +18,8 @@
 #   afl_missed  months in a row the borrower left the wages unpaid
 #   afl_wages   a charter's wages, about 0.3 gold a galley a month, for its event texts; on both
 #   afl_lump    a charter's sum on signing, two months' wages; on both
-#   afl_months  monthly checks since a charter's ships sailed; the term ends at 12
-# Flags: afl_charter on both rulers of a charter (none for a war loan); afl_charter_sailed on its
-# borrower once the ships have gathered.
+#   afl_months  monthly checks since a charter was signed; the term ends at 12
+# Flags: afl_charter on both rulers of a charter (none for a war loan).
 # Constructs: spawn_fleet with troops (vanilla/events/adventures_the_old_gods.txt) and
 # maintenance_multiplier (Allied Fleets probes, docs/ck2-notes.md); add_holding_modifier with
 # stacking, remove_holding_modifier, has_building and holding_type in title scope (box probe 6,
@@ -381,8 +380,8 @@ afl_end_war_loan_effect = {
 # Charters (step 2). A ruler hires galleys with their crews for a year, from anyone it is not at
 # war with (owner, 2026-11-14; README.md, "Charter"). Either the ruler hiring asks (afl_hire_ships,
 # afl_ask_charter_effect) or the lender offers (afl_offer_ships, afl_offer_charter_effect). On
-# signing the borrower pays two months' wages; the ships gather in the lender's port for 30 days;
-# then they serve twelve months, for the crews' wages and a quarter more to the lender each month
+# signing the borrower pays two months' wages and gets the ships at once, in the lender's port
+# (owner, 2026-11-15: "At once, in the lender's port"); they serve twelve months, for the crews' wages and a quarter more to the lender each month
 # (owner, 2026-11-15). Peace does not end a charter, and the lender cannot recall it.
 
 # afl_ask_charter_effect: the ruler hiring chooses how many galleys to hire (afl.40), out of what
@@ -432,7 +431,7 @@ afl_set_charter_terms_effect = {
 	}
 }
 
-# afl_port_effect: event_target:afl_port, where a charter's ships gather: the lender's capital if it
+# afl_port_effect: event_target:afl_port, where a charter's ships appear: the lender's capital if it
 # has a port, else the province of one of its own holdings with ships, which a shipyard puts on
 # the coast. A fleet spawned at another ruler's coastal province waits at sea beside it (Allied
 # Fleets probes, docs/ck2-notes.md). Constructs: capital_scope with port
@@ -500,9 +499,9 @@ afl_decline_offer_effect = {
 	}
 }
 
-# afl_start_charter_effect: the charter is signed. The borrower pays the sum on signing; the
-# lender's own holdings lose afl_ask galleys from now, while the ships gather (afl_ships_away_effect);
-# the first monthly check, in 30 days, sails them (afl_charter_check_effect).
+# afl_start_charter_effect: the charter is signed. The borrower pays the sum on signing and gets
+# the fleet at the lender's port (afl_charter_sails_effect); the lender's own holdings lose afl_ask
+# galleys (afl_ships_away_effect); the first monthly check is in 30 days.
 # Scope: the lender.
 afl_start_charter_effect = {
 	clr_character_flag = afl_request_incoming
@@ -513,7 +512,6 @@ afl_start_charter_effect = {
 	event_target:afl_borrower = {
 		clr_character_flag = afl_request_pending
 		clr_character_flag = afl_offer_in
-		clr_character_flag = afl_charter_sailed
 		set_character_flag = afl_borrowing
 		set_character_flag = afl_charter
 		save_persistent_event_target = { name = afl_lender_title scope = event_target:afl_lender_title }
@@ -522,24 +520,20 @@ afl_start_charter_effect = {
 		set_variable = { which = afl_due which = afl_lump }
 		afl_pay_effect = yes
 	}
-	log = "afl: charter of [This.afl_ask.GetValue] galleys from [afl_lender.GetBestName] ([afl_lender.GetID]) to [afl_borrower.GetBestName] ([afl_borrower.GetID]): [This.afl_lump.GetValue] paid on signing, ships gathering in [afl_port.GetName]"
+	log = "afl: charter of [This.afl_ask.GetValue] galleys from [afl_lender.GetBestName] ([afl_lender.GetID]) to [afl_borrower.GetBestName] ([afl_borrower.GetID]): [This.afl_lump.GetValue] paid on signing"
 	afl_ships_away_effect = yes
 	event_target:afl_borrower = {
+		afl_charter_sails_effect = yes
 		character_event = { id = afl.20 days = 30 }
 	}
 }
 
-# afl_charter_sails_effect: the ships have gathered. The borrower's fleet waits at sea beside the
-# lender's port, for the borrower's army to march there and board, and its twelve months start.
-# Both rulers are told (afl.45).
+# afl_charter_sails_effect: at signing, the borrower's fleet appears at sea beside the lender's
+# port, under the borrower's command.
 # Scope: the borrower.
 afl_charter_sails_effect = {
-	set_character_flag = afl_charter_sailed
-	set_variable = { which = afl_months value = 0 }
 	afl_spawn_charter_fleet_effect = yes
 	log = "afl: charter fleet of [This.afl_ask.GetValue] galleys ready in [afl_port.GetName] for [afl_borrower.GetBestName] ([afl_borrower.GetID])"
-	character_event = { id = afl.45 }
-	event_target:afl_lender = { character_event = { id = afl.45 } }
 }
 
 # afl_spawn_charter_fleet_effect: afl_ask galleys for the borrower at the lender's port, at the
@@ -577,20 +571,13 @@ afl_spawn_charter_fleet_effect = {
 }
 
 # afl_charter_check_effect: the monthly check's part for a charter. It ends one that is over
-# (afl_charter_over_trigger); sails the ships at the first check, 30 days after signing; after that
-# takes the margin, warns both rulers a month before the term ends (afl.46) and ends it at the
+# (afl_charter_over_trigger); else takes the margin, warns both rulers a month before the term ends (afl.46) and ends it at the
 # twelfth check, or at a second unpaid month. Else it renews "Ships away" and schedules the next.
 # Scope: the borrower.
 afl_charter_check_effect = {
 	if = {
 		limit = { afl_charter_over_trigger = yes }
 		afl_end_charter_effect = yes
-	}
-	else_if = {
-		limit = { NOT = { has_character_flag = afl_charter_sailed } }
-		afl_charter_sails_effect = yes
-		event_target:afl_lender = { afl_ships_away_effect = yes }
-		character_event = { id = afl.20 days = 30 }
 	}
 	else = {
 		change_variable = { which = afl_months value = 1 }
@@ -630,7 +617,6 @@ afl_end_charter_effect = {
 	disband_event_forces = afl_charter
 	clr_character_flag = afl_borrowing
 	clr_character_flag = afl_charter
-	clr_character_flag = afl_charter_sailed
 	set_variable = { which = afl_missed value = 0 }
 	clear_persistent_event_target = afl_lender_title
 	event_target:afl_lender = {
