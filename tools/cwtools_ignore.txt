@@ -18,3 +18,17 @@
 # spawn_fleet with province = a province scope rather than closest: vanilla/events/misc_old_gods_events.txt (province = PREV),
 # vanilla/events/jd_chinese_war_events.txt (province = 1411); the rule's first alias takes scope[province]
 ^Expecting value closest$
+# create_title for a mercenary company: the 2019 rules' first alias lacks the mercenary keys and wants every optional key.
+# vanilla/decisions/ze_decisions.txt (create_mercenary_company_feudal: mercenary, replace_captain_on_death,
+# siphons_income_to_creator, no copy_title_laws/nomad/rebel/short_name); army_template: vanilla/events/ze_various_events.txt
+^Missing (copy_title_laws|nomad|rebel|short_name), expecting at least 1$
+^(mercenary|replace_captain_on_death|siphons_income_to_creator|army_template) is unexpected in create_title$
+# army_template = a mercenary type from vanilla/common/mercenaries/00_mercenaries.txt, which the rules don't load
+^Unknown type referenced mercenary_type$
+# culture = a character scope in create_title: vanilla/decisions/ze_decisions.txt (culture = ROOT); a box probe's
+# culture = event_target:... gave the company its founder's culture (docs/ck2-notes.md)
+^Expected value of type culture$
+# set_preferred_capital = a county title: vanilla/common/scripted_effects/00_scripted_effects.txt (c_genoa, c_antiocheia)
+^Expecting value scoped\[province\]$
+# activate_title = { title = THIS status = no } in title scope: vanilla/events/ze_mercenary_events_02.txt (ZE.11030)
+^Expected value of type title$
