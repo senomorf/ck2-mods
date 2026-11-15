@@ -15,3 +15,6 @@
 ^persistent_event_target:[a-z_]+ is unexpected in
 # while = { count limit ... } in an effect: vanilla/events/game_rule_events.txt (county exclaves, count = 100 with limit)
 ^while is unexpected in
+# spawn_fleet with province = a province scope rather than closest: vanilla/events/misc_old_gods_events.txt (province = PREV),
+# vanilla/events/jd_chinese_war_events.txt (province = 1411); the rule's first alias takes scope[province]
+^Expecting value closest$
