@@ -9,6 +9,6 @@ random_independent_ruler = {
 	wealth = 100
 	random_independent_ruler = {
 		limit = { character = 101515 afl_can_found_trigger = yes }
-		log = "uitest: ready: [This.GetBestName] ([This.GetID]) may found a company, and [Prev.GetBestName] ([Prev.GetID]) has 100 gold more"
+		log = "uitest: ready: [This.GetBestName] ([This.GetID]) may found a company; Harold has 100 gold more"
 	}
 }
