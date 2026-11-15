@@ -68,3 +68,23 @@ afltest_score_blank_lender_trigger = {
 	opinion = { who = PREV value = -24 }
 	NOT = { opinion = { who = PREV value = 25 } }
 }
+
+# afltest_ai_need_right_trigger: afl_need (afl_ai_need_effect) is afltest_lv, the levies / 100, held
+# to 50..500. Scope: the ruler.
+afltest_ai_need_right_trigger = {
+	OR = {
+		AND = {
+			check_variable = { which = afltest_lv value = 50 }
+			NOT = { check_variable = { which = afltest_lv value = 500 } }
+			is_variable_equal = { which = afl_need which = afltest_lv }
+		}
+		AND = {
+			NOT = { check_variable = { which = afltest_lv value = 50 } }
+			is_variable_equal = { which = afl_need value = 50 }
+		}
+		AND = {
+			check_variable = { which = afltest_lv value = 500 }
+			is_variable_equal = { which = afl_need value = 500 }
+		}
+	}
+}

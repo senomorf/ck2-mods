@@ -1,0 +1,369 @@
+namespace = afltest
+
+# In-game tests for allied_fleets' AI borrowers (v0.2, step 2; README.md, "AI rulers ask for
+# ships"; mods/allied_fleets/common/scripted_effects/afl_ai_effects.txt). afltest.90 runs the
+# count, need and overseas parts on chosen rulers and checks each. afltest.91 makes an AI king at
+# peace attack a ruler on an island, as box probe 19 did, and gives it gold; afltest.92 and .93
+# check that the war started its check (afl.70), and that the check worked out its need and asked a
+# lender for a count it needs (afl.71). Both rulers get afl_test_requester, so the other tests
+# leave them alone. afltest.94 runs the AI's war loan request (afl_ai_ask_war_loan_effect) for a
+# ruler at war and a lender who can spare 50, as afltest.2 does the decision's (afltest.95), and
+# afltest.96 checks the answer and ends the loan. afltest.92 also fires afl.72 for the scenario's war, which
+# is no crusade, so it starts no check: no crusade comes in the test's year, and afl.72's crusade
+# branch is untested. Started by afltest.1.
+# Constructs, all in vanilla 3.3.5.1 or this mod's tests: unsafe_war with casus_belli =
+# duchy_adventure, thirdparty_title and tier (vanilla/events/adventures_the_old_gods.txt; with a
+# province as the title, box probe 19), export_to_variable with realm_levies
+# (vanilla/events/jd_chinese_war_events.txt), is_island and any_realm_province
+# (vanilla/events/HF_warrior_lodge_mission_events.txt, box probe 19), any_current_enemy
+# (.cwtools/scopes.cwt; random_current_enemy, vanilla/events/court_events.txt), holder_scope, wealth, while
+# with count and limit (afltest_events.txt), is_variable_equal with two variables
+# (afltest_charter_events.txt), NAND (afltest_events.txt).
+
+# afltest.90: the count an AI ruler asks for (afl_ai_count_effect), what its army needs
+# (afl_ai_need_effect) and which enemies are overseas (afl_ai_overseas_trigger); then the scenario.
+character_event = {
+	id = afltest.90
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				war = no
+				NOT = { afl_in_contract_trigger = yes }
+				NOT = { has_character_flag = afl_test_requester }
+			}
+			save_event_target_as = afltest_ac
+		}
+		event_target:afltest_ac = {
+			set_character_flag = afl_test_requester
+			log = "afltest: AI count tests on [This.GetBestName] ([This.GetID])"
+			# a war loan: the largest count no more than the need and the lender's spare galleys
+			set_variable = { which = afl_need value = 120 }
+			set_variable = { which = afl_base value = 400 }
+			afl_ai_count_effect = yes
+			if = { limit = { is_variable_equal = { which = afl_ask value = 100 } } log = "CK2TEST pass an AI ruler that needs 120 galleys asks for 100" }
+			if = { limit = { NOT = { is_variable_equal = { which = afl_ask value = 100 } } } log = "CK2TEST fail an AI ruler that needs 120 galleys asks for 100: [This.afl_ask.GetValue]" }
+			set_variable = { which = afl_need value = 500 }
+			set_variable = { which = afl_base value = 160 }
+			afl_ai_count_effect = yes
+			if = { limit = { is_variable_equal = { which = afl_ask value = 150 } } log = "CK2TEST pass an AI ruler asks for 150 from a lender who can spare 160" }
+			if = { limit = { NOT = { is_variable_equal = { which = afl_ask value = 150 } } } log = "CK2TEST fail an AI ruler asks for 150 from a lender who can spare 160: [This.afl_ask.GetValue]" }
+			set_variable = { which = afl_need value = 350 }
+			set_variable = { which = afl_base value = 999 }
+			afl_ai_count_effect = yes
+			if = { limit = { is_variable_equal = { which = afl_ask value = 300 } } log = "CK2TEST pass an AI ruler that needs 350 galleys asks for 300" }
+			if = { limit = { NOT = { is_variable_equal = { which = afl_ask value = 300 } } } log = "CK2TEST fail an AI ruler that needs 350 galleys asks for 300: [This.afl_ask.GetValue]" }
+			set_variable = { which = afl_need value = 50 }
+			set_variable = { which = afl_base value = 49 }
+			afl_ai_count_effect = yes
+			if = { limit = { is_variable_equal = { which = afl_ask value = 0 } } log = "CK2TEST pass an AI ruler asks for none from a lender who can spare 49" }
+			if = { limit = { NOT = { is_variable_equal = { which = afl_ask value = 0 } } } log = "CK2TEST fail an AI ruler asks for none from a lender who can spare 49: [This.afl_ask.GetValue]" }
+			# a charter: also one it can pay the sum on signing for, 0.6 gold a galley
+			set_character_flag = afl_charter
+			while = { count = 1000 limit = { NOT = { wealth = 0 } } wealth = 25 }
+			while = { count = 1000 limit = { wealth = 10 } wealth = -10 }
+			wealth = 65 # 65 to 75 gold: enough for 100 galleys (60), not 150 (90)
+			set_variable = { which = afl_need value = 500 }
+			set_variable = { which = afl_base value = 500 }
+			afl_ai_count_effect = yes
+			if = { limit = { is_variable_equal = { which = afl_ask value = 100 } } log = "CK2TEST pass an AI ruler with about 70 gold hires 100 galleys by charter" }
+			if = { limit = { NOT = { is_variable_equal = { which = afl_ask value = 100 } } } log = "CK2TEST fail an AI ruler with about 70 gold hires 100 galleys by charter: [This.afl_ask.GetValue]" }
+			wealth = -50 # 15 to 25 gold, under the 30 for 50 galleys
+			afl_ai_count_effect = yes
+			if = { limit = { is_variable_equal = { which = afl_ask value = 0 } } log = "CK2TEST pass an AI ruler with about 20 gold hires none by charter" }
+			if = { limit = { NOT = { is_variable_equal = { which = afl_ask value = 0 } } } log = "CK2TEST fail an AI ruler with about 20 gold hires none by charter: [This.afl_ask.GetValue]" }
+			clr_character_flag = afl_charter
+			# its need: a galley for each 100 men of its levies, from 50 to 500
+			afl_ai_need_effect = yes
+			export_to_variable = { which = afltest_lv value = realm_levies }
+			divide_variable = { which = afltest_lv value = 100 }
+			if = { limit = { afltest_ai_need_right_trigger = yes } log = "CK2TEST pass an AI ruler's need is its levies / 100, from 50 to 500" }
+			if = { limit = { NOT = { afltest_ai_need_right_trigger = yes } } log = "CK2TEST fail an AI ruler's need is its levies / 100, from 50 to 500: need [This.afl_need.GetValue], levies / 100 [This.afltest_lv.GetValue]" }
+		}
+		e_byzantium = {
+			holder_scope = {
+				save_event_target_as = afltest_an
+				afl_ai_need_effect = yes
+				export_to_variable = { which = afltest_lv value = realm_levies }
+				divide_variable = { which = afltest_lv value = 100 }
+				log = "afltest: the Byzantine emperor's need is [This.afl_need.GetValue] galleys, levies / 100 [This.afltest_lv.GetValue], own galleys [This.afl_own.GetValue]"
+				if = { limit = { afltest_ai_need_right_trigger = yes } log = "CK2TEST pass a large realm's need is its levies / 100, from 50 to 500" }
+				if = { limit = { NOT = { afltest_ai_need_right_trigger = yes } } log = "CK2TEST fail a large realm's need is its levies / 100, from 50 to 500: need [This.afl_need.GetValue], levies / 100 [This.afltest_lv.GetValue]" }
+				if = { limit = { is_variable_equal = { which = afl_own which = afl_base } } log = "CK2TEST pass an AI ruler counts the galleys its own holdings hold" }
+				if = { limit = { NOT = { is_variable_equal = { which = afl_own which = afl_base } } } log = "CK2TEST fail an AI ruler counts the galleys its own holdings hold: own [This.afl_own.GetValue], holdings [This.afl_base.GetValue]" }
+			}
+		}
+		# overseas: from Hungary's capital, an island ruler with no land path is, Poland and
+		# Constantinople are not;
+		# from France's, Egypt is, a land path of 1400-1500 (box probe 24)
+		k_hungary = { holder_scope = { capital_scope = { save_event_target_as = afl_home } } }
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				capital_scope = {
+					is_island = yes
+					NOT = { can_land_path_to = event_target:afl_home }
+				}
+				NOT = { any_realm_province = { is_island = no } }
+			}
+			save_event_target_as = afltest_ai_island
+		}
+		if = { limit = { event_target:afltest_ai_island = { afl_ai_overseas_trigger = yes } } log = "CK2TEST pass a ruler on an island with no land path is overseas from Hungary" }
+		if = { limit = { NOT = { event_target:afltest_ai_island = { afl_ai_overseas_trigger = yes } } } log = "CK2TEST fail a ruler on an island with no land path is overseas from Hungary: [afltest_ai_island.GetBestName] ([afltest_ai_island.GetID]) is not" }
+		if = { limit = { k_poland = { holder_scope = { NOT = { afl_ai_overseas_trigger = yes } } } e_byzantium = { holder_scope = { NOT = { afl_ai_overseas_trigger = yes } } } } log = "CK2TEST pass Poland and Constantinople are not overseas from Hungary" }
+		if = { limit = { NAND = { k_poland = { holder_scope = { NOT = { afl_ai_overseas_trigger = yes } } } e_byzantium = { holder_scope = { NOT = { afl_ai_overseas_trigger = yes } } } } } log = "CK2TEST fail Poland and Constantinople are not overseas from Hungary: one of them is" }
+		k_france = { holder_scope = { capital_scope = { save_event_target_as = afl_home } } }
+		if = { limit = { k_egypt = { holder_scope = { afl_ai_overseas_trigger = yes } } e_hre = { holder_scope = { NOT = { afl_ai_overseas_trigger = yes } } } } log = "CK2TEST pass Egypt is overseas from France by its long land path, the Empire is not" }
+		if = { limit = { NAND = { k_egypt = { holder_scope = { afl_ai_overseas_trigger = yes } } e_hre = { holder_scope = { NOT = { afl_ai_overseas_trigger = yes } } } } } log = "CK2TEST fail Egypt is overseas from France by its long land path, the Empire is not" }
+		clear_event_target = afl_home
+		character_event = { id = afltest.91 }
+	}
+}
+
+# afltest.91: the scenario. An AI king at peace, Hungary's if it may, with gold, attacks a ruler on
+# an island its army can't reach by land.
+character_event = {
+	id = afltest.91
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				higher_tier_than = DUKE
+				war = no
+				NOT = { controls_religion = yes }
+				NOT = { afl_in_contract_trigger = yes }
+				NOT = { has_character_flag = afl_test_requester }
+				NOT = { has_character_flag = afl_ai_watch }
+				NOT = { character = ROOT } # the tests' own chains run on ROOT
+			}
+			preferred_limit = { has_landed_title = k_hungary }
+			save_event_target_as = afltest_ab
+			capital_scope = { save_event_target_as = afltest_abcap }
+		}
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				war = no
+				NOT = { character = event_target:afltest_ab }
+				NOT = { character = ROOT } # a war could kill it, and the company tests' chain with it
+				NOT = { is_allied_with = event_target:afltest_ab }
+				NOT = { has_character_flag = afl_test_requester }
+				capital_scope = {
+					is_island = yes
+					NOT = { can_land_path_to = event_target:afltest_abcap }
+				}
+				NOT = { any_realm_province = { is_island = no } }
+			}
+			save_event_target_as = afltest_at
+			capital_scope = { save_event_target_as = afltest_atcap }
+		}
+		if = {
+			limit = { event_target:afltest_at = { always = yes } }
+			event_target:afltest_at = { set_character_flag = afl_test_requester }
+			event_target:afltest_ab = {
+				# kept out of the other tests until afltest.93 (afltest.2, .6, the charter tests)
+				set_character_flag = afl_test_requester
+				set_character_flag = afl_test_awaiting_check
+				set_variable = { which = afl_need value = 0 }
+				set_variable = { which = afl_ask value = 0 }
+				wealth = 500
+				export_to_variable = { which = afltest_lv value = realm_levies }
+				log = "afltest: AI borrower case: [This.GetBestName] ([This.GetID]) attacks [afltest_at.GetBestName] ([afltest_at.GetID]) on [afltest_atcap.GetName], levies [This.afltest_lv.GetValue] before the war"
+				unsafe_war = {
+					target = event_target:afltest_at
+					casus_belli = duchy_adventure
+					thirdparty_title = event_target:afltest_atcap
+					tier = DUKE
+				}
+				character_event = { id = afltest.92 days = 2 }
+			}
+		}
+		if = {
+			limit = { NOT = { event_target:afltest_at = { always = yes } } }
+			log = "CK2TEST fail a new war starts its AI attacker's check: no AI king and island ruler found"
+			log = "CK2TEST fail an AI ruler at war overseas asks for ships it needs: no AI king and island ruler found"
+			log = "CK2TEST fail an AI ruler's request is answered: no AI king and island ruler found"
+		}
+	}
+}
+
+# afltest.92: the war started the attacker's check (afl.70, afl_ai_watch_effect). ROOT = the attacker.
+character_event = {
+	id = afltest.92
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		# war_with the defender was false here a day after unsafe_war (box run, 2026-11-15), while
+		# afl.71 found it as a current enemy six days later; these lines record which reads see it.
+		if = { limit = { war_with = event_target:afltest_at } log = "afltest: AI borrower case: war_with the defender: yes" }
+		if = { limit = { NOT = { war_with = event_target:afltest_at } } log = "afltest: AI borrower case: war_with the defender: no" }
+		if = { limit = { any_current_enemy = { character = event_target:afltest_at } } log = "afltest: AI borrower case: the defender is a current enemy: yes" }
+		if = { limit = { NOT = { any_current_enemy = { character = event_target:afltest_at } } } log = "afltest: AI borrower case: the defender is a current enemy: no" }
+		if = { limit = { war = yes has_character_flag = afl_ai_watch } log = "CK2TEST pass a new war starts its AI attacker's check" }
+		if = { limit = { NAND = { war = yes has_character_flag = afl_ai_watch } } log = "CK2TEST fail a new war starts its AI attacker's check: at war? check flag set?" }
+		character_event = { id = afl.72 } # ROOT and FROM = this attacker, who defends no crusade
+		character_event = { id = afltest.93 days = 25 }
+		character_event = { id = afltest.94 days = 1 }
+	}
+}
+
+# afltest.93: the check (afl.71, seven days after the war started) worked out the need and asked a
+# lender for a count it needs, and the lender answered (afl.11 or afl.43). ROOT = the attacker.
+character_event = {
+	id = afltest.93
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		export_to_variable = { which = afltest_lv value = realm_levies }
+		log = "afltest: AI borrower case: [This.GetBestName] ([This.GetID]) needs [This.afl_need.GetValue], has [This.afl_own.GetValue], asked for [This.afl_ask.GetValue]; levies now [This.afltest_lv.GetValue]"
+		if = { limit = { war_with = event_target:afltest_at } log = "afltest: AI borrower case: war_with the defender 26 days on: yes" }
+		if = { limit = { NOT = { war_with = event_target:afltest_at } } log = "afltest: AI borrower case: war_with the defender 26 days on: no" }
+		if = { limit = { has_character_flag = afl_borrowing has_character_flag = afl_charter } log = "afltest: AI borrower case: signed a charter" }
+		if = { limit = { has_character_flag = afl_borrowing NOT = { has_character_flag = afl_charter } } log = "afltest: AI borrower case: got a war loan" }
+		if = { limit = { NOT = { has_character_flag = afl_borrowing } } log = "afltest: AI borrower case: refused, or asked no one" }
+		if = {
+			limit = {
+				check_variable = { which = afl_need value = 50 }
+				check_variable = { which = afl_ask value = 50 }
+				check_variable = { which = afl_need which = afl_ask }
+			}
+			log = "CK2TEST pass an AI ruler at war overseas asks for ships it needs"
+		}
+		if = {
+			limit = {
+				NAND = {
+					check_variable = { which = afl_need value = 50 }
+					check_variable = { which = afl_ask value = 50 }
+					check_variable = { which = afl_need which = afl_ask }
+				}
+			}
+			log = "CK2TEST fail an AI ruler at war overseas asks for ships it needs: need [This.afl_need.GetValue], asked [This.afl_ask.GetValue]"
+		}
+		if = { limit = { NOT = { has_character_flag = afl_request_pending } } log = "CK2TEST pass an AI ruler's request is answered" }
+		if = { limit = { has_character_flag = afl_request_pending } log = "CK2TEST fail an AI ruler's request is answered: still pending" }
+		clr_character_flag = afl_test_awaiting_check
+	}
+}
+
+# afltest.94: the AI's war loan request, for an AI ruler at war and a lender who can spare 50 (the
+# picks of afltest.2), with the need afl_ai_need_effect would give a small realm.
+character_event = {
+	id = afltest.94
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		clear_event_target = afl_lender
+		clear_event_target = afl_front
+		any_independent_ruler = {
+			limit = { is_landed = yes afl_can_lend_trigger = yes }
+			afl_count_base_effect = yes
+		}
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				wealth = 0
+				afl_can_borrow_trigger = yes
+				NOT = { has_character_flag = afl_test_requester }
+				NOT = { character = ROOT }
+				any_independent_ruler = {
+					is_landed = yes
+					afl_can_lend_trigger = yes
+					check_variable = { which = afl_base value = 50 }
+					NOT = { character = PREV }
+					NOT = { war_with = PREV }
+				}
+			}
+			save_event_target_as = afltest_aw
+			random_current_enemy = { save_event_target_as = afl_front }
+			random_independent_ruler = {
+				limit = {
+					is_landed = yes
+					afl_can_lend_trigger = yes
+					check_variable = { which = afl_base value = 50 }
+					NOT = { character = PREV }
+					NOT = { war_with = PREV }
+				}
+				save_event_target_as = afl_lender
+			}
+		}
+		if = {
+			limit = { event_target:afl_lender = { always = yes } }
+			event_target:afltest_aw = {
+				set_character_flag = afl_test_requester
+				set_character_flag = afl_test_awaiting_check
+				character_event = { id = afltest.95 }
+			}
+		}
+		if = {
+			limit = { NOT = { event_target:afl_lender = { always = yes } } }
+			log = "CK2TEST fail an AI ruler's war loan request is answered by its score: no ruler at war with a lender found"
+		}
+	}
+}
+
+# afltest.95: the ruler asks, from its own event as from afl.71: the lender's answer (afl.11) reads
+# the ruler asking as FROM, the ROOT of the event that sent it (box probe 20). Run from afltest.94,
+# whose ROOT is another ruler, the score went to that one (box run, 2026-11-15).
+character_event = {
+	id = afltest.95
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		set_variable = { which = afl_score value = -1000 } # no answer yet
+		set_variable = { which = afl_need value = 50 }
+		set_variable = { which = afl_own value = 0 }
+		afl_ai_ask_war_loan_effect = yes
+		character_event = { id = afltest.96 days = 5 }
+	}
+}
+
+# afltest.96: five days on, the lender has answered by its score (afltest_score_answer_wrong_trigger);
+# a loan ends. ROOT = the ruler who asked.
+character_event = {
+	id = afltest.96
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		clr_character_flag = afl_test_awaiting_check
+		if = {
+			limit = {
+				check_variable = { which = afl_score value = -999 }
+				NOT = { afltest_score_answer_wrong_trigger = yes }
+				NOT = { has_character_flag = afl_request_pending }
+				event_target:afl_lender = { NOT = { has_character_flag = afl_request_incoming } }
+			}
+			log = "CK2TEST pass an AI ruler's war loan request is answered by its score"
+		}
+		if = {
+			limit = {
+				NAND = {
+					check_variable = { which = afl_score value = -999 }
+					NOT = { afltest_score_answer_wrong_trigger = yes }
+					NOT = { has_character_flag = afl_request_pending }
+					event_target:afl_lender = { NOT = { has_character_flag = afl_request_incoming } }
+				}
+			}
+			log = "CK2TEST fail an AI ruler's war loan request is answered by its score: [Root.GetBestName] ([Root.GetID]) asked for [This.afl_ask.GetValue], scored [Root.afl_score.GetValue] by [afl_lender.GetBestName] ([afl_lender.GetID])"
+		}
+		if = {
+			limit = { has_character_flag = afl_borrowing }
+			log = "afltest: AI war loan case: lent"
+			afl_end_war_loan_effect = yes
+		}
+		if = {
+			limit = { NOT = { has_character_flag = afl_borrowing } }
+			log = "afltest: AI war loan case: refused"
+		}
+	}
+}

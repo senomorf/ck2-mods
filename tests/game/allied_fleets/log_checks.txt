@@ -64,3 +64,10 @@ count line afl: war loan score >= count fired afl.11
 count line afl: score shown differs == 0                         # only a decision taken logs it (UI tests)
 count chose afl.43 EVTOPTA_afl_43 >= 1                           # an AI lender signed a charter at least once
 count chose afl.43 EVTOPTB_afl_43 >= 1                           # and refused one
+# AI borrowers (v0.2, step 2; afltest_ai_events.txt).
+count fired afl.70 >= 1                                          # a war started (the scenario's at least)
+count fired afl.71 >= 1                                          # and an AI ruler's check ran
+count ran afl_ai_check_effect >= 1
+count ran afl_ai_ask_charter_effect >= 1                         # the scenario's king, with gold, hired a charter
+count line afl: AI charter request from == count ran afl_ai_ask_charter_effect
+count line afl: AI war loan request from == count ran afl_ai_ask_war_loan_effect
