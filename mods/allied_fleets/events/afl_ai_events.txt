@@ -1,0 +1,83 @@
+namespace = afl
+
+# Allied Fleets: AI rulers who ask for ships (v0.2, step 2; README.md, "AI rulers ask for ships";
+# common/scripted_effects/afl_ai_effects.txt). Hidden events, no window.
+# Constructs: on_war_started's FROM and ROOT (vanilla/common/on_actions/00_on_actions.txt; its
+# handler HF.24013 in vanilla/events/HF_bloodline_events.txt), any_war with limit and any_attacker as
+# an effect (vanilla/events/HFP_crusade_events.txt, HFP.41008), using_cb = crusade / new_crusade
+# (vanilla/common/scripted_triggers/03_crusades.txt).
+
+# afl.70: a war has started (common/on_actions/afl_on_actions.txt). ROOT = the defender, FROM = the
+# attacker. Each of them starts its check if it is an AI ruler who may borrow (afl_ai_watch_effect);
+# for a crusade, afl.72 checks every attacker a day later.
+character_event = {
+	id = afl.70
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		FROM = { afl_ai_watch_effect = yes }
+		ROOT = { afl_ai_watch_effect = yes }
+		if = {
+			limit = {
+				FROM = {
+					any_war = {
+						OR = {
+							using_cb = crusade
+							using_cb = new_crusade
+						}
+						any_defender = { character = ROOT }
+					}
+				}
+			}
+			FROM = { character_event = { id = afl.72 days = 1 } }
+		}
+	}
+}
+
+# afl.71: an AI ruler's check, a week after its war started and every 90 days while it is at war
+# (afl_ai_check_effect); at peace the check stops. ROOT = the ruler.
+character_event = {
+	id = afl.71
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		if = {
+			limit = { war = no }
+			clr_character_flag = afl_ai_watch
+		}
+		else = {
+			clear_event_target = afl_lender
+			clear_event_target = afl_front
+			if = {
+				limit = { afl_ai_borrower_trigger = yes }
+				afl_ai_check_effect = yes
+			}
+			character_event = { id = afl.71 days = 90 }
+		}
+	}
+}
+
+# afl.72: a day after a crusade started, each of its attackers starts its check, as afl.70 does for
+# a war's two leaders. [Inference] The crusaders who pledged may join the war after it starts, so
+# the day's wait lets them in; one who joins later is not checked. ROOT = the attacker who started
+# it, FROM = the defender (afl.70).
+character_event = {
+	id = afl.72
+	hide_window = yes
+	is_triggered_only = yes
+
+	immediate = {
+		any_war = {
+			limit = {
+				OR = {
+					using_cb = crusade
+					using_cb = new_crusade
+				}
+				any_defender = { character = FROM }
+			}
+			any_attacker = { afl_ai_watch_effect = yes }
+		}
+	}
+}

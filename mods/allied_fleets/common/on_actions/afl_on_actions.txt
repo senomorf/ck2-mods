@@ -18,3 +18,11 @@ on_mercenary_dismissed = {
 		afl.66
 	}
 }
+
+# A new war starts the AI rulers' check for ships (afl.70; v0.2, README.md, "AI rulers ask for ships").
+# FROM = the attacker, ROOT = the defender (vanilla/common/on_actions/00_on_actions.txt).
+on_war_started = {
+	events = {
+		afl.70
+	}
+}

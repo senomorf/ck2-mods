@@ -1,0 +1,107 @@
+# Allied Fleets: AI rulers who ask for ships (v0.2, step 2; README.md, "AI rulers ask for ships").
+# afl.70 starts a check when a war starts and afl.71 repeats it every three months while the
+# ruler is at war (events/afl_ai_events.txt, common/scripted_effects/afl_ai_effects.txt).
+# Constructs: independent and higher_tier_than (vanilla/events/HFP_crusade_events.txt),
+# controls_religion (vanilla/common/traits/00_traits.txt), can_land_path_to with a province and with
+# target and distance (vanilla/events/HF_warrior_lodge_mission_events.txt; box probes 19, 23 and 24,
+# docs/ck2-notes.md), distance with who (vanilla/common/objectives/00_factions.txt), using_cb =
+# crusade / new_crusade (vanilla/common/scripted_triggers/03_crusades.txt), capital_scope, war_with,
+# is_allied_with, religion_group = ROOT, check_variable (this mod), any_current_enemy
+# (vanilla/events/religious_events.txt).
+
+# afl_ai_borrower_trigger: an AI ruler who may ask for ships on its own: independent, a duke or
+# higher, not a religious head (who calls crusades rather than leads them), at war, and in no
+# contract. Scope: the ruler.
+afl_ai_borrower_trigger = {
+	ai = yes
+	is_landed = yes
+	independent = yes
+	higher_tier_than = COUNT
+	NOT = { controls_religion = yes }
+	war = yes
+	NOT = { afl_in_contract_trigger = yes }
+}
+
+# afl_ai_overseas_trigger: an enemy whose capital the ruler's army must cross the sea to reach, or
+# would march a long way to: no land path from the ruler's capital (event_target:afl_home), or one
+# of 1000 or more, the length vanilla's warrior lodge missions take as out of reach by land
+# (HF_warrior_lodge_mission_events.txt). That puts the Levant overseas from France and Germany, and
+# Mahdia from Genoa and Sicily: Genoa and Pisa raided it with "armed ships" in 1087, and a Sicilian
+# fleet took it in 1148 (Wikipedia, "Mahdia campaign of 1087", "Kingdom of Africa"). A crusader's
+# line is 700, so Hungary and Italy count too: Andrew II of Hungary embarked at Split on Venice's
+# fleet in 1217, and Frederick II sailed from Brindisi in 1228 (Wikipedia, "Fifth Crusade", "Sixth
+# Crusade", read 2026-11-15); Barbarossa marched overland in 1189 (Wikipedia, "Third Crusade").
+# Box probe 24 measured the lengths (docs/ck2-notes.md): Paris-Jerusalem 1200-1300,
+# Esztergom-Jerusalem 700-800, Constantinople-Jerusalem 400-500, Constantinople-Rayy 600-700.
+# Scope: the enemy; ROOT: the ruler.
+afl_ai_overseas_trigger = {
+	capital_scope = {
+		OR = {
+			NOT = { can_land_path_to = { target = event_target:afl_home distance < 1000 } }
+			AND = {
+				ROOT = { afl_ai_crusader_trigger = yes }
+				NOT = { can_land_path_to = { target = event_target:afl_home distance < 700 } }
+			}
+		}
+	}
+}
+
+# afl_ai_crusader_trigger: the ruler attacks in a crusade. Scope: the ruler.
+afl_ai_crusader_trigger = {
+	any_war = {
+		OR = {
+			using_cb = crusade
+			using_cb = new_crusade
+		}
+		any_attacker = { character = PREVPREV }
+	}
+}
+
+# afl_ai_needs_ships_trigger: the ruler's own holdings hold fewer galleys (afl_own) than its army
+# needs (afl_need, afl_ai_need_effect). Scope: the ruler.
+afl_ai_needs_ships_trigger = {
+	NOT = { check_variable = { which = afl_own which = afl_need } }
+}
+
+# afl_ai_charter_lender_trigger: a ruler the AI asks for a charter: an AI ruler (players come in step
+# 3) with ships of its own, not at war with the ruler asking (ROOT) or allied with its enemy
+# (event_target:afl_front), of its religion group (a lender of another faith scores 40 less,
+# README.md, "The lender's score"). afl_ai_check_effect also wants 50 galleys to spare (afl_base).
+# Scope: the lender; ROOT: the ruler asking.
+afl_ai_charter_lender_trigger = {
+	ai = yes
+	is_landed = yes
+	NOT = { character = ROOT }
+	religion_group = ROOT
+	NOT = { war_with = ROOT }
+	NOT = { any_current_enemy = { character = ROOT } } # war_with missed a war a day old (box run, 2026-11-15)
+	NOT = { is_allied_with = event_target:afl_front }
+	afl_can_lend_trigger = yes
+}
+
+# afl_ai_war_loan_lender_trigger: a ruler the AI asks for a war loan: an AI ruler, an ally of the
+# ruler asking (ROOT) or on its side of a war, with ships of its own. afl_ai_check_effect also
+# wants 50 galleys to spare. Scope: the lender; ROOT: the ruler asking.
+afl_ai_war_loan_lender_trigger = {
+	ai = yes
+	is_landed = yes
+	NOT = { character = ROOT }
+	NOT = { war_with = ROOT }
+	NOT = { any_current_enemy = { character = ROOT } } # war_with missed a war a day old (box run, 2026-11-15)
+	OR = {
+		is_allied_with = ROOT
+		any_war = {
+			OR = {
+				AND = {
+					any_attacker = { character = ROOT }
+					any_attacker = { character = PREVPREV }
+				}
+				AND = {
+					any_defender = { character = ROOT }
+					any_defender = { character = PREVPREV }
+				}
+			}
+		}
+	}
+	afl_can_lend_trigger = yes
+}
