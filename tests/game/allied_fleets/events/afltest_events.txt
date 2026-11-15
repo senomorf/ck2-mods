@@ -41,8 +41,10 @@ character_event = {
 	immediate = {
 		set_global_flag = afl_test_started
 		log = "CK2TEST start allied_fleets"
+		log = "afltest: the tests' chains run on [Root.GetBestName] ([Root.GetID])"
 		character_event = { id = afltest.2 days = 1 }
 		character_event = { id = afltest.80 days = 2 } # afltest_score_events.txt
+		character_event = { id = afltest.90 days = 3 } # afltest_ai_events.txt
 	}
 }
 
