@@ -145,8 +145,20 @@ if = {
 			if = { limit = { NOT = { has_earmarked_regiments = afl_war_loan } } log = "CK2TEST fail an AI war loan gives the borrower a fleet: [Root.GetBestName] ([Root.GetID]) has none" }
 			if = { limit = { check_variable = { which = afl_ask value = 50 } NOT = { check_variable = { which = afl_ask value = 501 } } check_variable = { which = afltest_spare value = 0 } } log = "CK2TEST pass an AI request asks for 50 to 500 galleys, and no more than the lender can spare" }
 			if = { limit = { NAND = { check_variable = { which = afl_ask value = 50 } NOT = { check_variable = { which = afl_ask value = 501 } } check_variable = { which = afltest_spare value = 0 } } } log = "CK2TEST fail an AI request asks for 50 to 500 galleys, and no more than the lender can spare: [Root.GetBestName] ([Root.GetID]) asked for [This.afl_ask.GetValue] of [This.afl_base.GetValue]" }
+			# The Abbadid emir had no holding with Ships away four days after lending (CI campaign,
+			# 2026-11-15). [Inference] A lender at war may lose its holdings with ships within the five
+			# days, and a holding modifier goes with its holding, so a lender that holds none with ships
+			# any more is not checked; one that still holds some and has no Ships away fails, listing them.
 			if = { limit = { event_target:afl_lender = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } log = "CK2TEST pass an AI war loan puts Ships away on the lender's own holdings" }
-			if = { limit = { NOT = { event_target:afl_lender = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST fail an AI war loan puts Ships away on the lender's own holdings: none on [afl_lender.GetBestName] ([afl_lender.GetID])" }
+			if = {
+				limit = { event_target:afl_lender = { any_demesne_title = { afl_has_ships_trigger = yes } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } }
+				log = "CK2TEST fail an AI war loan puts Ships away on the lender's own holdings: none on [afl_lender.GetBestName] ([afl_lender.GetID])"
+				event_target:afl_lender = { any_demesne_title = { limit = { afl_has_ships_trigger = yes } log = "afltest:   [This.GetName] has ships and no Ships away" } }
+			}
+			if = {
+				limit = { event_target:afl_lender = { NOT = { any_demesne_title = { afl_has_ships_trigger = yes } } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } }
+				log = "afltest: [afl_lender.GetBestName] ([afl_lender.GetID]) holds no holding with ships five days after lending; Ships away not checked"
+			}
 			afl_end_war_loan_effect = yes
 			if = { limit = { NOT = { has_earmarked_regiments = afl_war_loan } event_target:afl_lender = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST pass ending an AI war loan takes Ships away off the lender's holdings" }
 			if = { limit = { NAND = { NOT = { has_earmarked_regiments = afl_war_loan } event_target:afl_lender = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } } log = "CK2TEST fail ending an AI war loan takes Ships away off the lender's holdings: the fleet or a modifier of [afl_lender.GetBestName] ([afl_lender.GetID]) is still there" }
