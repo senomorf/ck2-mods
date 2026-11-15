@@ -371,29 +371,22 @@ character_event = {
 }
 
 # afltest.69 (from afltest.38, near the year's end): a 50-galley company whose title is in the
-# year's last save (save_checks.txt).
+# year's last save (save_checks.txt). Any free ruler with ships founds it: by then few rulers'
+# own ports spare 50 and are free (the CI run of 1068 found none), and founding does not count.
 character_event = {
 	id = afltest.69
 	hide_window = yes
 	is_triggered_only = yes
 
 	immediate = {
-		any_independent_ruler = {
-			limit = { is_landed = yes afl_can_lend_trigger = yes }
-			afl_count_base_effect = yes
-		}
+		clear_event_target = afltest_late
 		random_independent_ruler = {
-			limit = { is_landed = yes afl_can_found_trigger = yes check_variable = { which = afl_base value = 50 } }
+			limit = { is_landed = yes afl_can_found_trigger = yes any_demesne_title = { afl_has_ships_trigger = yes } }
+			save_event_target_as = afltest_late
 			set_variable = { which = afl_ask value = 50 }
 			afl_found_company_effect = yes
 		}
-		if = {
-			limit = { any_mercenary_band = { afl_company_trigger = yes } }
-			log = "CK2TEST pass a late company runs into the year's last save"
-		}
-		if = {
-			limit = { NOT = { any_mercenary_band = { afl_company_trigger = yes } } }
-			log = "CK2TEST fail a late company runs into the year's last save: no free ruler could found one"
-		}
+		if = { limit = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_late } } } log = "CK2TEST pass a late company runs into the year's last save" }
+		if = { limit = { NOT = { any_mercenary_band = { afl_company_trigger = yes band_creator = { character = event_target:afltest_late } } } } log = "CK2TEST fail a late company runs into the year's last save: no free ruler with ships founded one" }
 	}
 }
