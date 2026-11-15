@@ -252,8 +252,9 @@ character_event = {
 
 # afltest.32: one charter request from an AI ruler to an AI lender, as the decision makes it, then
 # the next a day later, twelve in all; then part 3 (afltest.34). Two in three go to a lender
-# whose own holdings can spare 50 galleys, the rest to any lender with ships. The ruler asking
-# gets 100 gold, so it can pay the sum on signing for 50.
+# whose own holdings can spare 50 galleys, the rest to any lender with ships. Runs 2, 5, 8 and 11
+# are offers instead: the lender offers the ruler ships (afl_offer_ships). The ruler who would
+# hire gets 100 gold, so it can pay the sum on signing for 50.
 character_event = {
 	id = afltest.32
 	hide_window = yes
@@ -300,8 +301,25 @@ character_event = {
 				save_event_target_as = afl_lender
 			}
 			if = {
+				limit = {
+					event_target:afl_lender = { always = yes }
+					ROOT = {
+						OR = {
+							is_variable_equal = { which = global_afltest_cr value = 2 }
+							is_variable_equal = { which = global_afltest_cr value = 5 }
+							is_variable_equal = { which = global_afltest_cr value = 8 }
+							is_variable_equal = { which = global_afltest_cr value = 11 }
+						}
+					}
+				}
+				save_event_target_as = afl_borrower
+				log = "afltest: [afl_lender.GetBestName] ([afl_lender.GetID]) offers [This.GetBestName] ([This.GetID]) a charter"
+				event_target:afl_lender = { afl_offer_charter_effect = yes }
+				character_event = { id = afltest.33 days = 35 }
+			}
+			else_if = {
 				limit = { event_target:afl_lender = { always = yes } }
-				log = "afltest: [Root.GetBestName] ([Root.GetID]) asks [afl_lender.GetBestName] ([afl_lender.GetID]) for a charter"
+				log = "afltest: [This.GetBestName] ([This.GetID]) asks [afl_lender.GetBestName] ([afl_lender.GetID]) for a charter"
 				afl_ask_charter_effect = yes
 				character_event = { id = afltest.33 days = 35 }
 			}
@@ -316,7 +334,7 @@ character_event = {
 	}
 }
 
-# afltest.33: 35 days after an AI charter request, for the ruler who asked. A charter signed then
+# afltest.33: 35 days after an AI charter request or offer, for the ruler who would hire. A charter signed then
 # is checked, then ended. The lender is looked up from the contract's title.
 character_event = {
 	id = afltest.33
@@ -338,7 +356,7 @@ character_event = {
 		}
 		if = {
 			limit = { NOT = { has_character_flag = afl_borrowing } }
-			log = "afltest: [Root.GetBestName] ([Root.GetID]) has no charter: withdrawn or refused"
+			log = "afltest: [Root.GetBestName] ([Root.GetID]) has no charter: withdrawn, refused or declined"
 		}
 	}
 }
