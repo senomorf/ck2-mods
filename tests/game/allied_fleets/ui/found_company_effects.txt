@@ -1,0 +1,14 @@
+# Setup for the found_company UI test (found_company.txt), run by the console's `run`. The ids are
+# characters of the 1066 start: King Svend II of Denmark (101515), whose own ports spare about 58
+# galleys (hire_ships.txt), founds the company; King Harold II of England (122) gets 100 gold to
+# hire it. If either is missing, the "ready" line the steps wait for never comes.
+# Syntax: `character = <id>` (vanilla/events/misc_old_gods_events.txt), wealth (afltest_events.txt).
+log = "uitest: start"
+random_independent_ruler = {
+	limit = { character = 122 }
+	wealth = 100
+	random_independent_ruler = {
+		limit = { character = 101515 afl_can_found_trigger = yes }
+		log = "uitest: ready: [This.GetBestName] ([This.GetID]) may found a company, and [Prev.GetBestName] ([Prev.GetID]) has 100 gold more"
+	}
+}
