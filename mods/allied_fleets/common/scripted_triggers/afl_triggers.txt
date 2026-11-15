@@ -5,7 +5,8 @@
 # title scope (vanilla/common/scripted_triggers/00_scripted_triggers.txt; box probe: yes while a
 # company is hired), band_creator (vanilla/events/ze_mercenary_events.txt);
 # any_war with any_attacker and any_defender (vanilla/events/HFP_crusade_events.txt,
-# .cwtools/scopes.cwt), war_with = event_target (vanilla/events/jd_artifact_events.txt),
+# .cwtools/scopes.cwt), any_current_enemy (vanilla/events/religious_events.txt; box probes 25
+# and 26, docs/ck2-notes.md: `war_with = event_target:X` was false between current enemies),
 # has_earmarked_regiments (this mod's tests), any_demesne_title with tier, has_building and
 # holding_type in title scope (box probe 6, docs/ck2-notes.md).
 
@@ -77,13 +78,21 @@ afl_can_pay_lump_trigger = {
 	}
 }
 
+# afl_lender_enemy_trigger: the borrower and the lender (event_target:afl_lender) are at war with each
+# other, which ends a contract (README.md, "The contract", "Charters"). Not `war_with =
+# event_target:afl_lender`, which was false for every pair of current enemies in box probes 25 and 26.
+# Scope: the borrower.
+afl_lender_enemy_trigger = {
+	any_current_enemy = { character = event_target:afl_lender }
+}
+
 # afl_charter_over_trigger: has the charter ended early? When the two are at war with each other,
 # when the lender's title has no landed holder, or when the fleet is gone. The term (twelve
 # monthly checks after signing) and unpaid wages end it in
 # afl_charter_check_effect. Scope: the borrower; event_target:afl_lender = the title's holder.
 afl_charter_over_trigger = {
 	OR = {
-		war_with = event_target:afl_lender
+		afl_lender_enemy_trigger = yes
 		event_target:afl_lender = {
 			OR = {
 				is_alive = no
@@ -129,7 +138,7 @@ afl_war_loan_over_trigger = {
 	OR = {
 		war = no
 		NOT = { has_earmarked_regiments = afl_war_loan }
-		war_with = event_target:afl_lender
+		afl_lender_enemy_trigger = yes
 		event_target:afl_lender = {
 			OR = {
 				is_alive = no
