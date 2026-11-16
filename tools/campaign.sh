@@ -274,8 +274,11 @@ print(hashlib.md5(rows).hexdigest()[:12], reds)
 
 # wait_save DATE SECONDS [any]: wait for a save written after this call whose date is DATE or
 # later, or whose date can't be read (then the first such save counts, with a warning); keep its
-# path in $save. 1 when none comes. Saves written before the call (the mod runs' starting save)
-# don't count, unless the third word is `any`: then the newest save already there counts too.
+# path in $save. 1 when none comes. Saves written before the call don't count, unless the third
+# word is `any`: then the newest save already there counts too. The runs that load a save use
+# `any`: on a fast host the game can write the year's save while continue.txt's steps still run
+# (CI, 2026-11-16: a 1068 run on nyx missed its 1069.1.1 save and stopped at 1070.1.1), and their
+# starting save is dated before the date they wait for, so it never counts.
 save=
 wait_save() {
   local want=$1 secs=$2 t0=$SECONDS since mt f got size
@@ -481,7 +484,7 @@ control_year() {
   log "vanilla again, from its start save, to time a year the way the mod runs are (with the game-day clock)"
   if run_steps "$steps_dir/continue.txt"; then
     year_start
-    if wait_save "$end" "$limit"; then cy=$((SECONDS - t0)); year_end; ccpu=$ycpu; fi
+    if wait_save "$end" "$limit" any; then cy=$((SECONDS - t0)); year_end; ccpu=$ycpu; fi
   fi
   stop
   read -r cday _ <<< "$(tick_rate "$dest/ticks.txt" "$end")" || true
@@ -577,7 +580,7 @@ for m in "${mods[@]}"; do
       mapfile -t args < <(launch_args "$steps_dir/continue.txt")
       start "$m.base" "-mod=mod/$m.mod" "${args[@]}"
       log "the version in ${CAMPAIGN_BASE:0:12}, to make a save with its state"
-      if run_steps "$steps_dir/continue.txt" && wait_save "$end" "$limit"; then
+      if run_steps "$steps_dir/continue.txt" && wait_save "$end" "$limit" any; then
         cp -p "$save" "$work/upgrade/"
         if [ -n "$based" ]; then mkdir -p "$cache/base"; cp -p "$save" "$based"; fi
       else
@@ -604,7 +607,7 @@ for m in "${mods[@]}"; do
   start "$m" "-mod=mod/$m.mod" "${args[@]}"
   if run_steps "$steps_dir/continue.txt"; then
     year_start
-    if wait_save "$to" "$limit"; then
+    if wait_save "$to" "$limit" any; then
       cp -p "$save" "$work/last.ck2"; year=$((SECONDS - t0)); year_end; mcpu=$ycpu
     else
       fail "did not reach $to"
