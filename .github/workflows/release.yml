@@ -5,7 +5,8 @@
 # Two ways to start it:
 # - push the tag;
 # - Actions > release > Run workflow, with the tag and a commit on main. GitHub
-#   creates the tag on that commit. Cloud sessions use this, since their GitHub
+#   creates the tag on that commit, which must have main's workflow files
+#   (in practice main's head). Cloud sessions use this, since their GitHub
 #   proxy refuses tag pushes (2026-11-18).
 name: release
 on:
@@ -46,6 +47,12 @@ jobs:
             esac
             git merge-base --is-ancestor "$sha" origin/main ||
               { echo "commit $sha is not on main"; exit 1; }
+            # GITHUB_TOKEN got 403 "Resource not accessible by integration"
+            # tagging an older commit whose workflow files differ from main's
+            # (run 44384048799) and succeeded on main's head (run 44384427062),
+            # 2026-11-18. Cause inferred from that pair and community reports.
+            git diff --quiet "$sha" origin/main -- .github/workflows ||
+              { echo "::error::$sha has other .github/workflows than main, so this token cannot tag it; push that tag yourself"; exit 1; }
             if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
               echo "tag $tag already exists"; exit 1
             fi
