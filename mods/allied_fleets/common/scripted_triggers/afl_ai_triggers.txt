@@ -5,7 +5,7 @@
 # controls_religion (vanilla/common/traits/00_traits.txt), can_land_path_to with a province and with
 # target and distance (vanilla/events/HF_warrior_lodge_mission_events.txt; box probes 19, 23 and 24,
 # docs/ck2-notes.md), distance with who (vanilla/common/objectives/00_factions.txt), using_cb =
-# crusade / new_crusade (vanilla/common/scripted_triggers/03_crusades.txt), capital_scope, war_with,
+# crusade / new_crusade (vanilla/common/scripted_triggers/03_crusades.txt), capital_scope,
 # is_allied_with, religion_group = ROOT, check_variable (this mod), any_current_enemy
 # (vanilla/events/religious_events.txt); step 3: had_character_flag with days
 # (vanilla/events/HF_battle_events.txt, vanilla/events/crusade_events.txt), any_playable_ruler with
@@ -125,8 +125,7 @@ afl_ai_charter_lender_trigger = {
 	is_landed = yes
 	NOT = { character = ROOT }
 	religion_group = ROOT
-	NOT = { war_with = ROOT }
-	NOT = { any_current_enemy = { character = ROOT } } # war_with missed a war a day old (box run, 2026-11-15)
+	NOT = { any_current_enemy = { character = ROOT } } # not war_with, which misses current enemies (box probes 25, 26)
 	NOT = { is_allied_with = event_target:afl_front }
 	afl_can_lend_trigger = yes
 }
@@ -139,8 +138,7 @@ afl_ai_war_loan_lender_trigger = {
 	afl_ai_may_ask_trigger = yes
 	is_landed = yes
 	NOT = { character = ROOT }
-	NOT = { war_with = ROOT }
-	NOT = { any_current_enemy = { character = ROOT } } # war_with missed a war a day old (box run, 2026-11-15)
+	NOT = { any_current_enemy = { character = ROOT } } # not war_with, which misses current enemies (box probes 25, 26)
 	OR = {
 		is_allied_with = ROOT
 		any_war = {
