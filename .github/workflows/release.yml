@@ -1,10 +1,24 @@
-# Push a tag <mod_folder>-v<version> (e.g. allied_fleets-v0.1.0) to publish
-# dist/<mod_folder>.zip as a GitHub release. Multiplayer players install the
-# same release so their checksums match.
+# Publish dist/<mod_folder>.zip as a GitHub release for tag <mod_folder>-v<version>
+# (e.g. allied_fleets-v0.1.0). Multiplayer players install the same release so
+# their checksums match.
+#
+# Two ways to start it:
+# - push the tag;
+# - Actions > release > Run workflow, with the tag and a commit on main. GitHub
+#   creates the tag on that commit. Cloud sessions use this, since their GitHub
+#   proxy refuses tag pushes (2026-11-18).
 name: release
 on:
   push:
     tags: ["*-v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to create, <mod_folder>-v<version>"
+        required: true
+      commit:
+        description: "Commit on main to tag (full or short SHA)"
+        required: true
 permissions:
   contents: write
 jobs:
@@ -12,21 +26,51 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.commit || github.ref }}
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: "3.15"
+      - name: Check inputs
+        id: check
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          sha="$(git rev-parse HEAD)"
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            tag="$INPUT_TAG"
+            case "$tag" in
+              *-v*) ;;
+              *) echo "tag $tag is not <mod_folder>-v<version>"; exit 1 ;;
+            esac
+            git merge-base --is-ancestor "$sha" origin/main ||
+              { echo "commit $sha is not on main"; exit 1; }
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "tag $tag already exists"; exit 1
+            fi
+          else
+            tag="$GITHUB_REF_NAME"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - name: Build
         id: build
+        env:
+          TAG: ${{ steps.check.outputs.tag }}
         run: |
-          tag="${GITHUB_REF_NAME}"
-          mod="${tag%-v*}"
-          test -d "mods/$mod" || { echo "no mods/$mod for tag $tag"; exit 1; }
+          mod="${TAG%-v*}"
+          test -d "mods/$mod" || { echo "no mods/$mod for tag $TAG"; exit 1; }
           python3 tools/lint.py "$mod"
           python3 tools/package.py "$mod"
           echo "mod=$mod" >> "$GITHUB_OUTPUT"
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.check.outputs.tag }}
+          SHA: ${{ steps.check.outputs.sha }}
+          MOD: ${{ steps.build.outputs.mod }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "dist/${{ steps.build.outputs.mod }}.zip" \
-            --title "$GITHUB_REF_NAME" --generate-notes
+          # --target creates the tag on SHA when it does not exist yet (dispatch).
+          gh release create "$TAG" "dist/$MOD.zip" --target "$SHA" \
+            --title "$TAG" --generate-notes
