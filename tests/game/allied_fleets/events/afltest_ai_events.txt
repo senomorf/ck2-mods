@@ -152,6 +152,9 @@ character_event = {
 				# Christian, so lenders of its religion group exist (Venice, Genoa, Pisa): in CI's 1068
 				# the pick was the Tangut ruler of Xia, who found no lender (2026-11-16)
 				religion_group = christian
+				# no ships of its own, so it needs some: the doge of Pisa, with 65, asked for none (CI,
+				# 2026-11-18)
+				NOT = { any_demesne_title = { afl_has_ships_trigger = yes } }
 			}
 			preferred_limit = { has_landed_title = k_hungary }
 			save_event_target_as = afltest_ab
