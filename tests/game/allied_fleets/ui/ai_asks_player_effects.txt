@@ -1,0 +1,79 @@
+# Setup for the ai_asks_player UI test (ai_asks_player.txt, v0.2), run by the console's `run`. The
+# ids are characters of the 1066 start: King Salamon of Hungary (476) and King Svend II of Denmark
+# (101515; a doge would not do: without The Republic, playing a republic ends the game, box run
+# 2026-11-18). Salamon gets 500 gold and attacks a ruler on an island his army
+# can't reach by land, as afltest.91 does; every other ruler with ships gets afl_request_incoming,
+# so afl_can_lend_trigger leaves Svend the only lender to ask. A week on, Salamon's check (afl.71)
+# asks Svend for a charter, and the player answers in afl.43's window. The steps run this file
+# again after the answer; then it logs what the answer left (global flag uit_ai_asks_started).
+# Syntax as in afltest.91 (tests/game/allied_fleets/events/afltest_ai_events.txt) and
+# request_ships_effects.txt.
+if = {
+	limit = { NOT = { has_global_flag = uit_ai_asks_started } }
+	set_global_flag = uit_ai_asks_started
+	log = "uitest: start"
+	random_independent_ruler = {
+		limit = { character = 476 war = no }
+		save_event_target_as = uit_asker
+		capital_scope = { save_event_target_as = uit_asker_cap }
+	}
+	random_playable_ruler = {
+		limit = { character = 101515 }
+		save_event_target_as = uit_lender
+		afl_count_base_effect = yes
+		log = "uitest: lender [This.GetBestName] ([This.GetID]) can spare [This.afl_base.GetValue] galleys"
+	}
+	random_independent_ruler = {
+		limit = {
+			is_landed = yes
+			war = no
+			NOT = { character = event_target:uit_asker }
+			NOT = { is_allied_with = event_target:uit_asker }
+			capital_scope = {
+				is_island = yes
+				NOT = { can_land_path_to = event_target:uit_asker_cap }
+			}
+			NOT = { any_realm_province = { is_island = no } }
+		}
+		save_event_target_as = uit_target
+		capital_scope = { save_event_target_as = uit_target_cap }
+	}
+	if = {
+		limit = {
+			event_target:uit_asker = { always = yes }
+			event_target:uit_lender = { always = yes }
+			event_target:uit_target = { always = yes }
+		}
+		any_playable_ruler = {
+			limit = {
+				NOT = { character = event_target:uit_asker }
+				NOT = { character = event_target:uit_lender }
+				any_demesne_title = { afl_has_ships_trigger = yes }
+			}
+			set_character_flag = afl_request_incoming
+		}
+		event_target:uit_asker = {
+			wealth = 500
+			unsafe_war = {
+				target = event_target:uit_target
+				casus_belli = duchy_adventure
+				thirdparty_title = event_target:uit_target_cap
+				tier = DUKE
+			}
+			log = "uitest: ready: [This.GetBestName] ([This.GetID]) attacks [uit_target.GetBestName] ([uit_target.GetID]) on [uit_target_cap.GetName]"
+		}
+	}
+}
+else = {
+	# Run by the player, the file's scope is Svend: random_playable_ruler with character = 101515
+	# found nobody here (box run, 2026-11-18). [Inference] It leaves out the scope's own character.
+	if = { limit = { NOT = { character = 101515 } } log = "uitest: the console's scope is not the player" }
+	if = { limit = { character = 101515 has_character_flag = afl_ai_asked } log = "uitest: the player asked has afl_ai_asked: yes" }
+	if = { limit = { character = 101515 NOT = { has_character_flag = afl_ai_asked } } log = "uitest: the player asked has afl_ai_asked: no" }
+	random_independent_ruler = {
+		limit = { character = 476 }
+		if = { limit = { has_character_flag = afl_ai_refused } log = "uitest: the AI ruler refused has afl_ai_refused: yes" }
+		if = { limit = { NOT = { has_character_flag = afl_ai_refused } } log = "uitest: the AI ruler refused has afl_ai_refused: no" }
+		if = { limit = { has_character_flag = afl_request_pending } log = "uitest: the AI ruler's request is still pending" }
+	}
+}

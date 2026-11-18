@@ -1,0 +1,44 @@
+# UI test (v0.2, step 3): an AI ruler asks a player for ships. King Salamon of Hungary, at war with
+# a ruler on an island, asks the player, King Svend II of Denmark, for a charter a week after the
+# war starts (afl.71), and the player's answer window opens (afl.43). The player refuses, and the
+# effects file, run again, finds Svend marked asked (afl_ai_asked: no AI ruler asks him again for a
+# year) and Salamon marked refused (afl_ai_refused: he asks nobody for a year). Run it on the box from vanilla's
+# 1067.1.1 save (docs/test-pipeline.md, "UI tests"):
+#   tools/box-run.sh env CAMPAIGN_PROBE_SAVE=.box/start.ck2 CAMPAIGN_PROBE_MOD=allied_fleets \
+#     CAMPAIGN_PROBE_TESTS=no CAMPAIGN_PROBE_EFFECTS=tests/game/allied_fleets/ui/ai_asks_player_effects.txt \
+#     tools/campaign.sh --steps tests/game/allied_fleets/ui/ai_asks_player.txt
+launch -startgame -start_save=%SAVE%
+until 300 Launching SINGLEPLAYER-game
+wait 25                 # at 10 s, a freshly started box lost the console key (twice, 2026-11-15)
+focus
+key grave              # the console
+wait 3
+type run ck2test_effects.txt
+key Return
+wait 3
+until 10 uitest: ready
+type play 101515       # play Svend
+key Return
+wait 3
+type game_paused false # the console answers "Toggled paused state to false" (docs/ck2-notes.md)
+key Return
+wait 2
+key grave
+until 120 \(101515\) for [0-9]+ galleys against   # the AI's request (names with accents break a `.*` here)
+wait 5
+shot asked             # afl.43, the player's answer to the AI ruler's request
+move 600 569           # "We need our ships." (refuse; read off the box's screenshot, 2026-11-18)
+wait 3
+shot refuse            # its tooltip
+click 600 569
+until 20 CK2TEST chose afl.43 EVTOPTB_afl_43 root=101515
+focus
+key grave
+wait 3
+type run ck2test_effects.txt   # the second run logs what the answer left
+key Return
+wait 3
+until 10 uitest: the player asked has afl_ai_asked: yes
+until 10 uitest: the AI ruler refused has afl_ai_refused: yes
+key grave
+shot answered
