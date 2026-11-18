@@ -627,8 +627,22 @@ character_event = {
 	immediate = {
 		if = { limit = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } log = "CK2TEST pass a borrower's death ends the loan" }
 		if = { limit = { NAND = { NOT = { has_character_flag = afl_lending } NOT = { any_demesne_title = { OR = { has_holding_modifier = afl_ships_away_10 has_holding_modifier = afl_ships_away_1 } } } } } log = "CK2TEST fail a borrower's death ends the loan: [Root.GetBestName] ([Root.GetID]) still lends, or a holding keeps Ships away" }
-		# The charters' tests (afltest_charter_events.txt) log CK2TEST done.
-		character_event = { id = afltest.30 days = 1 }
+		# The charters' tests (afltest_charter_events.txt), then the galley companies', which log
+		# CK2TEST done. They run on a young ruler at peace, kept out of the other tests (as
+		# afltest.13's): on this lender, the doge of Venice at 60, the chain stopped after 20 of
+		# afltest.34's 30 runs in CI's 1068 (2026-11-18). [Inference] He died.
+		random_independent_ruler = {
+			limit = {
+				is_landed = yes
+				war = no
+				age = 16
+				NOT = { age = 40 }
+				NOT = { has_character_flag = afl_test_requester }
+			}
+			set_character_flag = afl_test_requester
+			log = "afltest: the charter and company tests run on [This.GetBestName] ([This.GetID])"
+			character_event = { id = afltest.30 days = 1 }
+		}
 		random_independent_ruler = {
 			limit = { is_landed = yes age = 16 NOT = { age = 40 } }
 			character_event = { id = afltest.13 days = 240 }
