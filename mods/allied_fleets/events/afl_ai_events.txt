@@ -9,7 +9,8 @@ namespace = afl
 
 # afl.70: a war has started (common/on_actions/afl_on_actions.txt). ROOT = the defender, FROM = the
 # attacker. Each of them starts its check if it is an AI ruler who may borrow (afl_ai_watch_effect);
-# for a crusade, afl.72 checks every attacker a day later.
+# for a crusade, afl.72 checks every attacker a day later and then monthly, once per crusade leader
+# (flag afl_ai_crusade_sweep).
 character_event = {
 	id = afl.70
 	hide_window = yes
@@ -30,7 +31,13 @@ character_event = {
 					}
 				}
 			}
-			FROM = { character_event = { id = afl.72 days = 1 } }
+			FROM = {
+				if = {
+					limit = { NOT = { has_character_flag = afl_ai_crusade_sweep } }
+					set_character_flag = afl_ai_crusade_sweep
+					character_event = { id = afl.72 days = 1 }
+				}
+			}
 		}
 	}
 }
@@ -60,25 +67,41 @@ character_event = {
 	}
 }
 
-# afl.72: a day after a crusade started, each of its attackers starts its check, as afl.70 does for
-# a war's two leaders. [Inference] The crusaders who pledged may join the war after it starts, so
-# the day's wait lets them in; one who joins later is not checked. ROOT = the attacker who started
-# it, FROM = the defender (afl.70).
+# afl.72: a crusade's attackers start their checks (afl_ai_watch_effect, once each while at war):
+# a day after the crusade started, and every 30 days while its leader still attacks in a crusade,
+# so crusaders who join the war late are checked within a month. Then the flag
+# afl_ai_crusade_sweep, which keeps one sweep per leader, comes off. ROOT = the attacker who
+# started the crusade (afl.70).
 character_event = {
 	id = afl.72
 	hide_window = yes
 	is_triggered_only = yes
 
 	immediate = {
-		any_war = {
+		if = {
 			limit = {
-				OR = {
-					using_cb = crusade
-					using_cb = new_crusade
+				any_war = {
+					OR = {
+						using_cb = crusade
+						using_cb = new_crusade
+					}
+					any_attacker = { character = ROOT }
 				}
-				any_defender = { character = FROM }
 			}
-			any_attacker = { afl_ai_watch_effect = yes }
+			any_war = {
+				limit = {
+					OR = {
+						using_cb = crusade
+						using_cb = new_crusade
+					}
+					any_attacker = { character = ROOT }
+				}
+				any_attacker = { afl_ai_watch_effect = yes }
+			}
+			character_event = { id = afl.72 days = 30 }
+		}
+		else = {
+			clr_character_flag = afl_ai_crusade_sweep
 		}
 	}
 }

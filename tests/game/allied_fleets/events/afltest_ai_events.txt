@@ -9,8 +9,9 @@ namespace = afltest
 # leave them alone. afltest.94 runs the AI's war loan request (afl_ai_ask_war_loan_effect) for a
 # ruler at war and a lender who can spare 50, as afltest.2 does the decision's (afltest.95), and
 # afltest.96 checks the answer, that the ruler asking remembers it (step 3), and ends the loan.
-# afltest.92 also fires afl.72 for the scenario's war, which is no crusade, so it starts no check:
-# no crusade comes in the test's year, and afl.72's crusade branch is untested. afltest.97 checks
+# afltest.92 also fires afl.72 for the scenario's attacker, who attacks in no crusade, so it starts
+# no check and clears afl_ai_crusade_sweep: no crusade comes in the test's year, and afl.72's
+# crusade branch is untested. afltest.97 checks
 # step 3's limits as pure checks: the cap on AI contracts, a player's part of whom an AI asks (on AI
 # rulers, since every ruler is AI in observe mode), and one ruler's wait. Started by afltest.1.
 # Constructs, all in vanilla 3.3.5.1 or this mod's tests: unsafe_war with casus_belli =
@@ -218,7 +219,7 @@ character_event = {
 		if = { limit = { NOT = { any_current_enemy = { character = event_target:afltest_at } } } log = "afltest: AI borrower case: the defender is a current enemy: no" }
 		if = { limit = { war = yes has_character_flag = afl_ai_watch } log = "CK2TEST pass a new war starts its AI attacker's check" }
 		if = { limit = { NAND = { war = yes has_character_flag = afl_ai_watch } } log = "CK2TEST fail a new war starts its AI attacker's check: at war? check flag set?" }
-		character_event = { id = afl.72 } # ROOT and FROM = this attacker, who defends no crusade
+		character_event = { id = afl.72 } # ROOT = this attacker, who attacks in no crusade
 		character_event = { id = afltest.93 days = 25 }
 		character_event = { id = afltest.94 days = 1 }
 	}
