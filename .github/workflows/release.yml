@@ -26,9 +26,10 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # Checks out the tag or main; a dispatch moves to its commit in Check inputs,
+      # since actions/checkout reads a short SHA as a branch or tag name (run 44515226528).
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.commit || github.ref }}
           fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
@@ -37,7 +38,12 @@ jobs:
         id: check
         env:
           INPUT_TAG: ${{ inputs.tag }}
+          INPUT_COMMIT: ${{ inputs.commit }}
         run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            git checkout -q --detach "$INPUT_COMMIT^{commit}" ||
+              { echo "no commit $INPUT_COMMIT"; exit 1; }
+          fi
           sha="$(git rev-parse HEAD)"
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
             tag="$INPUT_TAG"
