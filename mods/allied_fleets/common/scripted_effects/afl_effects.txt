@@ -253,6 +253,7 @@ afl_ships_away_effect = {
 		}
 		change_variable = { which = afl_left value = -1 }
 	}
+	log = "afl: Ships away on the holdings of [This.GetBestName] ([This.GetID]): [This.afl_k.GetValue] percent of their [This.afl_base.GetValue] galleys, for [This.afl_ask.GetValue] lent"
 }
 
 # afl_ships_home_effect: takes "Ships away" off the lender's own holdings. A holding the lender
@@ -345,6 +346,13 @@ afl_monthly_check_effect = {
 	}
 	else_if = {
 		limit = { afl_war_loan_over_trigger = yes }
+		# v0.2.1: why it is over, a line for each part of afl_war_loan_over_trigger that holds
+		if = { limit = { war = no } log = "afl: war loan over: [This.GetBestName] ([This.GetID]) is at peace" }
+		if = { limit = { NOT = { has_earmarked_regiments = afl_war_loan } } log = "afl: war loan over: the fleet of [This.GetBestName] ([This.GetID]) is gone, sunk or disbanded" }
+		if = { limit = { afl_lender_enemy_trigger = yes } log = "afl: war loan over: [This.GetBestName] ([This.GetID]) and the lender are at war" }
+		if = { limit = { event_target:afl_lender = { is_alive = no } } log = "afl: war loan over: the lender died" }
+		if = { limit = { event_target:afl_lender = { is_alive = yes is_landed = no } } log = "afl: war loan over: the lender holds no land" }
+		if = { limit = { event_target:afl_lender = { has_character_flag = afl_recalling } } log = "afl: war loan over: the lender recalled the ships" }
 		afl_end_war_loan_effect = yes
 	}
 	else = {
@@ -585,6 +593,11 @@ afl_spawn_charter_fleet_effect = {
 afl_charter_check_effect = {
 	if = {
 		limit = { afl_charter_over_trigger = yes }
+		# v0.2.1: why it is over, a line for each part of afl_charter_over_trigger that holds
+		if = { limit = { afl_lender_enemy_trigger = yes } log = "afl: charter over: [This.GetBestName] ([This.GetID]) and the lender are at war" }
+		if = { limit = { event_target:afl_lender = { is_alive = no } } log = "afl: charter over: the lender died" }
+		if = { limit = { event_target:afl_lender = { is_alive = yes is_landed = no } } log = "afl: charter over: the lender holds no land" }
+		if = { limit = { NOT = { has_earmarked_regiments = afl_charter } } log = "afl: charter over: the fleet of [This.GetBestName] ([This.GetID]) is gone, sunk or disbanded" }
 		afl_end_charter_effect = yes
 	}
 	else = {
