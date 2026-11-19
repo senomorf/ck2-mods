@@ -54,6 +54,7 @@ character_event = {
 			limit = { war = no }
 			clr_character_flag = afl_ai_watch
 			clr_character_flag = afl_ai_served # one contract a war (step 3)
+			log = "afl: AI [Root.GetBestName] ([Root.GetID]) is at peace: its checks stop"
 		}
 		else = {
 			clear_event_target = afl_lender
@@ -61,6 +62,22 @@ character_event = {
 			if = {
 				limit = { afl_ai_borrower_trigger = yes }
 				afl_ai_check_effect = yes
+			}
+			# v0.2.1: why it skips the check (afl_ai_borrower_trigger)
+			else_if = {
+				limit = { afl_in_contract_trigger = yes }
+				log = "afl: AI [Root.GetBestName] ([Root.GetID]) skips its check: it lends, borrows, has a galley company, or waits for an answer"
+			}
+			else_if = {
+				limit = { has_character_flag = afl_ai_served }
+				log = "afl: AI [Root.GetBestName] ([Root.GetID]) skips its check: it had a contract in this war"
+			}
+			else_if = {
+				limit = { NOT = { afl_ai_may_ask_again_trigger = yes } }
+				log = "afl: AI [Root.GetBestName] ([Root.GetID]) skips its check: a lender refused it less than a year ago"
+			}
+			else = {
+				log = "afl: AI [Root.GetBestName] ([Root.GetID]) skips its check: it is no longer a landed, independent AI ruler above count"
 			}
 			character_event = { id = afl.71 days = 90 }
 		}
@@ -98,10 +115,12 @@ character_event = {
 				}
 				any_attacker = { afl_ai_watch_effect = yes }
 			}
+			log = "afl: crusade check: the attackers in the crusade of [Root.GetBestName] ([Root.GetID]) start their checks"
 			character_event = { id = afl.72 days = 30 }
 		}
 		else = {
 			clr_character_flag = afl_ai_crusade_sweep
+			log = "afl: crusade check over: [Root.GetBestName] ([Root.GetID]) attacks in no crusade"
 		}
 	}
 }

@@ -33,6 +33,7 @@ afl_ai_watch_effect = {
 		}
 		set_character_flag = afl_ai_watch
 		character_event = { id = afl.71 days = 7 }
+		log = "afl: AI [This.GetBestName] ([This.GetID]) is in a new war: its check starts in a week"
 	}
 }
 
@@ -118,6 +119,12 @@ afl_ai_check_effect = {
 				}
 			}
 		}
+		else = {
+			log = "afl: AI [Root.GetBestName] ([Root.GetID]) needs [This.afl_need.GetValue] galleys against [afl_front.GetBestName] ([afl_front.GetID]) and has [This.afl_own.GetValue] of its own: enough"
+		}
+	}
+	else = {
+		log = "afl: AI [Root.GetBestName] ([Root.GetID]) has no enemy overseas"
 	}
 }
 
